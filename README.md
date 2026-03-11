@@ -4,7 +4,7 @@ Discover, rank, and track web novel raws from Qidian (book.qq.com). Think of it 
 
 DaoSearch isn't a reading site — it's a discovery and curation platform. The data is scraped from Qidian, but the curation comes from you: your ratings, reviews, tags, and booklists shape what others discover.
 
-**Live at [daosearch.com](https://daosearch.com)** | **[Discord](https://discord.gg/Gmd3JXDuEU)** | **[API Docs](https://daosearch.com/api-docs)**
+**Live at [daosearch.io](https://daosearch.io)** | **[Discord](https://discord.gg/Gmd3JXDuEU)** | **[API Docs](https://daosearch.io/api-docs)**
 
 ---
 
@@ -27,7 +27,7 @@ DaoSearch isn't a reading site — it's a discovery and curation platform. The d
 - **Discord bot** — 9 slash commands for search, rankings, reviews, recommendations, and more
 - **ChatGPT** — custom GPT powered by the API
 
-Full API docs at [daosearch.com/api-docs](https://daosearch.com/api-docs).
+Full API docs at [daosearch.io/api-docs](https://daosearch.io/api-docs).
 
 ---
 
