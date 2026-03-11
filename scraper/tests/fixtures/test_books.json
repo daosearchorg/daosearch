@@ -1,0 +1,35 @@
+{
+  "test_books": [
+    {
+      "url": "https://book.qq.com/book-detail/55687712",
+      "description": "Medium book for refresh/stale testing and missing translations",
+      "expected_chapters": 144,
+      "test_scenarios": ["refresh_tasks", "stale_books", "scraping", "missing_translations"]
+    },
+    {
+      "url": "https://book.qq.com/book-detail/55769048",
+      "description": "Smaller book for quick testing and initial scraping",
+      "expected_chapters": 118,
+      "test_scenarios": ["new_book_flow", "initial_scraping", "missing_fields"]
+    }
+  ],
+  "test_scenarios": {
+    "missing_fields": {
+      "description": "Test detection and completion of missing fields",
+      "fields_to_remove": ["title_translated", "synopsis_translated", "author_translated"]
+    },
+    "missing_translations": {
+      "description": "Test detection and translation of missing translations",
+      "items_to_clear": ["book_translations", "chapter_translations"]
+    },
+    "refresh_tasks": {
+      "description": "Test refresh of stale books",
+      "stale_threshold_hours": 48,
+      "books_to_make_stale": 2
+    },
+    "performance": {
+      "description": "Test performance with larger datasets",
+      "metrics": ["scraping_time", "translation_batches", "queue_processing"]
+    }
+  }
+}

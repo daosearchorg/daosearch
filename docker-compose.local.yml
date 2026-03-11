@@ -1,0 +1,156 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    env_file:
+      - .env.local
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qidian -d qidian"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Python Scraper Workers
+  scraper-worker:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      - WORKER_NAME=scraper
+      - WORKER_CONCURRENCY=${SCRAPER_WORKER_CONCURRENCY:-10}
+      - REDIS_URL=redis://redis:6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  translation-worker:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      - WORKER_NAME=translation
+      - WORKER_CONCURRENCY=${TRANSLATION_WORKER_CONCURRENCY:-10}
+      - REDIS_URL=redis://redis:6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - GOOGLE_TRANSLATE_CONCURRENCY=${GOOGLE_TRANSLATE_CONCURRENCY:-20}
+      - GOOGLE_TRANSLATE_TIMEOUT=${GOOGLE_TRANSLATE_TIMEOUT:-15}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  maintenance-worker:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      - WORKER_NAME=maintenance
+      - WORKER_CONCURRENCY=${MAINTENANCE_WORKER_CONCURRENCY:-1}
+      - REDIS_URL=redis://redis:6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  general-worker:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      - WORKER_NAME=general
+      - WORKER_CONCURRENCY=1
+      - REDIS_URL=redis://redis:6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  auto-scheduler:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - manual
+    restart: "no"
+
+  discovery-crawler:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - WORKER_NAME=discovery
+      - DISCOVERY_MAX_PAGES=${DISCOVERY_MAX_PAGES:-10000000}
+      - DISCOVERY_DELAY=${DISCOVERY_DELAY:-0.5}
+      - DISCOVERY_CONCURRENT_REQUESTS=${DISCOVERY_CONCURRENT_REQUESTS:-50}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - manual
+    restart: "no"
+    mem_limit: 6g
+
+volumes:
+  postgres_data:
+  redis_data:
