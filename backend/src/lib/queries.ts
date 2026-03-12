@@ -1897,6 +1897,20 @@ function getPopularityCutoff(period: PopularityPeriod): string | null {
   return d.toISOString();
 }
 
+// Cached total count for default library landing (no filters) — avoids count(*) on every page load
+const getLibraryDefaultCount = unstable_cache(
+  async () => {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(books)
+      .leftJoin(genres, eq(books.genreId, genres.id))
+      .where(and(isNotNull(books.title), eq(genres.blacklisted, false)));
+    return Number((result as { count: number }[])[0]?.count ?? 0);
+  },
+  ["library-default-count"],
+  { revalidate: 900 },
+);
+
 export async function getLibraryBooks(params: LibraryParams) {
   const {
     name, author, exactMatch, genreId, subgenreId, bookIds,
@@ -2072,41 +2086,44 @@ export async function getLibraryBooks(params: LibraryParams) {
     .leftJoin(genres, eq(books.genreId, genres.id))
     .leftJoin(bookStats, eq(books.id, bookStats.bookId));
 
-  // Use fast estimated count when no user filters are applied (default landing)
+  // Use cached count for default landing (no user filters) — avoids expensive count(*) on 870k+ rows
   const hasFilters = !!(name || author || genreId || subgenreId || (bookIds && bookIds.length > 0) || minWords != null || maxWords != null || status || gender || updatedWithin || olderThan || (tagIds && tagIds.length > 0));
 
-  // Always use the real count with the blacklisted filter — pg_class estimate doesn't exclude blacklisted genres
-  const countQuery = db
-    .select({ count: sql<number>`count(*)` })
-    .from(books)
-    .leftJoin(genres, eq(books.genreId, genres.id))
-    .leftJoin(bookStats, eq(books.id, bookStats.bookId))
-    .where(whereClause);
+  const countQuery = hasFilters
+    ? db
+        .select({ count: sql<number>`count(*)` })
+        .from(books)
+        .leftJoin(genres, eq(books.genreId, genres.id))
+        .leftJoin(bookStats, eq(books.id, bookStats.bookId))
+        .where(whereClause)
+    : null;
 
   if (readerCounts) {
-    const [items, countResult] = await Promise.all([
+    const [items, total] = await Promise.all([
       baseQuery
         .leftJoin(readerCounts, eq(books.id, readerCounts.bookId))
         .where(whereClause)
         .orderBy(orderFn(sortColumn), desc(books.id))
         .limit(LIBRARY_PAGE_SIZE)
         .offset(offset),
-      countQuery,
+      countQuery
+        ? countQuery.then((r) => Number((r as { count: number }[])[0]?.count ?? 0))
+        : getLibraryDefaultCount(),
     ]);
-    const total = Number((countResult as { count: number }[])[0]?.count ?? 0);
     return { items, total, totalPages: Math.ceil(total / LIBRARY_PAGE_SIZE) };
   }
 
-  const [items, countResult] = await Promise.all([
+  const [items, total] = await Promise.all([
     baseQuery
       .where(whereClause)
       .orderBy(orderFn(sortColumn), desc(books.id))
       .limit(LIBRARY_PAGE_SIZE)
       .offset(offset),
-    countQuery,
+    countQuery
+      ? countQuery.then((r) => Number((r as { count: number }[])[0]?.count ?? 0))
+      : getLibraryDefaultCount(),
   ]);
 
-  const total = Number((countResult as { count: number }[])[0]?.count ?? 0);
   return { items, total, totalPages: Math.ceil(total / LIBRARY_PAGE_SIZE) };
 }
 

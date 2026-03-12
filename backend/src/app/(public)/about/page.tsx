@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Mail } from "lucide-react";
+import { Github, Mail } from "lucide-react";
 import { DiscordIcon } from "@/components/icons/provider-icons";
 
 export const metadata: Metadata = {
@@ -53,15 +53,16 @@ export default function AboutPage() {
       <section className="flex flex-col gap-4">
         <h2 className="text-base sm:text-lg font-medium">Open platform</h2>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          DaoSearch provides a public API and an MCP server for AI agents — both fully documented
-          and free to use. A Discord bot is also available to bring search, rankings, and book info
-          directly into your server. We&apos;re actively working on open-sourcing the entire project.
+          DaoSearch is fully open-source. We provide a public API and an MCP server for AI agents — both
+          fully documented and free to use. A Discord bot is also available to bring search, rankings,
+          and book info directly into your server.
         </p>
         <ul className="list-disc pl-5 text-sm sm:text-base text-muted-foreground space-y-1">
           <li><a href="/api-docs" className="underline underline-offset-2 hover:text-foreground">Public API</a> — read-only REST API with search, rankings, booklists, and more</li>
           <li><a href="/api-docs#mcp-server" className="underline underline-offset-2 hover:text-foreground">MCP Server</a> — Model Context Protocol server for Claude and other AI agents</li>
           <li><a href="https://chatgpt.com/g/g-69b1c31a6d00819196df8e07dc4591a9-daosearch" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">ChatGPT</a> — custom GPT powered by our API</li>
           <li><a href="/discord" className="underline underline-offset-2 hover:text-foreground">Discord Bot</a> — slash commands for search, rankings, reviews, and recommendations</li>
+          <li><a href="https://github.com/daosearchorg/daosearch" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">GitHub</a> — full source code, contributions welcome</li>
         </ul>
       </section>
 
@@ -80,6 +81,15 @@ export default function AboutPage() {
           >
             <DiscordIcon className="size-4" />
             Join our Discord
+          </a>
+          <a
+            href="https://github.com/daosearchorg/daosearch"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm sm:text-base text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Github className="size-4" />
+            GitHub
           </a>
           <a
             href="mailto:daosearch@gmail.com"

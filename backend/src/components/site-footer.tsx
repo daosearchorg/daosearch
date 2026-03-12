@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mail, Rss } from "lucide-react";
+import { Github, Mail, Rss } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DiscordIcon } from "@/components/icons/provider-icons";
 
@@ -54,6 +54,15 @@ export function SiteFooter() {
           )}
         </nav>
         <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/daosearchorg/daosearch"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="GitHub"
+          >
+            <Github className="size-4" />
+          </a>
           <a
             href="https://discord.gg/Gmd3JXDuEU"
             target="_blank"

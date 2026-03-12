@@ -231,18 +231,18 @@ function CompactFeedItem({ item }: { item: DaoSearchFeedItem }) {
           <Image
             src={item.bookImageUrl}
             alt={displayTitle}
-            width={36}
-            height={48}
-            className="rounded-md object-cover w-8 h-[42px] sm:w-9 sm:h-12"
+            width={40}
+            height={53}
+            className="rounded-md object-cover w-10 h-[53px] sm:w-11 sm:h-[58px]"
           />
         ) : (
-          <div className="w-8 h-[42px] sm:w-9 sm:h-12 rounded-md bg-muted flex items-center justify-center text-[8px] text-muted-foreground">
+          <div className="w-10 h-[53px] sm:w-11 sm:h-[58px] rounded-md bg-muted flex items-center justify-center text-[8px] text-muted-foreground">
             {isListActivity ? <ListChecks className="size-4 text-muted-foreground" /> : "No img"}
           </div>
         )}
       </Link>
       <div className="min-w-0 flex-1">
-        <Link href={href} className="text-sm font-medium line-clamp-1 hover:underline underline-offset-2">
+        <Link href={href} className="text-sm sm:text-base font-medium line-clamp-1 hover:underline underline-offset-2">
           {displayTitle}
         </Link>
         <div className="flex items-center gap-1.5 mt-1">
@@ -252,7 +252,7 @@ function CompactFeedItem({ item }: { item: DaoSearchFeedItem }) {
             className="size-4 shrink-0"
             fallbackClassName="text-[8px]"
           />
-          <span className="text-xs text-muted-foreground truncate">{item.username}</span>
+          <span className="text-xs sm:text-sm text-muted-foreground truncate">{item.username}</span>
           <FeedActivityIcon type={item.activityType} ratingValue={item.ratingValue} />
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {feedActivityLabel(item.activityType, item.ratingValue)}
@@ -361,7 +361,9 @@ export default async function Home() {
             <span><span className="hidden sm:inline">Join our </span>Discord</span>
           </a>
           <a
-            href="#"
+            href="https://github.com/daosearchorg/daosearch"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-medium transition-colors hover:bg-accent"
           >
             <Github className="size-4" />
@@ -483,8 +485,8 @@ export default async function Home() {
                     <Icon className="size-4 sm:size-5 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium">{step.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">{step.description}</p>
+                    <h3 className="text-sm sm:text-base font-medium">{step.title}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">{step.description}</p>
                   </div>
                 </Card>
               );
@@ -566,7 +568,7 @@ export default async function Home() {
                 >
                   <Card className="p-3.5 sm:p-5 h-full flex flex-col gap-2.5 sm:gap-3 transition-colors group-hover:bg-accent/50">
                     <h3 className="text-sm sm:text-base font-medium line-clamp-2 leading-tight">{title}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                       {description}
                     </p>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -639,31 +641,31 @@ export default async function Home() {
                       <Image
                         src={item.imageUrl}
                         alt={displayTitle}
-                        width={32}
-                        height={42}
-                        className="rounded-md object-cover w-8 h-[42px]"
+                        width={40}
+                        height={53}
+                        className="rounded-md object-cover w-10 h-[53px] sm:w-11 sm:h-[58px]"
                       />
                     ) : (
-                      <div className="w-8 h-[42px] rounded-md bg-muted" />
+                      <div className="w-10 h-[53px] sm:w-11 sm:h-[58px] rounded-md bg-muted" />
                     )}
                     <span className={`absolute -top-1.5 -left-1.5 flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium shadow-sm ring-1.5 ring-background ${badgeColor}`}>
                       {item.position}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium line-clamp-1 group-hover:underline underline-offset-2">{displayTitle}</p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{displayAuthor}</p>
+                    <p className="text-sm sm:text-base font-medium line-clamp-1 group-hover:underline underline-offset-2">{displayTitle}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">{displayAuthor}</p>
                   </div>
-                  <div className="flex items-center gap-2.5 shrink-0 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2.5 shrink-0 text-xs sm:text-sm text-muted-foreground">
                     {(item.wordCount ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5 hidden sm:inline-flex">
-                        <ScrollText className="size-3" />
+                        <ScrollText className="size-3 sm:size-3.5" />
                         <span className="tabular-nums">{formatWordCount(item.wordCount!)}</span>
                       </span>
                     )}
                     {item.qqScore && parseFloat(item.qqScore) > 0 && (
                       <span className="inline-flex items-center gap-0.5">
-                        <Star className="size-3" />
+                        <Star className="size-3 sm:size-3.5" />
                         <span className={`tabular-nums ${qqScoreColor(item.qqScore)}`}>{item.qqScore}</span>
                       </span>
                     )}
@@ -795,7 +797,7 @@ export default async function Home() {
                           {comment.titleTranslated}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line leading-relaxed">
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 whitespace-pre-line leading-relaxed">
                         {body}
                       </p>
                       {commentImages.length > 0 && (
@@ -839,8 +841,8 @@ export default async function Home() {
                       <Icon className="size-4 sm:size-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium">{feature.title}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                      <h3 className="text-sm sm:text-base font-medium">{feature.title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
                         {feature.description}
                       </p>
                     </div>
