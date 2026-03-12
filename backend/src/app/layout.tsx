@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     images: [{ url: "https://bucket.daosearch.io/logo.webp", width: 1024, height: 1536 }],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
   },
   robots: {
     index: true,
