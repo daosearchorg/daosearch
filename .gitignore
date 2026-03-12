@@ -121,3 +121,6 @@ CLAUDE.md
 
 # Scratch/test scripts
 scraper/test_nuxt.py
+
+# Draft work (announcements, notes, etc.)
+draftwork/

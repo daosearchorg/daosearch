@@ -528,10 +528,10 @@ export default async function Home() {
                       {item.position}
                     </span>
                   </div>
-                  <div className="mt-3 px-0.5">
+                  <div className="mt-3 px-0.5 flex flex-col items-center text-center">
                     <p className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug h-[2rem] sm:h-[2.625rem]">{displayTitle}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate hidden sm:block sm:h-4">{displayAuthor}</p>
-                    <div className="flex items-center gap-2 mt-0.5 sm:mt-1 h-4 text-[11px] sm:text-xs text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block sm:h-4">{displayAuthor}</p>
+                    <div className="flex items-center justify-center gap-2 mt-0.5 sm:mt-1 h-4 text-[11px] sm:text-xs text-muted-foreground">
                       {item.qqScore && parseFloat(item.qqScore) > 0 && (
                         <span className="inline-flex items-center gap-0.5">
                           <Star className="size-2.5 sm:size-3" />
@@ -723,9 +723,9 @@ export default async function Home() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-2 px-0.5">
+                  <div className="mt-2 px-0.5 flex flex-col items-center text-center">
                     <p className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug h-[2rem] sm:h-[2.625rem]">{displayTitle}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate hidden sm:block sm:h-4">{displayAuthor}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block sm:h-4">{displayAuthor}</p>
                     {item.updateTime && (
                       <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-0.5">{timeAgo(item.updateTime)}</p>
                     )}
