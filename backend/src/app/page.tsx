@@ -364,7 +364,7 @@ export default async function Home() {
             href="https://github.com/daosearchorg/daosearch"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-medium transition-colors hover:bg-accent"
+            className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
           >
             <Github className="size-4" />
             <span><span className="hidden sm:inline">Star on </span>GitHub</span>
