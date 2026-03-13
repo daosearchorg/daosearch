@@ -445,8 +445,10 @@ class GoogleTranslateClient:
 
     # --- Chapters ---
 
-    def translate_chapters_batch(self, chapters: List[Dict], batch_size: int = None) -> List[str]:
-        """Translate chapter titles via joined batching (20 per request). Returns list of translated strings."""
+    def translate_chapters_batch(self, chapters: List[Dict], batch_size: int = None, strict: bool = True) -> List[str]:
+        """Translate chapter titles via joined batching (20 per request). Returns list of translated strings.
+        Set strict=False to skip Chinese validation and retries (useful for nicknames).
+        """
         batch_size = batch_size or config.translation_batch_size
         titles = [ch['title'] for ch in chapters]
         translated = self._translate_batch_joined(titles, batch_size=20)
@@ -455,7 +457,7 @@ class GoogleTranslateClient:
         for i, t in enumerate(translated):
             t = _clean_text(t)
             t = _title_case(t)
-            if self.has_chinese_characters(t):
+            if strict and self.has_chinese_characters(t):
                 logger.warning(f"Chapter translation contains Chinese: {t}")
                 # Retry individually
                 try:

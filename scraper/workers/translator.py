@@ -702,7 +702,8 @@ def translate_nicknames(book_id: int, min_id: int, max_id: int) -> dict:
             nickname_data = [{'title': u.nickname, 'id': u.id} for u in users]
 
         # Single API call using chapter translator (nicknames are short strings)
-        translated = worker.client.translate_chapters_batch(nickname_data, batch_size=config.translation_batch_size)
+        # strict=False: nicknames often contain decorative Chinese chars that can't be translated
+        translated = worker.client.translate_chapters_batch(nickname_data, batch_size=config.translation_batch_size, strict=False)
 
         # Save with direct UPDATE (no SELECT needed)
         saved_count = 0
