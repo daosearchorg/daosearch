@@ -2725,7 +2725,7 @@ async function getRecentlyUpdatedBooksForHomepage() {
       ),
     )
     .orderBy(desc(books.updateTime))
-    .limit(10);
+    .limit(14);
   return items;
 }
 
@@ -2771,7 +2771,7 @@ const getHomepageRankingsFemale = unstable_cache(
   { revalidate: 900 },
 );
 const getHomepageTopRated = unstable_cache(
-  async () => (await getRankings({ gender: "male", rankType: "popular", cycle: "cycle-4", page: 1 })).items.slice(0, 10),
+  async () => (await getRankings({ gender: "male", rankType: "popular", cycle: "cycle-4", page: 1 })).items.slice(0, 14),
   ["homepage-top-rated"],
   { revalidate: 900 },
 );

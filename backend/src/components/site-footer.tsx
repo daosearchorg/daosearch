@@ -25,8 +25,8 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto pt-12">
       <Separator />
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-8 flex flex-col items-center sm:flex-row sm:items-center sm:justify-between gap-3">
-        <nav className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-6 sm:py-8 flex flex-col gap-5 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+        <nav className="grid grid-cols-3 gap-x-6 gap-y-2.5 sm:flex sm:flex-wrap sm:gap-x-4 sm:gap-y-1.5">
           {LINKS.map(({ href, label, external }) =>
             external ? (
               <a
@@ -34,7 +34,7 @@ export function SiteFooter() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="text-[13px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 {label}
               </a>
@@ -42,7 +42,7 @@ export function SiteFooter() {
               <Link
                 key={href}
                 href={href}
-                className={`text-xs transition-colors ${
+                className={`text-[13px] sm:text-xs transition-colors ${
                   pathname === href
                     ? "text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground"
@@ -53,7 +53,7 @@ export function SiteFooter() {
             )
           )}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4 sm:gap-3">
           <a
             href="https://github.com/daosearchorg/daosearch"
             target="_blank"
@@ -72,7 +72,7 @@ export function SiteFooter() {
           >
             <DiscordIcon className="size-4" />
           </a>
-<a
+          <a
             href="mailto:daosearch@gmail.com"
             className="text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Email"
@@ -88,9 +88,9 @@ export function SiteFooter() {
           >
             <Rss className="size-4" />
           </a>
-          <p className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground/60 ml-1">
             &copy; {new Date().getFullYear()} DaoSearch
-          </p>
+          </span>
         </div>
       </div>
     </footer>

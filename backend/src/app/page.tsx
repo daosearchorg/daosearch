@@ -39,6 +39,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DragScroll } from "@/components/drag-scroll";
 import { HeroSearch } from "@/components/hero-search";
+import { AnimatedCounter } from "@/components/animated-counter";
 import type { DaoSearchFeedItem } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -85,14 +86,14 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Icon className="size-4 sm:size-5 text-muted-foreground" />
-        <h2 className="text-lg sm:text-xl font-medium tracking-tight">{title}</h2>
+      <div className="flex items-center gap-2.5">
+        <Icon className="size-[18px] sm:size-5 text-muted-foreground/80" />
+        <h2 className="text-[17px] sm:text-xl font-medium tracking-tight">{title}</h2>
         {badge && <Badge variant="secondary" className={badgeClassName || "text-[10px] font-medium"}>{badge}</Badge>}
       </div>
       <Link
         href={href}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
       >
         View all
         <ArrowUpRight className="size-3.5" />
@@ -133,7 +134,7 @@ function RankingCard({ item }: { item: RankItem }) {
   return (
     <Link
       href={bookUrl(item.bookId, item.titleTranslated || item.title)}
-      className="block shrink-0 w-[130px] sm:w-[150px] group"
+      className="block shrink-0 w-[140px] sm:w-[155px] group"
       draggable={false}
     >
       <div className="relative">
@@ -141,9 +142,9 @@ function RankingCard({ item }: { item: RankItem }) {
           <Image
             src={item.imageUrl}
             alt={displayTitle}
-            width={150}
-            height={200}
-            className="rounded-xl object-cover w-full aspect-[3/4] transition-opacity group-hover:opacity-80 shadow-sm pointer-events-none"
+            width={155}
+            height={207}
+            className="rounded-xl object-cover w-full aspect-[3/4] transition-all duration-200 group-hover:opacity-85 group-hover:shadow-md shadow-sm pointer-events-none"
             draggable={false}
           />
         ) : (
@@ -159,8 +160,8 @@ function RankingCard({ item }: { item: RankItem }) {
       </div>
       <div className="mt-4 px-0.5 flex flex-col items-center text-center">
         <p className="text-sm font-medium line-clamp-2 leading-snug h-[2.625rem]">{displayTitle}</p>
-        <p className="text-xs text-muted-foreground mt-1 truncate max-w-full h-4">{displayAuthor}</p>
-        <div className="flex items-center justify-center gap-2 mt-1.5 h-4 text-xs text-muted-foreground">
+        <p className="text-[11px] text-muted-foreground mt-1 truncate max-w-full h-4">{displayAuthor}</p>
+        <div className="flex items-center justify-center gap-2 mt-1.5 h-4 text-[11px] text-muted-foreground">
           {(item.wordCount ?? 0) > 0 && (
             <span className="inline-flex items-center gap-0.5">
               <ScrollText className="size-3 shrink-0" />
@@ -344,11 +345,13 @@ export default async function Home() {
       {/* ================================================================= */}
       {/* Hero — title, subtitle, search, CTAs                              */}
       {/* ================================================================= */}
-      <section className="flex flex-col items-center justify-center gap-4 sm:gap-5 px-5 pt-8 pb-8 sm:pt-12 sm:pb-14 text-center">
-        <h1 className="text-3xl sm:text-5xl font-medium tracking-tight">DaoSearch</h1>
-        <p className="text-base sm:text-xl text-muted-foreground max-w-xl leading-relaxed">
-          Opensource Jade Slip for Raws
-        </p>
+      <section className="flex flex-col items-center justify-center gap-4 sm:gap-6 px-5 pt-10 pb-8 sm:pt-16 sm:pb-14 text-center">
+        <div className="flex flex-col items-center gap-2 sm:gap-3">
+          <h1 className="text-3xl sm:text-5xl font-medium tracking-tight">DaoSearch</h1>
+          <p className="text-[15px] sm:text-lg text-muted-foreground max-w-md leading-relaxed">
+            Opensource Jade Slip for Raws
+          </p>
+        </div>
         <HeroSearch />
         <div className="flex items-center justify-center gap-2.5 sm:gap-3">
           <a
@@ -375,16 +378,19 @@ export default async function Home() {
       {/* ================================================================= */}
       {/* Stats Bar                                                         */}
       {/* ================================================================= */}
-      <section className="mx-auto w-full max-w-4xl px-5 sm:px-6 pb-8 sm:pb-14">
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 sm:gap-6">
-          {statItems.map((stat) => (
-            <div key={stat.label} className="flex flex-col items-center gap-0.5 sm:gap-1">
-              <span className="text-xl sm:text-3xl font-medium tabular-nums tracking-tight">
-                {formatNumber(stat.value)}
-              </span>
-              <span className="text-[11px] sm:text-sm text-muted-foreground">{stat.label}</span>
-            </div>
-          ))}
+      <section className="mx-auto w-full max-w-4xl px-5 sm:px-6 pb-10 sm:pb-16">
+        <div className="rounded-2xl border bg-card/50 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 sm:gap-6">
+            {statItems.map((stat) => (
+              <div key={stat.label} className="flex flex-col items-center gap-0.5 sm:gap-1">
+                <AnimatedCounter
+                  value={stat.value}
+                  className="text-xl sm:text-3xl font-medium tabular-nums tracking-tight"
+                />
+                <span className="text-[11px] sm:text-xs text-muted-foreground">{stat.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -392,13 +398,13 @@ export default async function Home() {
       {/* Genre Quick Browse                                                */}
       {/* ================================================================= */}
       {data.genres.length > 0 && (
-        <section className="mx-auto w-full max-w-6xl sm:px-6 pb-10 sm:pb-14">
+        <section className="mx-auto w-full max-w-5xl sm:px-6 pb-10 sm:pb-14">
           <div className="flex sm:flex-wrap sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto px-5 sm:px-0 pb-1 sm:pb-0 sm:overflow-visible">
             {data.genres.map((genre) => (
               <Link
                 key={genre.id}
                 href={`/library?genre=${genre.id}&page=1`}
-                className="inline-flex items-center shrink-0 rounded-full bg-secondary px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                className="inline-flex items-center shrink-0 rounded-full bg-secondary px-3 py-1.5 sm:px-3.5 sm:py-1.5 text-xs sm:text-[13px] text-secondary-foreground hover:bg-secondary/70 transition-colors"
               >
                 {genre.nameTranslated ?? genre.name}
               </Link>
@@ -410,7 +416,7 @@ export default async function Home() {
       {/* ================================================================= */}
       {/* Content sections                                                  */}
       {/* ================================================================= */}
-      <div className="flex flex-col gap-12 sm:gap-16 pb-10 sm:pb-16">
+      <div className="flex flex-col gap-14 sm:gap-18 pb-12 sm:pb-20">
 
         {/* ── ACT 1: What's hot ─────────────────────────────────────────── */}
 
@@ -480,13 +486,13 @@ export default async function Home() {
             {HOW_IT_WORKS.map((step) => {
               const Icon = step.icon;
               return (
-                <Card key={step.title} className="p-3 sm:p-5 flex sm:flex-col items-start gap-3 sm:gap-3">
+                <Card key={step.title} className="p-3.5 sm:p-5 flex sm:flex-col items-start gap-3 sm:gap-3">
                   <div className="rounded-lg border p-2 sm:p-2.5 shrink-0">
                     <Icon className="size-4 sm:size-5 text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="text-sm sm:text-base font-medium">{step.title}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed">{step.description}</p>
+                    <p className="text-xs sm:text-[13px] text-muted-foreground mt-0.5 sm:mt-1.5 leading-relaxed">{step.description}</p>
                   </div>
                 </Card>
               );
@@ -499,7 +505,7 @@ export default async function Home() {
         {/* Top Rated — cover grid */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
           <SectionHeader title="Top Rated on Qidian" href="/qidian/rankings?cycle=cycle-4&page=1" icon={Flame} />
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 sm:gap-4">
             {data.topRated.map((item, idx) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";
               const displayAuthor = item.authorTranslated || item.author || "Unknown";
@@ -508,33 +514,33 @@ export default async function Home() {
                 <Link
                   key={item.bookId}
                   href={bookUrl(item.bookId, item.titleTranslated || item.title)}
-                  className={`group${idx >= 8 ? " hidden sm:block" : ""}`}
+                  className={`group${idx >= 6 ? " hidden sm:block" : ""}`}
                 >
                   <div className="relative">
                     {item.imageUrl ? (
                       <Image
                         src={item.imageUrl}
                         alt={displayTitle}
-                        width={120}
-                        height={160}
-                        className="rounded-lg object-cover w-full aspect-[3/4] transition-opacity group-hover:opacity-80 shadow-sm"
+                        width={160}
+                        height={213}
+                        className="rounded-xl object-cover w-full aspect-[3/4] transition-all duration-200 group-hover:opacity-85 group-hover:shadow-md shadow-sm"
                       />
                     ) : (
-                      <div className="flex items-center justify-center rounded-lg bg-muted w-full aspect-[3/4] text-xs text-muted-foreground">
+                      <div className="flex items-center justify-center rounded-xl bg-muted w-full aspect-[3/4] text-xs text-muted-foreground">
                         No image
                       </div>
                     )}
-                    <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center justify-center w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full text-[10px] sm:text-[11px] font-medium shadow-md ring-2 ring-background ${badgeColor}`}>
+                    <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full text-[10px] sm:text-[11px] font-medium shadow-md ring-2 ring-background ${badgeColor}`}>
                       {item.position}
                     </span>
                   </div>
-                  <div className="mt-3 px-0.5 flex flex-col items-center text-center">
-                    <p className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug h-[2rem] sm:h-[2.625rem]">{displayTitle}</p>
+                  <div className="mt-3.5 px-0.5 flex flex-col items-center text-center">
+                    <p className="text-[13px] sm:text-sm font-medium line-clamp-2 leading-snug h-[2.25rem] sm:h-[2.625rem]">{displayTitle}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block sm:h-4">{displayAuthor}</p>
-                    <div className="flex items-center justify-center gap-2 mt-0.5 sm:mt-1 h-4 text-[11px] sm:text-xs text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2 mt-1 h-4 text-[11px] text-muted-foreground">
                       {item.qqScore && parseFloat(item.qqScore) > 0 && (
                         <span className="inline-flex items-center gap-0.5">
-                          <Star className="size-2.5 sm:size-3" />
+                          <Star className="size-3" />
                           <span className={`tabular-nums ${qqScoreColor(item.qqScore)}`}>{item.qqScore}</span>
                         </span>
                       )}
@@ -566,12 +572,12 @@ export default async function Home() {
                   href={booklistUrl(item.id, item.titleTranslated || item.title)}
                   className="group"
                 >
-                  <Card className="p-3.5 sm:p-5 h-full flex flex-col gap-2.5 sm:gap-3 transition-colors group-hover:bg-accent/50">
+                  <Card className="p-4 sm:p-5 h-full flex flex-col gap-2.5 sm:gap-3 transition-colors group-hover:bg-accent/40">
                     <h3 className="text-sm sm:text-base font-medium line-clamp-2 leading-tight">{title}</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                       {description}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 text-[11px] sm:text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <Users className="size-3 shrink-0" />
                         <span className="tabular-nums">{formatNumber(item.followerCount ?? 0)}</span>
@@ -587,7 +593,7 @@ export default async function Home() {
                       )}
                     </div>
                     {item.previews && item.previews.length > 0 && (
-                      <div className="grid grid-cols-4 gap-2 mt-auto">
+                      <div className="grid grid-cols-4 gap-2.5 mt-auto">
                         {item.previews.slice(0, 4).map((preview) => {
                           const previewTitle = preview.titleTranslated || preview.title || "Untitled";
                           return (
@@ -597,8 +603,8 @@ export default async function Home() {
                                   <Image
                                     src={preview.imageUrl}
                                     alt={previewTitle}
-                                    width={100}
-                                    height={133}
+                                    width={120}
+                                    height={160}
                                     className="aspect-[3/4] w-full object-cover"
                                   />
                                 ) : (
@@ -625,7 +631,7 @@ export default async function Home() {
         {/* Community Rankings — compact numbered list */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
           <SectionHeader title="Community Rankings" href="/daosearch/rankings" icon={TrendingUp} badge="Weekly" />
-          <div className="divide-y divide-border/40">
+          <div>
             {data.communityRankings.map((item) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";
               const displayAuthor = item.authorTranslated || item.author || "Unknown";
@@ -634,7 +640,7 @@ export default async function Home() {
                 <Link
                   key={item.bookId}
                   href={bookUrl(item.bookId, item.titleTranslated || item.title)}
-                  className="flex items-center gap-3 py-2.5 sm:py-3 group"
+                  className="flex items-center gap-3 py-2.5 sm:py-3 group transition-colors hover:bg-accent/40 rounded-lg px-1"
                 >
                   <div className="relative shrink-0">
                     {item.imageUrl ? (
@@ -643,20 +649,20 @@ export default async function Home() {
                         alt={displayTitle}
                         width={40}
                         height={53}
-                        className="rounded-md object-cover w-10 h-[53px] sm:w-11 sm:h-[58px]"
+                        className="rounded-lg object-cover w-10 h-[53px] sm:w-11 sm:h-[58px]"
                       />
                     ) : (
-                      <div className="w-10 h-[53px] sm:w-11 sm:h-[58px] rounded-md bg-muted" />
+                      <div className="w-10 h-[53px] sm:w-11 sm:h-[58px] rounded-lg bg-muted" />
                     )}
                     <span className={`absolute -top-1.5 -left-1.5 flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium shadow-sm ring-1.5 ring-background ${badgeColor}`}>
                       {item.position}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm sm:text-base font-medium line-clamp-1 group-hover:underline underline-offset-2">{displayTitle}</p>
+                    <p className="text-sm sm:text-[15px] font-medium line-clamp-1 group-hover:underline underline-offset-2">{displayTitle}</p>
                     <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">{displayAuthor}</p>
                   </div>
-                  <div className="flex items-center gap-2.5 shrink-0 text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2.5 shrink-0 text-[11px] sm:text-sm text-muted-foreground">
                     {(item.wordCount ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5 hidden sm:inline-flex">
                         <ScrollText className="size-3 sm:size-3.5" />
@@ -682,7 +688,7 @@ export default async function Home() {
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
           <SectionHeader title="Latest Activity" href="/daosearch/feed" icon={Rss} />
           {data.feed.length > 0 ? (
-            <div className="divide-y divide-border/40">
+            <div>
               {data.feed.map((item, i) => (
                 <CompactFeedItem
                   key={`${item.activityType}-${item.bookId}-${item.listId}-${item.username}-${i}`}
@@ -698,7 +704,7 @@ export default async function Home() {
         {/* Recently Updated — cover grid */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
           <SectionHeader title="Recently Updated" href="/library?sort=updated&page=1" icon={Clock} />
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 sm:gap-4">
             {data.recentlyUpdated.map((item, idx) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";
               const displayAuthor = item.authorTranslated || item.author || "Unknown";
@@ -706,16 +712,16 @@ export default async function Home() {
                 <Link
                   key={item.bookId}
                   href={bookUrl(item.bookId, item.titleTranslated || item.title)}
-                  className={`group${idx >= 8 ? " hidden sm:block" : ""}`}
+                  className={`group${idx >= 6 ? " hidden sm:block" : ""}`}
                 >
                   <div className="relative">
                     {item.imageUrl ? (
                       <Image
                         src={item.imageUrl}
                         alt={displayTitle}
-                        width={120}
-                        height={160}
-                        className="rounded-lg object-cover w-full aspect-[3/4] transition-opacity group-hover:opacity-80 shadow-sm"
+                        width={160}
+                        height={213}
+                        className="rounded-xl object-cover w-full aspect-[3/4] transition-all duration-200 group-hover:opacity-85 group-hover:shadow-md shadow-sm"
                       />
                     ) : (
                       <div className="flex items-center justify-center rounded-xl bg-muted w-full aspect-[3/4] text-xs text-muted-foreground">
@@ -723,8 +729,8 @@ export default async function Home() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-2 px-0.5 flex flex-col items-center text-center">
-                    <p className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug h-[2rem] sm:h-[2.625rem]">{displayTitle}</p>
+                  <div className="mt-2.5 px-0.5 flex flex-col items-center text-center">
+                    <p className="text-[13px] sm:text-sm font-medium line-clamp-2 leading-snug h-[2.25rem] sm:h-[2.625rem]">{displayTitle}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block sm:h-4">{displayAuthor}</p>
                     {item.updateTime && (
                       <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-0.5">{timeAgo(item.updateTime)}</p>
@@ -836,13 +842,13 @@ export default async function Home() {
                 : {};
               return (
                 <Link key={feature.title} href={feature.href} {...linkProps}>
-                  <Card className="p-3 sm:p-5 h-full flex flex-col gap-2 sm:gap-3 transition-colors hover:bg-accent/50">
+                  <Card className="p-3.5 sm:p-5 h-full flex flex-col gap-2.5 sm:gap-3 transition-colors hover:bg-accent/40">
                     <div className="rounded-lg border p-2 sm:p-2.5 w-fit">
                       <Icon className="size-4 sm:size-5 text-muted-foreground" />
                     </div>
                     <div>
                       <h3 className="text-sm sm:text-base font-medium">{feature.title}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                      <p className="text-xs sm:text-[13px] text-muted-foreground mt-0.5 sm:mt-1.5 leading-relaxed line-clamp-2 sm:line-clamp-none">
                         {feature.description}
                       </p>
                     </div>

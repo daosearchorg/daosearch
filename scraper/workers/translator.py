@@ -680,13 +680,14 @@ def translate_nicknames(book_id: int, min_id: int, max_id: int) -> dict:
 
     try:
         with db_manager.get_session() as session:
-            users = session.query(QQUser).filter(
+            users = session.query(QQUser).join(BookComment).filter(
+                BookComment.book_id == book_id,
                 QQUser.id >= min_id,
                 QQUser.id <= max_id,
                 QQUser.nickname.is_not(None),
                 QQUser.nickname != '',
                 QQUser.nickname_translated.is_(None)
-            ).order_by(QQUser.id).all()
+            ).distinct().order_by(QQUser.id).all()
 
             if not users:
                 return {
@@ -710,10 +711,11 @@ def translate_nicknames(book_id: int, min_id: int, max_id: int) -> dict:
         with db_manager.get_session() as session:
             for user_data, translated_name in zip(nickname_data, translated):
                 if translated_name:
+                    processed = postprocess_translation(translated_name)[:255]
                     session.execute(
                         update(QQUser)
                         .where(QQUser.id == user_data['id'])
-                        .values(nickname_translated=postprocess_translation(translated_name))
+                        .values(nickname_translated=processed)
                     )
                     saved_count += 1
             session.commit()
