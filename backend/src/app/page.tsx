@@ -807,13 +807,13 @@ export default async function Home() {
                         {body}
                       </p>
                       {commentImages.length > 0 && (
-                        <div className="hidden sm:flex gap-2 mt-0.5">
+                        <div className="hidden sm:grid grid-cols-3 gap-2 mt-0.5 overflow-hidden">
                           {commentImages.map((url, i) => (
                             <img
                               key={i}
                               src={url}
                               alt=""
-                              className="rounded-lg h-24 w-auto max-w-[120px] object-cover border"
+                              className="rounded-lg w-full aspect-square object-cover border"
                               loading="lazy"
                             />
                           ))}
