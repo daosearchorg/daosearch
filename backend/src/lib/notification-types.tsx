@@ -56,8 +56,8 @@ export const NOTIFICATION_TYPES: Record<
   },
   qidian_booklist_updated: {
     icon: "Plus",
-    label: "Qidian Booklist Updates",
-    description: "When a Qidian booklist you follow gets new books",
+    label: "Official Booklist Updates",
+    description: "When an official booklist you follow gets new books",
     getMessage: (m) => <>{m.itemCount as number} new book{(m.itemCount as number) > 1 ? "s" : ""} added to &ldquo;{m.booklistName as string}&rdquo;</>,
     getUrl: (m) => booklistUrl(m.booklistId as number, m.booklistName as string),
   },

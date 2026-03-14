@@ -189,7 +189,7 @@ export function CompareView({ bookA, bookB, statsA, statsB, tagsA, tagsB, overla
         <StatRow label="Words" icon={ScrollText} valA={bookA.wordCount} valB={bookB.wordCount} />
         <StatRow label="Chapters" icon={BookOpen} valA={statsA?.chapterCount} valB={statsB?.chapterCount} />
 
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 mt-6">Qidian</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 mt-6">Official</p>
         <StatRow label="QQ Score" icon={Star} valA={qqScoreA} valB={qqScoreB} fmtFn={(n) => n != null ? n.toFixed(1) : "—"} />
         <StatRow label="Favorites" icon={Heart} valA={bookA.qqFavoriteCount} valB={bookB.qqFavoriteCount} />
         <StatRow label="Fans" icon={Users} valA={bookA.qqFanCount} valB={bookB.qqFanCount} />

@@ -441,7 +441,7 @@ export default async function BookDetailPage({ params }: Props) {
                 {qidianItems.length > 0 && (
                   <>
                     <div className="border-t border-border/40 px-3 pt-2 pb-0.5">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Qidian</span>
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Official</span>
                     </div>
                     <div className="grid" style={{ gridTemplateColumns: `repeat(${qidianItems.length}, minmax(0, 1fr))` }}>
                       {qidianItems.map((s, i) => (

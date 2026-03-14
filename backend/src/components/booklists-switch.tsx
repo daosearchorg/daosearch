@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/qidian/booklists", label: "Qidian" },
+  { href: "/qidian/booklists", label: "Official" },
   { href: "/daosearch/booklists", label: "Community" },
 ] as const;
 

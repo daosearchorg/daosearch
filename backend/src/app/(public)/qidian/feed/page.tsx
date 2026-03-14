@@ -8,8 +8,8 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Qidian Feed",
-  description: "Latest comments from Qidian readers on web novels — browse what the community is saying.",
+  title: "Official Feed",
+  description: "Latest comments from readers on web novels — browse what the community is saying.",
 };
 
 interface Props {

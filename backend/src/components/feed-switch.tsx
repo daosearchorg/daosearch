@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/daosearch/feed", label: "Community" },
-  { href: "/qidian/feed", label: "Qidian" },
+  { href: "/qidian/feed", label: "Official" },
 ] as const;
 
 export function FeedSwitch() {

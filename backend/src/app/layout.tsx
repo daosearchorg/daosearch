@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     default: "DaoSearch",
     template: "%s | DaoSearch",
   },
-  description: "Opensource Jade Slip for Raws — discover, rank, and track web novels from Qidian. Browse rankings, booklists, translated comments, and community reviews.",
+  description: "Opensource Jade Slip for Raws — discover, rank, and track web novels. Browse rankings, booklists, translated comments, and community reviews.",
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     types: {
       "application/rss+xml": [
         { url: "/rss/books", title: "DaoSearch — New Books" },
-        { url: "/rss/qidian", title: "DaoSearch — Qidian Comments" },
+        { url: "/rss/qidian", title: "DaoSearch — Reader Comments" },
         { url: "/rss/community", title: "DaoSearch — Community Activity" },
       ],
     },

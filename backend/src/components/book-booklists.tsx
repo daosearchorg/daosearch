@@ -43,7 +43,7 @@ export function BookBooklists({ bookId, initialItems, total }: BookBooklistsProp
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-        Qidian<span className="ml-1.5 normal-case tracking-normal">({total})</span>
+        Official<span className="ml-1.5 normal-case tracking-normal">({total})</span>
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((bl) => (

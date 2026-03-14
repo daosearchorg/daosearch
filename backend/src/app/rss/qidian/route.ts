@@ -8,8 +8,8 @@ export async function GET() {
   const { items } = await getLatestQidianComments(1);
 
   const xml = buildRss({
-    title: "DaoSearch — Qidian Comments",
-    description: "Latest reader comments from Qidian on DaoSearch",
+    title: "DaoSearch — Reader Comments",
+    description: "Latest reader comments on DaoSearch",
     link: `${BASE_URL}/rss/qidian`,
     items: items.map((item) => {
       const bookTitle = item.bookTitle || item.bookTitleOriginal || "Unknown Book";

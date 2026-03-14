@@ -50,7 +50,7 @@ function describeActivity(item: {
     }
     case "list_follow": {
       const list = item.listName || "a list";
-      const prefix = item.listType === "qidian" ? "Qidian booklist" : "community list";
+      const prefix = item.listType === "qidian" ? "official booklist" : "community list";
       return { title: `${user} followed ${prefix}: ${list}`, description: "" };
     }
     default:

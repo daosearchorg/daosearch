@@ -48,7 +48,7 @@ export const revalidate = 900;
 export const metadata: Metadata = {
   title: "DaoSearch — Opensource Jade Slip for Raws",
   description:
-    "Discover, rank, and track 870k+ web novels from Qidian. Browse rankings, booklists, translated comments, and community reviews — all in one place.",
+    "Discover, rank, and track 870k+ web novels. Browse rankings, booklists, translated comments, and community reviews — all in one place.",
 };
 
 function formatNumber(n: number): string {
@@ -320,7 +320,7 @@ const HOW_IT_WORKS = [
   {
     icon: BarChart3,
     title: "Explore",
-    description: "Read translated Qidian comments, compare books side-by-side, or ask our ChatGPT and Discord bot for recs",
+    description: "Read translated reader comments, compare books side-by-side, or ask our ChatGPT and Discord bot for recs",
   },
 ];
 
@@ -420,9 +420,9 @@ export default async function Home() {
 
         {/* ── ACT 1: What's hot ─────────────────────────────────────────── */}
 
-        {/* Qidian Trending Male */}
+        {/* Official Trending Male */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Qidian Trending" href="/qidian/rankings?gender=male&cycle=cycle-2" icon={Trophy} badge="Male" badgeClassName="text-[10px] font-medium border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300" />
+          <SectionHeader title="Official Trending" href="/qidian/rankings?gender=male&cycle=cycle-2" icon={Trophy} badge="Male" badgeClassName="text-[10px] font-medium border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300" />
           <div className="-mx-5 sm:-mx-6">
             <DragScroll className="flex gap-3 sm:gap-5 overflow-x-auto px-5 sm:px-6 pb-2 cursor-grab select-none">
               {data.rankingsMale.map((item) => (
@@ -447,9 +447,9 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Qidian Trending Female */}
+        {/* Official Trending Female */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Qidian Trending" href="/qidian/rankings?gender=female&cycle=cycle-2" icon={Trophy} badge="Female" badgeClassName="text-[10px] font-medium border-pink-500/30 bg-pink-500/10 text-pink-700 dark:text-pink-300" />
+          <SectionHeader title="Official Trending" href="/qidian/rankings?gender=female&cycle=cycle-2" icon={Trophy} badge="Female" badgeClassName="text-[10px] font-medium border-pink-500/30 bg-pink-500/10 text-pink-700 dark:text-pink-300" />
           <div className="-mx-5 sm:-mx-6">
             <DragScroll className="flex gap-3 sm:gap-5 overflow-x-auto px-5 sm:px-6 pb-2 cursor-grab select-none">
               {data.rankingsFemale.map((item) => (
@@ -504,7 +504,7 @@ export default async function Home() {
 
         {/* Top Rated — cover grid */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Top Rated on Qidian" href="/qidian/rankings?cycle=cycle-4&page=1" icon={Flame} />
+          <SectionHeader title="Top Rated" href="/qidian/rankings?cycle=cycle-4&page=1" icon={Flame} />
           <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 sm:gap-4">
             {data.topRated.map((item, idx) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";
@@ -742,9 +742,9 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Qidian Comments — hidden on mobile */}
+        {/* Reader Comments — hidden on mobile */}
         <section className="hidden sm:flex mx-auto w-full max-w-6xl px-5 sm:px-6 flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Qidian Comments" href="/qidian/feed" icon={MessageSquareText} badge="Latest" />
+          <SectionHeader title="Reader Comments" href="/qidian/feed" icon={MessageSquareText} badge="Latest" />
           {data.topComments.length > 0 ? (
             <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {data.topComments.map((comment) => {

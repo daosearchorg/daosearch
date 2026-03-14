@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = data.booklist.titleTranslated || data.booklist.title || "Untitled Booklist";
   const description = data.booklist.descriptionTranslated?.slice(0, 256)
-    ?? `Browse ${title} — a curated Qidian booklist on DaoSearch`;
+    ?? `Browse ${title} — a curated booklist on DaoSearch`;
   const ogImage = data.items.find((item) => item.imageUrl)?.imageUrl;
 
   return {

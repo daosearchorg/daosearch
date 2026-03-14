@@ -26,13 +26,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   const genderLabel = GENDER_LABELS[gender] ?? "Male";
   const typeLabel = RANK_TYPE_LABELS[rankType] ?? rankType;
-  const title = `${genderLabel} ${typeLabel} Rankings — Qidian Charts`;
-  const description = `Browse the top ${typeLabel.toLowerCase()} ${genderLabel.toLowerCase()} web novels on Qidian — updated daily. Discover trending, rising, and all-time favorites on DaoSearch.`;
+  const title = `${genderLabel} ${typeLabel} Rankings — Official Charts`;
+  const description = `Browse the top ${typeLabel.toLowerCase()} ${genderLabel.toLowerCase()} web novels — updated daily. Discover trending, rising, and all-time favorites on DaoSearch.`;
 
   return {
     title,
     description,
-    keywords: [`${genderLabel.toLowerCase()} web novels`, `qidian ${typeLabel.toLowerCase()}`, "web novel rankings", "qidian rankings", "web novel charts", "daosearch"],
+    keywords: [`${genderLabel.toLowerCase()} web novels`, "web novel rankings", "chinese novel rankings", "web novel charts", "daosearch"],
     alternates: { canonical: "/qidian/rankings" },
     openGraph: {
       title,

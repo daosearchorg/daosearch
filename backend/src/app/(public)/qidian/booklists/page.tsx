@@ -11,16 +11,16 @@ const SORTS: QidianBooklistSort[] = ["popular", "recent", "largest"];
 
 const SORT_META: Record<QidianBooklistSort, { title: string; description: string }> = {
   popular: {
-    title: "Qidian Booklists",
-    description: "Browse curated Qidian booklists ranked by follower count, with DaoSearch-linked books surfaced inline.",
+    title: "Official Booklists",
+    description: "Browse curated booklists ranked by follower count, with DaoSearch-linked books surfaced inline.",
   },
   recent: {
-    title: "Recently Updated Qidian Booklists",
-    description: "Explore Qidian booklists that were updated most recently, with linked DaoSearch books previewed on each list.",
+    title: "Recently Updated Booklists",
+    description: "Explore booklists that were updated most recently, with linked DaoSearch books previewed on each list.",
   },
   largest: {
-    title: "Largest Qidian Booklists",
-    description: "Find the biggest curated Qidian booklists by book count and jump straight into the DaoSearch-linked titles inside them.",
+    title: "Largest Official Booklists",
+    description: "Find the biggest curated booklists by book count and jump straight into the DaoSearch-linked titles inside them.",
   },
 };
 

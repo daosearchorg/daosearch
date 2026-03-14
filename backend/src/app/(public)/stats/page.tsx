@@ -42,7 +42,7 @@ export default async function StatsPage() {
       details: `${formatNumber(dbStats.comments.translated)} translated`,
     },
     {
-      label: "Qidian Users",
+      label: "Source Users",
       total: dbStats.qqUsers.total,
       details: `${formatNumber(dbStats.qqUsers.translated)} names translated`,
     },
@@ -113,10 +113,10 @@ export default async function StatsPage() {
         </p>
       </div>
 
-      {/* Qidian Data */}
+      {/* Source Data */}
       <section className="flex flex-col gap-4">
         <h2 className="text-base sm:text-lg font-medium">
-          Qidian Data
+          Source Data
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {dbCards.map((card) => (

@@ -144,7 +144,7 @@ export function FollowedClient({ initialLists, initialQidianLists }: FollowedCli
       {qidianLists.length > 0 && (
         <div>
           {lists.length > 0 && (
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Qidian</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Official</p>
           )}
           <div className="flex flex-col gap-2">
               {qidianLists.map((list) => {
