@@ -25,8 +25,8 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto pt-12">
       <Separator />
-      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-6 sm:py-8 flex flex-col gap-5 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
-        <nav className="grid grid-cols-3 gap-x-6 gap-y-2.5 sm:flex sm:flex-wrap sm:gap-x-4 sm:gap-y-1.5">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-6 sm:py-8 flex flex-col gap-5">
+        <nav className="grid grid-cols-3 gap-x-6 gap-y-2.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-5 sm:gap-y-2">
           {LINKS.map(({ href, label, external }) =>
             external ? (
               <a
@@ -34,7 +34,7 @@ export function SiteFooter() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[13px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="text-[13px] sm:text-[13px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 {label}
               </a>
@@ -42,7 +42,7 @@ export function SiteFooter() {
               <Link
                 key={href}
                 href={href}
-                className={`text-[13px] sm:text-xs transition-colors ${
+                className={`text-[13px] sm:text-[13px] transition-colors ${
                   pathname === href
                     ? "text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground"
@@ -53,7 +53,7 @@ export function SiteFooter() {
             )
           )}
         </nav>
-        <div className="flex items-center gap-4 sm:gap-3">
+        <div className="flex items-center justify-end sm:justify-center gap-4">
           <a
             href="https://github.com/daosearchorg/daosearch"
             target="_blank"
