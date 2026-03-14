@@ -21,7 +21,7 @@ class AutoScheduler:
 
         # Track last run times (in seconds since epoch)
         self.last_runs = {
-            'refresh': float('inf'),  # Disabled during initial population
+            'refresh': 0,
             'missing_fields': 0,
             'missing_translations': 0,
             'missing_comments': 0,
@@ -38,14 +38,14 @@ class AutoScheduler:
         """Check and schedule tasks if they're due"""
         current_time = time.time()
 
-        # Refresh books — disabled until initial data population is complete
-        # if current_time - self.last_runs['refresh'] >= 1800:
-        #     try:
-        #         job_id = self.queue_manager.add_maintenance_job('check_stale_books', hours=24, limit=50000)
-        #         logger.info(f"🔄 Scheduled refresh task: {job_id}")
-        #         self.last_runs['refresh'] = current_time
-        #     except Exception as e:
-        #         logger.error(f"Failed to schedule refresh task: {e}")
+        # Refresh books every 30 minutes
+        if current_time - self.last_runs['refresh'] >= 1800:
+            try:
+                job_id = self.queue_manager.add_maintenance_job('check_stale_books', hours=24, limit=50000)
+                logger.info(f"Scheduled refresh task: {job_id}")
+                self.last_runs['refresh'] = current_time
+            except Exception as e:
+                logger.error(f"Failed to schedule refresh task: {e}")
 
         # Missing fields every 60 minutes (3600 seconds)
         if current_time - self.last_runs['missing_fields'] >= 3600:
@@ -110,14 +110,14 @@ class AutoScheduler:
             except Exception as e:
                 logger.error(f"Failed to schedule image upload task: {e}")
 
-        # Refresh booklists — disabled until initial data population is complete
-        # if current_time - self.last_runs['refresh_booklists'] >= 86400:
-        #     try:
-        #         job_id = self.queue_manager.add_maintenance_job('refresh_qidian_booklists')
-        #         logger.info(f"Scheduled booklist refresh: {job_id}")
-        #         self.last_runs['refresh_booklists'] = current_time
-        #     except Exception as e:
-        #         logger.error(f"Failed to schedule booklist refresh: {e}")
+        # Refresh booklists every 24 hours
+        if current_time - self.last_runs['refresh_booklists'] >= 86400:
+            try:
+                job_id = self.queue_manager.add_maintenance_job('refresh_qidian_booklists')
+                logger.info(f"Scheduled booklist refresh: {job_id}")
+                self.last_runs['refresh_booklists'] = current_time
+            except Exception as e:
+                logger.error(f"Failed to schedule booklist refresh: {e}")
 
         # Booklist missing translations every 2 hours (7200 seconds)
         if current_time - self.last_runs['booklist_missing_translations'] >= 7200:
