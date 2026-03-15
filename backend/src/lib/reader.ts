@@ -20,6 +20,7 @@ export interface ReaderNovelData {
 
 export interface ReaderChapterEntry {
   title: string;
+  title_en: string;
   url: string;
   sequence: number;
 }
@@ -54,8 +55,10 @@ export function getNovelData(url: string) {
   return readerFetch<ReaderNovelData>("/novel", { url });
 }
 
-export function getSourceChapters(url: string) {
-  return readerFetch<ReaderChapterEntry[]>("/chapters", { url });
+export function getSourceChapters(url: string, refresh = false) {
+  const params: Record<string, string> = { url };
+  if (refresh) params.refresh = "true";
+  return readerFetch<ReaderChapterEntry[]>("/chapters", params);
 }
 
 export function getChapterContent(url: string) {

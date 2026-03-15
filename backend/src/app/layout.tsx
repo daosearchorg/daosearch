@@ -70,7 +70,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} antialiased flex min-h-dvh flex-col overflow-x-hidden`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          disableTransitionOnChange
+          themes={["light", "dark", "quiet", "paper", "calm", "focus"]}
+        >
           <ThemeColor />
           <NextTopLoader color="var(--foreground)" height={2} showSpinner={false} shadow={false} />
           <SessionProvider>

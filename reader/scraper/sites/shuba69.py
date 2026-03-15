@@ -16,7 +16,8 @@ SPAM_PATTERNS = ["最新小说", "⊥", "69shuba", "69书吧"]
 class Shuba69Scraper(BaseScraper):
 
     def is_novel_url(self, url: str) -> bool:
-        return bool(re.search(r"69shuba\.(com|tw)/book/\d+", url))
+        # Must be /book/12345.htm — not /book/12345/ (chapter index) or /book/12345/1 (chapter)
+        return bool(re.search(r"69shuba\.(com|tw)/book/\d+\.htm$", url))
 
     def _extract_book_id(self, url: str) -> str:
         match = re.search(r"/(book|txt)/(\d+)", url)
@@ -81,8 +82,11 @@ class Shuba69Scraper(BaseScraper):
                 continue
             if original_url not in seen:
                 seen.add(original_url)
+                raw_title = el.text_content().strip()
+                # Strip "第X章 " prefix — sequence number is shown separately
+                clean_title = re.sub(r"^第\d+章\s*", "", raw_title).strip() or raw_title
                 entries.append(ChapterEntry(
-                    title=el.text_content().strip(),
+                    title=clean_title,
                     url=original_url,
                     sequence=0,
                 ))

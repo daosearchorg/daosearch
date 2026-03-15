@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from urllib.parse import urljoin
 
@@ -26,16 +25,51 @@ class BookQQScraper(BaseScraper):
             raise ValueError(f"Cannot extract book ID from {url}")
         return match.group(2)
 
-    def _extract_nuxt_data(self, html: str) -> dict:
-        """Extract window.__NUXT__ data from the HTML."""
-        # Nuxt embeds state as window.__NUXT__={...} in a script tag
-        match = re.search(r"window\.__NUXT__\s*=\s*(\{.+?\})\s*;?\s*</script>", html, re.DOTALL)
-        if not match:
-            return {}
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            return {}
+    def _extract_nuxt_content(self, html: str) -> tuple[str, str, int]:
+        """Extract chapter title, content HTML, and totalWords from the NUXT data.
+
+        The NUXT data is a JS function call, not JSON, so we extract fields with regex.
+        Content is in a long string with <p> tags.
+        """
+        title = ""
+        content_html = ""
+        total_words = 0
+
+        # Title: extract from <title> tag — format: "BookName_ChapterTitle在线阅读-QQ阅读"
+        tm = re.search(r"<title>([^<]+)</title>", html)
+        if tm:
+            page_title = tm.group(1)
+            # Extract chapter title part (after _ and before 在线阅读)
+            parts = page_title.split("_", 1)
+            if len(parts) > 1:
+                ch_title = re.sub(r"在线阅读.*$", "", parts[1]).strip()
+                title = ch_title if ch_title else parts[1].strip()
+            else:
+                title = page_title
+
+        # Fallback: chapterTitle:"..." in NUXT data (when it's a literal string)
+        if not title:
+            m = re.search(r'chapterTitle:"([^"]*)"', html)
+            if m:
+                title = m.group(1)
+
+        # totalWords
+        m = re.search(r'totalWords:(\d+)', html)
+        if m:
+            total_words = int(m.group(1))
+
+        # Content: find the longest string containing <p> tags (the chapter body)
+        matches = re.findall(r'"([^"]{200,})"', html)
+        for match in matches:
+            if "<p>" in match and "data-v-" not in match[:20]:
+                content_html = match
+                break
+            elif "<p>" in match:
+                # Has data-v- prefix — strip it
+                content_html = re.sub(r"^[^>]*>", "", match, count=1)
+                break
+
+        return title, content_html, total_words
 
     async def scrape_novel_data(self, url: str) -> NovelData:
         book_id = self._extract_book_id(url)
@@ -67,7 +101,11 @@ class BookQQScraper(BaseScraper):
         html = await self._fetch(page_url, use_gt=False)
         tree = self._parse(html)
 
-        link_els = tree.cssselect("ul.book-dir li.list a")
+        # There are two <ul class="book-dir"> — first is reverse (hidden), second is ascending
+        # Use the last (ascending) list, fall back to all if only one
+        all_uls = tree.cssselect("ul.book-dir")
+        target_ul = all_uls[-1] if all_uls else tree
+        link_els = target_ul.cssselect("li.list a")
 
         entries: list[ChapterEntry] = []
         seen: set[str] = set()
@@ -85,7 +123,9 @@ class BookQQScraper(BaseScraper):
             seen.add(href)
 
             name_el = el.cssselect("span.name")
-            title = name_el[0].text_content().strip() if name_el else el.text_content().strip()
+            raw_title = name_el[0].text_content().strip() if name_el else el.text_content().strip()
+            # Strip "第X章 " prefix — sequence number is shown separately
+            title = re.sub(r"^第\d+章\s*", "", raw_title).strip() or raw_title
 
             # Check if this chapter is locked
             parent_li = el.getparent()
@@ -97,8 +137,6 @@ class BookQQScraper(BaseScraper):
                 sequence=0,
             ))
 
-        # Chapters come in reverse order on the page, second <ul> is ascending
-        # Just assign sequence based on order
         for i, entry in enumerate(entries):
             entry.sequence = i + 1
         return entries
@@ -106,31 +144,22 @@ class BookQQScraper(BaseScraper):
     async def scrape_chapter(self, url: str) -> ChapterContent:
         html = await self._fetch(url, use_gt=False)
 
-        # Try extracting from window.__NUXT__ data
-        nuxt_data = self._extract_nuxt_data(html)
-        title = ""
+        title, content_html, total_words = self._extract_nuxt_content(html)
         content = ""
         vip = False
 
-        if nuxt_data:
-            # Navigate Nuxt data structure
-            data_list = nuxt_data.get("data", [])
-            for item in data_list:
-                if isinstance(item, dict):
-                    current = item.get("currentContent", {})
-                    if current:
-                        title = current.get("chapterTitle", "")
-                        raw_content = current.get("content", "")
-                        total_words = current.get("totalWords", 0)
+        if content_html:
+            # Replace </p><p> boundaries with newlines
+            text = re.sub(r"</p>\s*<p[^>]*>", "\n", content_html, flags=re.IGNORECASE)
+            # Strip remaining HTML tags (complete and incomplete/trailing)
+            text = re.sub(r"<[^>]+>", "", text)
+            text = re.sub(r"<[^>]*$", "", text)
+            # Clean up \r and excess whitespace
+            content = text.replace("\r", "").strip()
 
-                        # Clean HTML tags from content
-                        content = re.sub(r"<[^>]+>", "\n", raw_content)
-                        content = content.strip()
-
-                        # Detect VIP: content significantly shorter than totalWords
-                        if total_words and len(content) < total_words * 0.5:
-                            vip = True
-                        break
+            # Detect VIP: content significantly shorter than totalWords
+            if total_words and len(content) < total_words * 0.5:
+                vip = True
 
         # Fallback: parse from DOM
         if not content:

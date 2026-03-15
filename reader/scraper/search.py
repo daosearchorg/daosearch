@@ -10,7 +10,7 @@ import httpx
 from config import settings
 from schemas import SearchResult
 from scraper.sites import get_scrapers, get_site_priority
-from scraper.translate import translate_batch
+from scraper.translate import translate_batch, title_case
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +20,8 @@ def _build_site_filter() -> str:
     return " OR ".join(f"site:{domain}" for domain in get_scrapers())
 
 
-async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]:
-    """Search for novels across all supported sites using SearXNG.
-
-    Returns only URLs that pass the scraper's is_novel_url() check,
-    filtering out chapter pages, tag pages, etc.
-    """
+async def search_novels_raw(query: str, max_results: int = 20) -> list[SearchResult]:
+    """Search SearXNG and filter to supported novel URLs. No translation."""
     scrapers = get_scrapers()
     site_filter = _build_site_filter()
     full_query = f"{query} ({site_filter})"
@@ -53,7 +49,6 @@ async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]
             continue
         seen_urls.add(url)
 
-        # Must match a registered scraper
         domain = urlparse(url).hostname or ""
         scraper_cls = None
         for pattern, cls in scrapers.items():
@@ -63,7 +58,6 @@ async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]
         if not scraper_cls:
             continue
 
-        # Must be a novel page, not a chapter/tag/category page
         scraper = scraper_cls()
         if not scraper.is_novel_url(url):
             continue
@@ -78,17 +72,25 @@ async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]
         if len(results) >= max_results:
             break
 
-    # Sort by site priority (fastest/most reliable first)
     results.sort(key=lambda r: get_site_priority(r.domain))
-
-    # Batch-translate titles and snippets
-    if results:
-        texts_to_translate = [r.title for r in results] + [r.snippet for r in results]
-        translated = await translate_batch(texts_to_translate)
-        n = len(results)
-        for i, r in enumerate(results):
-            r.title_en = translated[i]
-            r.snippet_en = translated[n + i]
-
     logger.info(f"Found {len(results)} novel URLs from {len(seen_urls)} raw results")
+    return results
+
+
+async def translate_results(results: list[SearchResult]) -> None:
+    """Translate titles and snippets in-place."""
+    if not results:
+        return
+    texts_to_translate = [r.title for r in results] + [r.snippet for r in results]
+    translated = await translate_batch(texts_to_translate)
+    n = len(results)
+    for i, r in enumerate(results):
+        r.title_en = title_case(translated[i])
+        r.snippet_en = translated[n + i]
+
+
+async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]:
+    """Search + translate in one call (non-streaming)."""
+    results = await search_novels_raw(query, max_results)
+    await translate_results(results)
     return results

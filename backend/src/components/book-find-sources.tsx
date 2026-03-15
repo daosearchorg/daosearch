@@ -38,11 +38,11 @@ export function BookFindSources({
     <>
       <Button variant="outline" className="w-full" onClick={() => setOpen(true)}>
         <Search className="size-4" />
-        Find Sources
+        Sources
       </Button>
       <ResponsiveDialog open={open} onOpenChange={setOpen} className="sm:max-w-lg">
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Find Sources</ResponsiveDialogTitle>
+          <ResponsiveDialogTitle>Sources</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
             Choose where to read from
           </ResponsiveDialogDescription>

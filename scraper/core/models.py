@@ -726,24 +726,102 @@ class BookSource(Base):
         return f"<BookSource(id={self.id}, book_id={self.book_id}, domain='{self.domain}')>"
 
 
-class SourceChapter(Base):
-    __tablename__ = 'source_chapters'
+# ============================================================================
+# Translation Tables
+# ============================================================================
+
+class NovelEntity(Base):
+    __tablename__ = 'novel_entities'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
-    domain = Column(String(255), nullable=False)
-    sequence = Column(Integer, nullable=False)
-    title = Column(String(500), nullable=True)
-    url = Column(String(1000), nullable=False)
-    last_fetched_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    original_name = Column(String(255), nullable=False)
+    translated_name = Column(String(255), nullable=False)
+
+    gender = Column(String(1), server_default='N')
+    is_hidden = Column(Boolean, nullable=False, server_default='false')
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
     book = relationship("Book")
 
     __table_args__ = (
-        UniqueConstraint('book_id', 'domain', 'sequence', name='uq_source_chapter'),
-        Index('idx_source_chapters_book_domain', 'book_id', 'domain'),
+        UniqueConstraint('book_id', 'original_name', name='uq_novel_entity'),
+        Index('idx_novel_entities_book_id', 'book_id'),
     )
 
     def __repr__(self):
-        return f"<SourceChapter(id={self.id}, book_id={self.book_id}, domain='{self.domain}', seq={self.sequence})>"
+        return f"<NovelEntity(id={self.id}, book_id={self.book_id}, original='{self.original_name}')>"
+
+
+class UserGeneralEntity(Base):
+    __tablename__ = 'user_general_entities'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    translated_name = Column(String(255), nullable=False)
+
+    gender = Column(String(1), server_default='N')
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'original_name', name='uq_user_general_entity'),
+        Index('idx_user_general_entities_user_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<UserGeneralEntity(id={self.id}, user_id={self.user_id}, original='{self.original_name}')>"
+
+
+class UserEntityOverride(Base):
+    __tablename__ = 'user_entity_overrides'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    novel_entity_id = Column(Integer, ForeignKey('novel_entities.id', ondelete='CASCADE'), nullable=False)
+    custom_name = Column(String(255), nullable=False)
+    is_hidden = Column(Boolean, nullable=False, server_default='false')
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+    novel_entity = relationship("NovelEntity")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'novel_entity_id', name='uq_user_entity_override'),
+        Index('idx_user_entity_overrides_user_id', 'user_id'),
+        Index('idx_user_entity_overrides_entity_id', 'novel_entity_id'),
+    )
+
+    def __repr__(self):
+        return f"<UserEntityOverride(id={self.id}, user_id={self.user_id}, entity_id={self.novel_entity_id})>"
+
+
+class UserTranslationSetting(Base):
+    __tablename__ = 'user_translation_settings'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    tier = Column(String(10), nullable=False, server_default='free')
+    byok_endpoint = Column(String(500), nullable=True)
+    byok_model = Column(String(100), nullable=True)
+    byok_key_enc = Column(Text, nullable=True)
+    byok_key_iv = Column(String(32), nullable=True)
+    custom_instructions = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        Index('idx_user_translation_settings_user_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f"<UserTranslationSetting(id={self.id}, user_id={self.user_id}, tier='{self.tier}')>"
+
+

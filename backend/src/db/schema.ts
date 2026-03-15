@@ -457,16 +457,65 @@ export const bookSources = pgTable("book_sources", {
   index("idx_book_sources_book_id").on(table.bookId),
 ]);
 
-export const sourceChapters = pgTable("source_chapters", {
+// ============================================================================
+// Translation Tables
+// ============================================================================
+
+export const novelEntities = pgTable("novel_entities", {
   id: serial().primaryKey(),
   bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
-  domain: varchar({ length: 255 }).notNull(),
-  sequence: integer().notNull(),
-  title: varchar({ length: 500 }),
-  url: varchar({ length: 1000 }).notNull(),
-  lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
+  originalName: varchar("original_name", { length: 255 }).notNull(),
+  translatedName: varchar("translated_name", { length: 255 }).notNull(),
+
+  gender: varchar({ length: 1 }).default("N"),
+  isHidden: boolean("is_hidden").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  unique("uq_source_chapter").on(table.bookId, table.domain, table.sequence),
-  index("idx_source_chapters_book_domain").on(table.bookId, table.domain),
+  unique("uq_novel_entity").on(table.bookId, table.originalName),
+  index("idx_novel_entities_book_id").on(table.bookId),
 ]);
+
+export const userGeneralEntities = pgTable("user_general_entities", {
+  id: serial().primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  originalName: varchar("original_name", { length: 255 }).notNull(),
+  translatedName: varchar("translated_name", { length: 255 }).notNull(),
+
+  gender: varchar({ length: 1 }).default("N"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("uq_user_general_entity").on(table.userId, table.originalName),
+  index("idx_user_general_entities_user_id").on(table.userId),
+]);
+
+export const userEntityOverrides = pgTable("user_entity_overrides", {
+  id: serial().primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  novelEntityId: integer("novel_entity_id").notNull().references(() => novelEntities.id, { onDelete: "cascade" }),
+  customName: varchar("custom_name", { length: 255 }).notNull(),
+  isHidden: boolean("is_hidden").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("uq_user_entity_override").on(table.userId, table.novelEntityId),
+  index("idx_user_entity_overrides_user_id").on(table.userId),
+  index("idx_user_entity_overrides_entity_id").on(table.novelEntityId),
+]);
+
+export const userTranslationSettings = pgTable("user_translation_settings", {
+  id: serial().primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  tier: varchar({ length: 10 }).notNull().default("free"),
+  byokEndpoint: varchar("byok_endpoint", { length: 500 }),
+  byokModel: varchar("byok_model", { length: 100 }),
+  byokKeyEnc: text("byok_key_enc"),
+  byokKeyIv: varchar("byok_key_iv", { length: 32 }),
+  customInstructions: text("custom_instructions"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_user_translation_settings_user_id").on(table.userId),
+]);
+

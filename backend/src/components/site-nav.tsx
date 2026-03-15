@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
-import { Sun, Moon, Menu, Library, Trophy, Rss, ArrowRightLeft, LogIn, LogOut, ListOrdered, ChevronsUpDown, Bell, Bookmark, BookOpen, Heart, List, ListChecks, MessageSquare, Star, Tag, User } from "lucide-react";
+import { Sun, Moon, Menu, Library, Trophy, Rss, ArrowRightLeft, LogIn, LogOut, ListOrdered, ChevronsUpDown, Bell, Bookmark, BookOpen, Heart, List, ListChecks, MessageSquare, Star, Tag, User, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { UserAvatar } from "@/components/user-avatar";
@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { LoginDialog } from "@/components/login-dialog";
 import { NotificationBell } from "@/components/notification-bell";
+import { ReaderSettings } from "@/components/reader-settings";
+import { ResponsiveDialog, ResponsiveDialogHeader, ResponsiveDialogTitle, ResponsiveDialogDescription } from "@/components/responsive-dialog";
 
 const NAV_LINKS = [
   { href: "/library", label: "Library", icon: Library },
@@ -38,6 +40,7 @@ export function SiteNav() {
   const [open, setOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
 
   const isAuthed = status === "authenticated" && !!session?.user;
 
@@ -90,16 +93,10 @@ export function SiteNav() {
           ))}
 
           <Separator orientation="vertical" className="!h-5 mx-2" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-9"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          >
-            <Sun className="size-[18px] hidden dark:block" />
-            <Moon className="size-[18px] block dark:hidden" />
-          </Button>
           {isAuthed && <NotificationBell />}
+          <Button variant="ghost" size="icon" className="size-9" onClick={() => setReaderSettingsOpen(true)}>
+            <SlidersHorizontal className="size-[18px]" />
+          </Button>
           <UserMenu />
         </div>
 
@@ -107,6 +104,9 @@ export function SiteNav() {
         <div className="ml-auto flex sm:hidden items-center gap-1">
           <NavSearch />
           {isAuthed && <NotificationBell />}
+          <Button variant="ghost" size="icon" className="size-9" onClick={() => setReaderSettingsOpen(true)}>
+            <SlidersHorizontal className="size-[18px]" />
+          </Button>
 
           <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAccountOpen(false); }}>
             <SheetTrigger asChild>
@@ -139,13 +139,9 @@ export function SiteNav() {
               </div>
 
               <SheetFooter className="mt-auto border-t px-3 py-3 relative">
-                <button
-                  onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent text-muted-foreground"
-                >
-                  <Sun className="size-5 hidden dark:block" />
-                  <Moon className="size-5 block dark:hidden" />
-                  {resolvedTheme === "dark" ? "Light" : "Dark"}
+                <button onClick={() => { setOpen(false); setReaderSettingsOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent text-muted-foreground">
+                  <SlidersHorizontal className="size-5" />
+                  Settings
                 </button>
                 {isAuthed ? (
                   <>
@@ -212,6 +208,15 @@ export function SiteNav() {
         </div>
       </div>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <ResponsiveDialog open={readerSettingsOpen} onOpenChange={setReaderSettingsOpen} className="sm:max-w-md">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Reader Settings</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>Customize your reading experience</ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+        <div className="mt-4">
+          <ReaderSettings onSaved={() => setReaderSettingsOpen(false)} />
+        </div>
+      </ResponsiveDialog>
     </nav>
   );
 }

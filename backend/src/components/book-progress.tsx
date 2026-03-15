@@ -73,11 +73,11 @@ export function BookProgress({ bookId, firstChapterId, initialSeq, bookTitleRaw,
       <>
         <Button variant="default" onClick={handleReadingClick}>
           <Eye className="size-4" />
-          Reading Ch. {seq}
+          Continue Ch. {seq}
         </Button>
         <ResponsiveDialog open={sourcesOpen} onOpenChange={setSourcesOpen} className="sm:max-w-lg">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Find Sources</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>Sources</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>Choose where to continue reading</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <div className="mt-4">
@@ -100,12 +100,12 @@ export function BookProgress({ bookId, firstChapterId, initialSeq, bookTitleRaw,
     <>
       <Button variant="default" onClick={handleStartReading}>
         <Play className="size-4 fill-current" />
-        Start Reading
+        Start
       </Button>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
       <ResponsiveDialog open={sourcesOpen} onOpenChange={setSourcesOpen} className="sm:max-w-lg">
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Find Sources</ResponsiveDialogTitle>
+          <ResponsiveDialogTitle>Sources</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>Choose where to read from</ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         <div className="mt-4">

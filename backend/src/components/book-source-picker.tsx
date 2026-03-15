@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Globe, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface SearchResult {
   title: string;
@@ -29,29 +28,78 @@ export function BookSourcePicker({
 }: BookSourcePickerProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStatus, setLoadingStatus] = useState("Searching the web...");
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setLoadingStatus("Searching the web...");
 
-    fetch(`/api/reader/search?q=${encodeURIComponent(bookTitleRaw)}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Search failed");
-        return r.json();
-      })
-      .then((data: SearchResult[]) => {
-        if (cancelled) return;
-        setResults(data);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setError("Could not fetch sources. Is the reader service running?");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/reader/search?q=${encodeURIComponent(bookTitleRaw)}&stream=1`
+        );
+        if (!res.ok) throw new Error("Search failed");
+
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No stream");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let searchResults: SearchResult[] = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
+
+          for (const block of events) {
+            if (!block.trim()) continue;
+            const lines = block.split("\n");
+            let eventType = "";
+            let dataLines: string[] = [];
+            for (const line of lines) {
+              if (line.startsWith("event: ")) {
+                eventType = line.slice(7).trim();
+              } else if (line.startsWith("data: ")) {
+                dataLines.push(line.slice(6));
+              }
+            }
+            if (!eventType || !dataLines.length) continue;
+            const data = dataLines.join("\n");
+
+            if (eventType === "status") {
+              if (!cancelled) setLoadingStatus(data);
+            } else if (eventType === "error") {
+              if (!cancelled) {
+                setError(data);
+                setLoading(false);
+              }
+              return;
+            } else if (eventType === "results") {
+              searchResults = JSON.parse(data);
+            }
+          }
+        }
+
+        if (!cancelled) {
+          setResults(searchResults);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Could not fetch sources. Is the reader service running?");
+          setLoading(false);
+        }
+      }
+    })();
 
     return () => { cancelled = true; };
   }, [bookTitleRaw]);
@@ -79,7 +127,7 @@ export function BookSourcePicker({
       {loading && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Searching for sources...</p>
+          <p className="text-sm text-muted-foreground">{loadingStatus}</p>
         </div>
       )}
 
@@ -120,6 +168,13 @@ function SourceCard({
   const displayTitle = result.title_en || result.title;
   const displaySnippet = result.snippet_en || result.snippet;
 
+  // Extract path from URL for display
+  let urlPath = "";
+  try {
+    const parsed = new URL(result.url);
+    urlPath = parsed.pathname;
+  } catch { urlPath = result.url; }
+
   return (
     <button
       onClick={() => onSelect(result.url, result.domain)}
@@ -127,8 +182,9 @@ function SourceCard({
     >
       <div className="flex items-center gap-2">
         <Badge variant="secondary" className="text-xs">{result.domain}</Badge>
+        <span className="text-[11px] text-muted-foreground/40 truncate">{urlPath}</span>
         {result.domain === "book.qq.com" && (
-          <span className="text-xs text-muted-foreground">Original</span>
+          <span className="text-xs text-muted-foreground ml-auto">Original</span>
         )}
       </div>
       {hasTitle && (
@@ -137,7 +193,6 @@ function SourceCard({
       {displaySnippet && (
         <p className="text-xs text-muted-foreground line-clamp-2">{displaySnippet}</p>
       )}
-      <p className="text-[11px] text-muted-foreground/50 truncate">{result.url}</p>
     </button>
   );
 }

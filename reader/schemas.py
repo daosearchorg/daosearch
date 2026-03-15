@@ -21,6 +21,7 @@ class NovelData(BaseModel):
 
 class ChapterEntry(BaseModel):
     title: str
+    title_en: str = ""
     url: str
     sequence: int
 

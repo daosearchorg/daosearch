@@ -214,7 +214,7 @@ export default async function BookDetailPage({ params }: Props) {
               <Button variant="outline" className="w-full" asChild>
                 <a href={book.url} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="size-4" />
-                  Raw
+                  Original
                 </a>
               </Button>
             )}
@@ -249,7 +249,7 @@ export default async function BookDetailPage({ params }: Props) {
                 <Button variant="outline" className="w-full" asChild>
                   <a href={book.url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="size-4" />
-                    Raw
+                    Original
                   </a>
                 </Button>
               )}
