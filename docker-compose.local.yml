@@ -151,11 +151,32 @@ services:
     restart: "no"
     mem_limit: 6g
 
+  # Reader — FastAPI chapter scraping + translation service
+  reader:
+    build:
+      context: ./reader
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - READER_SEARXNG_URL=http://searxng:8080
+      - READER_REDIS_URL=redis://redis:6379
+      - READER_DB_HOST=postgres
+      - READER_DB_PORT=5432
+      - READER_DB_USER=${DB_USER}
+      - READER_DB_PASSWORD=${DB_PASSWORD}
+      - READER_DB_NAME=${DB_NAME}
+      - READER_CORS_ORIGINS=["http://localhost:8080","https://daosearch.com","https://daosearch.io"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # SearXNG — meta search engine for novel source discovery
   searxng:
     image: searxng/searxng:latest
-    ports:
-      - "8889:8080"
     volumes:
       - ./reader/searxng/settings.yml:/etc/searxng/settings.yml:ro
     restart: unless-stopped
