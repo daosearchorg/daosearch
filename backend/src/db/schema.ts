@@ -73,6 +73,7 @@ export const chapters = pgTable("chapters", {
   title: varchar({ length: 500 }),
   titleTranslated: varchar("title_translated", { length: 500 }),
   url: varchar({ length: 500 }),
+  locked: boolean("locked").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -161,6 +162,7 @@ export const readingProgresses = pgTable("reading_progresses", {
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
   chapterId: integer("chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+  sourceDomain: varchar("source_domain", { length: 255 }),
   lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -437,4 +439,34 @@ export const qidianBooklistItems = pgTable("qidian_booklist_items", {
   unique("uq_booklist_qidian_book").on(table.booklistId, table.qidianBookId),
   index("idx_qidian_booklist_items_booklist_id").on(table.booklistId),
   index("idx_qidian_booklist_items_book_id").on(table.bookId),
+]);
+
+// ============================================================================
+// Reader Tables
+// ============================================================================
+
+export const bookSources = pgTable("book_sources", {
+  id: serial().primaryKey(),
+  bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  domain: varchar({ length: 255 }).notNull(),
+  novelUrl: varchar("novel_url", { length: 1000 }).notNull(),
+  lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("uq_book_source_domain").on(table.bookId, table.domain),
+  index("idx_book_sources_book_id").on(table.bookId),
+]);
+
+export const sourceChapters = pgTable("source_chapters", {
+  id: serial().primaryKey(),
+  bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  domain: varchar({ length: 255 }).notNull(),
+  sequence: integer().notNull(),
+  title: varchar({ length: 500 }),
+  url: varchar({ length: 1000 }).notNull(),
+  lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("uq_source_chapter").on(table.bookId, table.domain, table.sequence),
+  index("idx_source_chapters_book_domain").on(table.bookId, table.domain),
 ]);

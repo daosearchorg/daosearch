@@ -9,8 +9,10 @@ _SCRAPERS: dict[str, type[BaseScraper]] | None = None
 
 def _load_scrapers() -> dict[str, type[BaseScraper]]:
     from scraper.sites.shuba69 import Shuba69Scraper
+    from scraper.sites.bookqq import BookQQScraper
 
     return {
+        "book.qq.com": BookQQScraper,
         "69shuba.com": Shuba69Scraper,
         "69shuba.tw": Shuba69Scraper,
     }
@@ -24,6 +26,7 @@ def get_scrapers() -> dict[str, type[BaseScraper]]:
 
 
 SITE_PRIORITY: dict[str, int] = {
+    "book.qq.com": 0,
     "69shuba.com": 1,
     "69shuba.tw": 2,
 }

@@ -1,7 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getBook } from "@/lib/queries";
 import { ChapterReader } from "@/components/chapter-reader";
 import type { Metadata } from "next";
+import { slugify, bookUrl } from "@/lib/utils";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -26,13 +27,21 @@ export default async function ReadPage({ params, searchParams }: Props) {
 
   const sp = await searchParams;
   const seq = sp.seq ? Number(sp.seq) : 1;
+  const source = sp.source;
+
+  // Source is required — redirect back to book page if missing
+  if (!source) {
+    redirect(bookUrl(bookId, book.titleTranslated || book.title));
+  }
 
   return (
     <ChapterReader
       bookId={bookId}
       bookTitle={book.titleTranslated || book.title || "Untitled"}
       bookTitleRaw={book.title || ""}
+      bookUrl={book.url || ""}
       initialSeq={seq}
+      initialSourceUrl={source}
     />
   );
 }

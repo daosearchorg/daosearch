@@ -10,6 +10,7 @@ import httpx
 from config import settings
 from schemas import SearchResult
 from scraper.sites import get_scrapers, get_site_priority
+from scraper.translate import translate_batch
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,15 @@ async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]
 
     # Sort by site priority (fastest/most reliable first)
     results.sort(key=lambda r: get_site_priority(r.domain))
+
+    # Batch-translate titles and snippets
+    if results:
+        texts_to_translate = [r.title for r in results] + [r.snippet for r in results]
+        translated = await translate_batch(texts_to_translate)
+        n = len(results)
+        for i, r in enumerate(results):
+            r.title_en = translated[i]
+            r.snippet_en = translated[n + i]
 
     logger.info(f"Found {len(results)} novel URLs from {len(seen_urls)} raw results")
     return results

@@ -112,6 +112,7 @@ class Chapter(Base):
     title = Column(String(500), nullable=True)
     title_translated = Column(String(500), nullable=True)
     url = Column(String(500), nullable=True)
+    locked = Column(Boolean, default=False, server_default='false', nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 

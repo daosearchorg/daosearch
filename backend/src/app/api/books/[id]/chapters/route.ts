@@ -27,6 +27,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         title: chapters.title,
         titleTranslated: chapters.titleTranslated,
         url: chapters.url,
+        locked: chapters.locked,
       })
       .from(chapters)
       .where(eq(chapters.bookId, bookId))
@@ -46,6 +47,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         title: chapters.title,
         titleTranslated: chapters.titleTranslated,
         url: chapters.url,
+        locked: chapters.locked,
       })
       .from(chapters)
       .where(eq(chapters.bookId, bookId))

@@ -3,8 +3,10 @@ from pydantic import BaseModel
 
 class SearchResult(BaseModel):
     title: str
+    title_en: str = ""
     url: str
     snippet: str
+    snippet_en: str = ""
     domain: str
 
 
@@ -27,3 +29,4 @@ class ChapterContent(BaseModel):
     title: str
     content: str
     chapter_url: str
+    vip: bool = False

@@ -1,82 +1,122 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Eye, Play, Loader2 } from "lucide-react";
 import { LoginDialog } from "@/components/login-dialog";
 import { Button } from "@/components/ui/button";
+import { BookSourcePicker } from "@/components/book-source-picker";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from "@/components/responsive-dialog";
 
 interface BookProgressProps {
   bookId: number;
   firstChapterId?: number | null;
   initialSeq?: number | null;
+  bookTitleRaw?: string;
+  bookUrl?: string;
 }
 
-export function BookProgress({ bookId, firstChapterId, initialSeq }: BookProgressProps) {
+export function BookProgress({ bookId, firstChapterId, initialSeq, bookTitleRaw, bookUrl }: BookProgressProps) {
   const router = useRouter();
   const { status } = useSession();
   const [seq, setSeq] = useState<number | null>(initialSeq ?? null);
-  const [saving, setSaving] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
-  const handleStartReading = async () => {
+  // Listen for progress updates from the reader
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const newSeq = (e as CustomEvent<number>).detail;
+      if (newSeq != null) setSeq(newSeq);
+    };
+    window.addEventListener("progress-updated", handler);
+    return () => window.removeEventListener("progress-updated", handler);
+  }, []);
+
+  const handleStartReading = useCallback(() => {
     if (status !== "authenticated") {
       setLoginOpen(true);
       return;
     }
-    if (!firstChapterId || saving) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/books/${bookId}/progress`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chapterId: firstChapterId }),
-      });
-      const data = await res.json();
-      if (data.sequenceNumber != null) {
-        setSeq(data.sequenceNumber);
-        window.dispatchEvent(new CustomEvent("progress-updated", { detail: data.sequenceNumber }));
-        window.dispatchEvent(new CustomEvent("bookmark-updated", {
-          detail: { bookmarked: true, status: "reading" },
-        }));
-      }
-    } catch {}
-    setSaving(false);
-    router.push(`/book/${bookId}/read?seq=1`);
-  };
+    // Open source selection dialog
+    setSourcesOpen(true);
+  }, [status]);
 
-  const handleReadingClick = () => {
-    router.push(`/book/${bookId}/read?seq=${seq}`);
-  };
+  const handleSourceSelect = useCallback((sourceUrl: string, domain: string) => {
+    setSourcesOpen(false);
+    router.push(`/book/${bookId}/read?seq=1&source=${encodeURIComponent(sourceUrl)}`);
+  }, [bookId, router]);
+
+  const handleReadingClick = useCallback(async () => {
+    if (!seq) return;
+    // Try to get last-used source
+    try {
+      const res = await fetch(`/api/books/${bookId}/source`);
+      const data = await res.json();
+      if (data.novelUrl) {
+        router.push(`/book/${bookId}/read?seq=${seq}&source=${encodeURIComponent(data.novelUrl)}`);
+        return;
+      }
+    } catch { /* fall through */ }
+    // No saved source — open source selection
+    setSourcesOpen(true);
+  }, [bookId, router, seq]);
 
   if (seq != null) {
     return (
-      <Button
-        variant="default"
-        onClick={handleReadingClick}
-      >
-        <Eye className="size-4" />
-        Reading Ch. {seq}
-      </Button>
+      <>
+        <Button variant="default" onClick={handleReadingClick}>
+          <Eye className="size-4" />
+          Reading Ch. {seq}
+        </Button>
+        <ResponsiveDialog open={sourcesOpen} onOpenChange={setSourcesOpen} className="sm:max-w-lg">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Find Sources</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>Choose where to continue reading</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="mt-4">
+            <BookSourcePicker
+              bookId={bookId}
+              bookTitleRaw={bookTitleRaw || ""}
+              bookUrl={bookUrl}
+              onSelect={(url) => {
+                setSourcesOpen(false);
+                router.push(`/book/${bookId}/read?seq=${seq}&source=${encodeURIComponent(url)}`);
+              }}
+            />
+          </div>
+        </ResponsiveDialog>
+      </>
     );
   }
 
   return (
     <>
-      <Button
-        variant="default"
-        onClick={handleStartReading}
-        disabled={saving}
-      >
-        {saving ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Play className="size-4 fill-current" />
-        )}
+      <Button variant="default" onClick={handleStartReading}>
+        <Play className="size-4 fill-current" />
         Start Reading
       </Button>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <ResponsiveDialog open={sourcesOpen} onOpenChange={setSourcesOpen} className="sm:max-w-lg">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Find Sources</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>Choose where to read from</ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+        <div className="mt-4">
+          <BookSourcePicker
+            bookId={bookId}
+            bookTitleRaw={bookTitleRaw || ""}
+            bookUrl={bookUrl}
+            onSelect={handleSourceSelect}
+          />
+        </div>
+      </ResponsiveDialog>
     </>
   );
 }

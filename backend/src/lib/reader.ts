@@ -2,8 +2,10 @@ const READER_URL = process.env.READER_SERVICE_URL || "http://localhost:8000";
 
 export interface ReaderSearchResult {
   title: string;
+  title_en: string;
   url: string;
   snippet: string;
+  snippet_en: string;
   domain: string;
 }
 
@@ -26,6 +28,7 @@ export interface ReaderChapterContent {
   title: string;
   content: string;
   chapter_url: string;
+  vip: boolean;
 }
 
 async function readerFetch<T>(path: string, params: Record<string, string>): Promise<T> {

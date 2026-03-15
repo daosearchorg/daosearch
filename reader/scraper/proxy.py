@@ -26,7 +26,8 @@ def get_random_proxy() -> str | None:
         proxy = r.srandmember(PROXY_SET_KEY)
         if proxy is None:
             return None
-        return proxy.decode("utf-8") if isinstance(proxy, bytes) else str(proxy)
+        raw = proxy.decode("utf-8") if isinstance(proxy, bytes) else str(proxy)
+        return raw.strip()
     except Exception as e:
         logger.debug(f"Failed to get proxy from Redis: {e}")
         return None

@@ -33,7 +33,7 @@ function ResponsiveDialog({ open, onOpenChange, children, className }: Responsiv
     return (
       <ResponsiveContext.Provider value={true}>
         <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent className={className}>{children}</DialogContent>
+          <DialogContent className={`max-h-[85vh] overflow-y-auto ${className ?? ""}`}>{children}</DialogContent>
         </Dialog>
       </ResponsiveContext.Provider>
     );
@@ -42,8 +42,8 @@ function ResponsiveDialog({ open, onOpenChange, children, className }: Responsiv
   return (
     <ResponsiveContext.Provider value={false}>
       <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
-        <DrawerContent>
-          <div className="px-4 pb-6">{children}</div>
+        <DrawerContent className="max-h-[85vh]">
+          <div className="px-4 pb-6 overflow-y-auto">{children}</div>
         </DrawerContent>
       </Drawer>
     </ResponsiveContext.Provider>

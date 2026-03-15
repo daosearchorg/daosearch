@@ -26,6 +26,7 @@ import { BookChaptersFab } from "@/components/book-chapters-fab";
 import { BookTags } from "@/components/book-tags";
 import { CopyText } from "@/components/copy-text";
 import { Synopsis } from "@/components/synopsis";
+import { BookFindSources } from "@/components/book-find-sources";
 
 interface Props {
   params: Promise<{ id: string; slug?: string[] }>;
@@ -208,23 +209,16 @@ export default async function BookDetailPage({ params }: Props) {
           {/* Actions — desktop, under cover */}
           <div className="hidden sm:flex flex-col w-[220px] gap-2">
             <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} />
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
             {book.url && (
               <Button variant="outline" className="w-full" asChild>
                 <a href={book.url} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="size-4" />
-                  Source
+                  Raw
                 </a>
               </Button>
             )}
-            {book.title && (
-              <Button variant="outline" className="w-full" asChild>
-                <a href={`https://www.google.com/search?q=${encodeURIComponent(book.title)}`} target="_blank" rel="noopener noreferrer">
-                  <Search className="size-4" />
-                  Google
-                </a>
-              </Button>
-            )}
+            <BookFindSources bookId={bookId} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} currentSeq={progressSeq || undefined} />
           </div>
         </div>
         <div className="flex flex-col min-w-0 flex-1 text-center sm:text-left">
@@ -248,25 +242,18 @@ export default async function BookDetailPage({ params }: Props) {
           <div className="flex sm:hidden flex-col gap-2 mt-3">
             <div className="grid grid-cols-2 gap-2">
               <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
-              <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} />
+              <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
             </div>
             <div className="grid grid-cols-2 gap-2">
               {book.url && (
                 <Button variant="outline" className="w-full" asChild>
                   <a href={book.url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="size-4" />
-                    Source
+                    Raw
                   </a>
                 </Button>
               )}
-              {book.title && (
-                <Button variant="outline" className="w-full" asChild>
-                  <a href={`https://www.google.com/search?q=${encodeURIComponent(book.title)}`} target="_blank" rel="noopener noreferrer">
-                    <Search className="size-4" />
-                    Google
-                  </a>
-                </Button>
-              )}
+              <BookFindSources bookId={bookId} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} currentSeq={progressSeq || undefined} />
             </div>
           </div>
 

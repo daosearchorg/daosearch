@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowRight, BookOpen, ExternalLink, Loader2 } from "lucide-react";
+import { BookOpen, ExternalLink, Loader2, Lock } from "lucide-react";
 import { LoginDialog } from "@/components/login-dialog";
 
 interface Chapter {
@@ -12,6 +12,7 @@ interface Chapter {
   title: string | null;
   titleTranslated: string | null;
   url: string | null;
+  locked?: boolean;
 }
 
 interface BookChaptersProps {
@@ -110,6 +111,9 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
               }`}>
                 {ch.titleTranslated || ch.title || `Chapter ${ch.sequenceNumber}`}
               </span>
+              {ch.locked && (
+                <Lock className="shrink-0 size-3 text-muted-foreground/40" />
+              )}
               {isCurrent && (
                 <BookOpen className="ml-auto shrink-0 size-3.5 text-muted-foreground mr-1" />
               )}
