@@ -6,12 +6,15 @@ import logging
 from io import BytesIO
 
 import boto3
+import redis as redis_lib
 import requests
 from sqlalchemy import text
 
 from core.config import config
 from core.database import db_manager
 from services.queue_manager import QueueManager
+
+redis_client = redis_lib.from_url(config.redis['url'])
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +148,13 @@ def upload_images(limit: int = 1000) -> dict:
             books_queued += 1
 
     avatars_queued = 0
+    avatars_skipped = 0
     for row in qq_users:
         job_id = f"upload_avatar_image_{row.id}"
         if job_id not in queued_ids:
+            if _is_avatar_blocked(row.icon_url):
+                avatars_skipped += 1
+                continue
             queue_manager.add_general_job('upload_avatar_image', job_id=job_id, user_id=row.id, source_url=row.icon_url)
             avatars_queued += 1
 
@@ -195,20 +202,64 @@ def upload_book_image(book_id: int, source_url: str) -> dict:
         return {'book_id': book_id, 'status': 'error', 'error': str(e)}
 
 
+AVATAR_BLOCKED_KEY = 'avatars:blocked_domains'
+
+
+def _is_avatar_blocked(source_url: str) -> bool:
+    """Check if avatar URL domain is in the blocklist."""
+    try:
+        from urllib.parse import urlparse
+        domain = urlparse(source_url).hostname or ""
+        blocked = redis_client.smembers(AVATAR_BLOCKED_KEY)
+        blocked = {d.decode() if isinstance(d, bytes) else d for d in blocked}
+        return domain in blocked
+    except Exception:
+        return False
+
+
+def _block_avatar_domain(source_url: str) -> None:
+    """Add avatar URL domain to the blocklist after repeated failures."""
+    try:
+        from urllib.parse import urlparse
+        domain = urlparse(source_url).hostname or ""
+        if domain:
+            redis_client.sadd(AVATAR_BLOCKED_KEY, domain)
+            logger.info(f"Blocked avatar domain: {domain}")
+    except Exception:
+        pass
+
+
 def upload_avatar_image(user_id: int, source_url: str) -> dict:
-    """Download a single QQ user avatar and upload to R2."""
+    """Download a single QQ user avatar and upload to R2.
+
+    On failure: clears icon_url from DB (frontend handles fallback)
+    and tracks the domain in a Redis blocklist to skip future attempts.
+    """
+    # Skip known-dead domains
+    if _is_avatar_blocked(source_url):
+        return {'user_id': user_id, 'status': 'skipped', 'reason': 'blocked_domain'}
+
     r2_config = config.r2
     r2_key = f'avatars/{user_id}.jpg'
 
     try:
-        resp = requests.get(source_url, timeout=15)
+        resp = requests.get(source_url, timeout=10)
         resp.raise_for_status()
+
+        # Skip tiny responses (likely error pages, not real images)
+        if len(resp.content) < 100:
+            raise ValueError(f"Response too small ({len(resp.content)} bytes)")
+
+        content_type = resp.headers.get('Content-Type', '')
+        if not content_type.startswith('image/'):
+            raise ValueError(f"Not an image: {content_type}")
+
         s3 = _get_s3_client()
         s3.put_object(
             Bucket=r2_config['bucket_name'],
             Key=r2_key,
             Body=BytesIO(resp.content),
-            ContentType=resp.headers.get('Content-Type', 'image/jpeg'),
+            ContentType=content_type,
         )
         new_url = f"{r2_config['public_url']}/{r2_key}"
         with db_manager.get_session() as session:
@@ -221,4 +272,29 @@ def upload_avatar_image(user_id: int, source_url: str) -> dict:
         return {'user_id': user_id, 'status': 'ok'}
     except Exception as e:
         logger.warning(f"Failed to upload avatar {user_id}: {e}")
-        return {'user_id': user_id, 'status': 'error', 'error': str(e)}
+        # Clear the broken URL so we don't retry and frontend uses fallback
+        with db_manager.get_session() as session:
+            session.execute(
+                text("UPDATE qq_users SET icon_url = NULL WHERE id = :id"),
+                {'id': user_id}
+            )
+            session.commit()
+        # Track failures per domain — block after enough failures
+        _track_avatar_failure(source_url)
+        return {'user_id': user_id, 'status': 'cleared'}
+
+
+def _track_avatar_failure(source_url: str) -> None:
+    """Track avatar download failures per domain. Auto-block after 10 failures."""
+    try:
+        from urllib.parse import urlparse
+        domain = urlparse(source_url).hostname or ""
+        if not domain:
+            return
+        key = f"avatars:failures:{domain}"
+        count = redis_client.incr(key)
+        redis_client.expire(key, 86400)  # 24h TTL
+        if count >= 10:
+            _block_avatar_domain(source_url)
+    except Exception:
+        pass

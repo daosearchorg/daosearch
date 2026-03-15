@@ -43,6 +43,9 @@ DISCOVERY_COOLDOWN_DAYS = 7                  # minimum days between discovery ru
 # Min samples before a prefix can be auto-blocked
 MIN_SAMPLES = 20
 
+# Prefixes that are always blocked — chapter/reader pages, not worth crawling
+HARDCODED_BLOCKED = {'/book-read', '/book-chapter', '/book-chapter-detail'}
+
 
 def _extract_prefix(url: str) -> str:
     """Extract a path prefix from a URL for tracking.
@@ -146,9 +149,9 @@ class BookDiscoverySpider(scrapy.Spider):
             logger.info(f"Loaded {len(self.blocked_prefixes)} blocked URL prefixes")
 
     def _is_blocked(self, url: str) -> bool:
-        """Check if a URL's prefix is blocked."""
+        """Check if a URL's prefix is blocked (hardcoded or auto-detected)."""
         prefix = _extract_prefix(url)
-        return prefix in self.blocked_prefixes
+        return prefix in HARDCODED_BLOCKED or prefix in self.blocked_prefixes
 
     def _track_prefix(self, url: str, had_books: bool):
         """Track hit/miss for a URL prefix in Redis."""

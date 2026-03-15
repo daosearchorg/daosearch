@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Globe, Loader2, AlertCircle } from "lucide-react";
+import { Globe, Loader2, AlertCircle, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface SearchResult {
@@ -144,9 +144,7 @@ export function BookSourcePicker({
 
       {!loading && allSources.length > 0 && (
         <div className="flex flex-col gap-2">
-          {allSources.map((source) => (
-            <SourceCard key={source.url} result={source} onSelect={onSelect} />
-          ))}
+          <GroupedSources sources={allSources} onSelect={onSelect} />
           <p className="text-[11px] text-muted-foreground/50 flex items-center gap-1 mt-1">
             <Globe className="size-3 shrink-0" />
             Fetched live from the web — nothing is stored by DaoSearch.
@@ -154,6 +152,63 @@ export function BookSourcePicker({
         </div>
       )}
     </div>
+  );
+}
+
+function GroupedSources({
+  sources,
+  onSelect,
+}: {
+  sources: SearchResult[];
+  onSelect: (url: string, domain: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Group by domain, preserving order (first result per domain determines position)
+  const groups: { domain: string; items: SearchResult[] }[] = [];
+  const domainMap = new Map<string, SearchResult[]>();
+  for (const s of sources) {
+    if (!domainMap.has(s.domain)) {
+      domainMap.set(s.domain, []);
+      groups.push({ domain: s.domain, items: domainMap.get(s.domain)! });
+    }
+    domainMap.get(s.domain)!.push(s);
+  }
+
+  return (
+    <>
+      {groups.map(({ domain, items }) => {
+        const first = items[0];
+        const rest = items.slice(1);
+        const isExpanded = expanded[domain] || false;
+
+        return (
+          <div key={domain} className="flex flex-col gap-1">
+            <SourceCard result={first} onSelect={onSelect} />
+            {rest.length > 0 && !isExpanded && (
+              <button
+                onClick={() => setExpanded((e) => ({ ...e, [domain]: true }))}
+                className="flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronDown className="size-3" />
+                {rest.length} more from {domain}
+              </button>
+            )}
+            {isExpanded && rest.map((r) => (
+              <SourceCard key={r.url} result={r} onSelect={onSelect} />
+            ))}
+            {isExpanded && rest.length > 0 && (
+              <button
+                onClick={() => setExpanded((e) => ({ ...e, [domain]: false }))}
+                className="flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Show less
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -168,12 +223,8 @@ function SourceCard({
   const displayTitle = result.title_en || result.title;
   const displaySnippet = result.snippet_en || result.snippet;
 
-  // Extract path from URL for display
   let urlPath = "";
-  try {
-    const parsed = new URL(result.url);
-    urlPath = parsed.pathname;
-  } catch { urlPath = result.url; }
+  try { urlPath = new URL(result.url).pathname; } catch { urlPath = result.url; }
 
   return (
     <button

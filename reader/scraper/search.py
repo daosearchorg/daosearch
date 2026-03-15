@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from urllib.parse import urlparse
 
 import httpx
@@ -72,7 +73,26 @@ async def search_novels_raw(query: str, max_results: int = 20) -> list[SearchRes
         if len(results) >= max_results:
             break
 
-    results.sort(key=lambda r: get_site_priority(r.domain))
+    # Sort by relevance: title match > snippet match > no match, then site priority
+    def _relevance(r: SearchResult) -> tuple[int, int]:
+        text = r.title + " " + (r.snippet or "")
+        # Check if the full query appears in the result
+        if query in text:
+            return (0, get_site_priority(r.domain))
+        # Check if the majority of query characters appear (handles slight differences)
+        query_chars = set(query)
+        text_chars = set(text)
+        overlap = len(query_chars & text_chars) / max(len(query_chars), 1)
+        if overlap > 0.7:
+            return (1, get_site_priority(r.domain))
+        # Check individual words — split Chinese title by common separators
+        query_parts = [p for p in re.split(r'[：:·\s]', query) if len(p) >= 2]
+        matches = sum(1 for p in query_parts if p in text)
+        if query_parts and matches >= len(query_parts) * 0.5:
+            return (1, get_site_priority(r.domain))
+        return (2, get_site_priority(r.domain))
+
+    results.sort(key=_relevance)
     logger.info(f"Found {len(results)} novel URLs from {len(seen_urls)} raw results")
     return results
 

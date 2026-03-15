@@ -525,7 +525,7 @@ export function ChapterReader({
           </Button>
           <Button variant="outline" size="sm" onClick={() => {
             (async () => {
-              const list = chapters.length ? chapters : await loadChapters(sourceUrl);
+              const list = await loadChapters(sourceUrl, true);
               if (list.length) await loadContent(list, currentSeq);
             })();
           }}>
