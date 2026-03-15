@@ -6,8 +6,8 @@ const THEME_COLORS: Record<string, string> = {
   light: "#ffffff",
   dark: "#000000",
   "quiet": "#3C3C3C",
-  "paper": "#F5F1E8",
-  "calm": "#E8DCC8",
+  "paper": "#F4F0E8",
+  "calm": "#EDE6D8",
   "focus": "#FAF8F2",
 };
 

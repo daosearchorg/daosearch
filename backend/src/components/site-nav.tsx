@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
-import { Sun, Moon, Menu, Library, Trophy, Rss, ArrowRightLeft, LogIn, LogOut, ListOrdered, ChevronsUpDown, Bell, Bookmark, BookOpen, Heart, List, ListChecks, MessageSquare, Star, Tag, User, SlidersHorizontal } from "lucide-react";
+import { Sun, Moon, Menu, Library, Trophy, Rss, ArrowRightLeft, LogIn, LogOut, ListOrdered, ChevronsUpDown, Bell, Bookmark, BookOpen, Heart, List, ListChecks, MessageSquare, Star, Tag, User, SlidersHorizontal, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
 import { UserAvatar } from "@/components/user-avatar";
@@ -95,7 +95,7 @@ export function SiteNav() {
           <Separator orientation="vertical" className="!h-5 mx-2" />
           {isAuthed && <NotificationBell />}
           <Button variant="ghost" size="icon" className="size-9" onClick={() => setReaderSettingsOpen(true)}>
-            <SlidersHorizontal className="size-[18px]" />
+            <Settings2 className="size-[18px]" />
           </Button>
           <UserMenu />
         </div>
@@ -105,7 +105,7 @@ export function SiteNav() {
           <NavSearch />
           {isAuthed && <NotificationBell />}
           <Button variant="ghost" size="icon" className="size-9" onClick={() => setReaderSettingsOpen(true)}>
-            <SlidersHorizontal className="size-[18px]" />
+            <Settings2 className="size-[18px]" />
           </Button>
 
           <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAccountOpen(false); }}>
@@ -139,10 +139,6 @@ export function SiteNav() {
               </div>
 
               <SheetFooter className="mt-auto border-t px-3 py-3 relative">
-                <button onClick={() => { setOpen(false); setReaderSettingsOpen(true); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent text-muted-foreground">
-                  <SlidersHorizontal className="size-5" />
-                  Settings
-                </button>
                 {isAuthed ? (
                   <>
                     <div className="relative">

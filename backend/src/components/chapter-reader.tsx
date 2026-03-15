@@ -15,7 +15,7 @@ import {
   Globe,
   Lock,
   RefreshCw,
-  Sparkles,
+  BookType,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,13 +98,19 @@ export function ChapterReader({
   const [retranslateKey, setRetranslateKey] = useState(0);
   const [readerFontSize, setReaderFontSize] = useState(16);
   const [readerLineSpacing, setReaderLineSpacing] = useState(1.75);
+  const [prefetchEnabled, setPrefetchEnabled] = useState(true);
   const translationAbortRef = useRef(false);
+  const prefetchRef = useRef<Record<number, { content: string; title: string; translatedParagraphs: string[]; entities: DetectedEntity[]; titleTranslated: string; vip: boolean }>>({});
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+  const [prefetchStatus, setPrefetchStatus] = useState<"idle" | "loading" | "ready">("idle");
+  const usedPrefetchRef = useRef(false);
 
   // Load reader settings from localStorage + listen for changes
   useEffect(() => {
     const loadSettings = () => {
       setReaderFontSize(Number(localStorage.getItem("reader-font-size")) || 16);
       setReaderLineSpacing(Number(localStorage.getItem("reader-line-spacing")) || 1.75);
+      setPrefetchEnabled(localStorage.getItem("reader-prefetch") !== "false");
     };
     loadSettings();
     window.addEventListener("reader-settings-changed", loadSettings);
@@ -232,6 +238,13 @@ export function ChapterReader({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!chapterContent || phase !== "ready") return;
+
+    // Skip auto-translate if we just loaded from prefetch
+    if (usedPrefetchRef.current) {
+      usedPrefetchRef.current = false;
+      return;
+    }
+
     translationAbortRef.current = false;
     setTranslatedParagraphs([]);
     setTranslationDone(false);
@@ -322,6 +335,122 @@ export function ChapterReader({
   }, [chapterContent, phase, translationTier, retranslateKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
+  // Prefetch next chapter in background
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!prefetchEnabled || !translationDone || !chapterContent || phase !== "ready") return;
+    const nextSeq = currentSeq + 1;
+    const nextChapter = chapters.find((c) => c.sequence === nextSeq);
+    if (!nextChapter) return;
+    if (prefetchRef.current[nextSeq]) { setPrefetchStatus("ready"); return; }
+
+    // Abort any previous prefetch
+    prefetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    prefetchAbortRef.current = controller;
+    setPrefetchStatus("loading");
+
+    (async () => {
+      try {
+        // 1. Fetch raw chapter content
+        const rawRes = await fetch(`/api/reader/chapter?url=${encodeURIComponent(nextChapter.url)}`, { signal: controller.signal });
+        if (!rawRes.ok || controller.signal.aborted) return;
+        const rawData = await rawRes.json();
+        const rawContent = rawData.content as string;
+        const rawTitle = rawData.title as string;
+        const rawVip = rawData.vip as boolean;
+
+        if (controller.signal.aborted) return;
+
+        const paragraphs = rawContent.split("\n").filter(Boolean);
+        let translated: string[] = [];
+        let titleTranslated = "";
+        let entities: DetectedEntity[] = [];
+
+        // 2. Translate title
+        titleTranslated = await translateText(rawTitle);
+
+        if (controller.signal.aborted) return;
+
+        // 3. Translate based on tier
+        if (translationTier === "free") {
+          // Client-side GT batch translation
+          const BATCH = 10;
+          translated = new Array(paragraphs.length).fill("");
+          for (let i = 0; i < paragraphs.length; i += BATCH) {
+            if (controller.signal.aborted) break;
+            const result = await translateBatch(paragraphs.slice(i, i + BATCH));
+            for (let j = 0; j < result.length; j++) translated[i + j] = result[j];
+          }
+        } else if (translationTier === "premium" || translationTier === "byok") {
+          // Server-side non-streaming translation
+          const params = new URLSearchParams({
+            url: nextChapter.url,
+            translate: translationTier === "premium" ? "ai" : "byok",
+            ...(bookId ? { book_id: String(bookId) } : {}),
+          });
+          const transRes = await fetch(`/api/reader/chapter?${params}`, { signal: controller.signal });
+          if (!transRes.ok || controller.signal.aborted) return;
+
+          // Parse SSE response for non-streaming (the API still returns SSE even without stream=1 for ai/byok)
+          // Actually for non-streaming, it returns raw chapter. We need to use stream and collect all.
+          // Let's use the stream endpoint and collect everything
+          const streamParams = new URLSearchParams({
+            url: nextChapter.url,
+            translate: translationTier === "premium" ? "ai" : "byok",
+            stream: "1",
+            ...(bookId ? { book_id: String(bookId) } : {}),
+          });
+          const streamRes = await fetch(`/api/reader/chapter?${streamParams}`, { signal: controller.signal });
+          if (!streamRes.ok || controller.signal.aborted) return;
+
+          const reader = streamRes.body?.getReader();
+          if (!reader) return;
+          const decoder = new TextDecoder();
+          let buffer = "";
+          translated = new Array(paragraphs.length).fill("");
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done || controller.signal.aborted) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
+            for (const block of events) {
+              const { event, data } = parseSSE(block);
+              if (event === "entity") {
+                entities.push(JSON.parse(data));
+              } else if (event === "chunk_done") {
+                const chunk = JSON.parse(data);
+                for (const p of chunk.paragraphs) {
+                  if (p.index < translated.length) translated[p.index] = p.text;
+                }
+              }
+            }
+          }
+        }
+
+        if (controller.signal.aborted) return;
+
+        // Store prefetched data
+        prefetchRef.current[nextSeq] = {
+          content: rawContent,
+          title: rawTitle,
+          translatedParagraphs: translated,
+          entities,
+          titleTranslated,
+          vip: rawVip,
+        };
+        setPrefetchStatus("ready");
+      } catch {
+        setPrefetchStatus("idle");
+      }
+    })();
+
+    return () => { controller.abort(); };
+  }, [translationDone, currentSeq, phase, prefetchEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------------------------------------------------------------------------
   // Navigation
   // ---------------------------------------------------------------------------
   const goToChapter = useCallback(async (seq: number) => {
@@ -330,7 +459,33 @@ export function ChapterReader({
     setDrawerOpen(false);
     setJumpPrompt(null);
     if (sourceUrl) router.replace(`/book/${bookId}/read?seq=${seq}&source=${encodeURIComponent(sourceUrl)}`, { scroll: false });
-    if (chapters.length) await loadContent(chapters, seq);
+
+    // Cancel any in-progress prefetch
+    prefetchAbortRef.current?.abort();
+    setPrefetchStatus("idle");
+
+    // Check for prefetched data
+    const prefetched = prefetchRef.current[seq];
+    if (prefetched) {
+      // Use prefetched data — instant chapter load, skip auto-translate
+      usedPrefetchRef.current = true;
+      setChapterTitle(prefetched.title);
+      setChapterTitleTranslated(prefetched.titleTranslated);
+      setChapterContent(prefetched.content);
+      setIsVip(prefetched.vip);
+      setTranslatedParagraphs(prefetched.translatedParagraphs);
+      setDetectedEntities(prefetched.entities);
+      setTranslationDone(true);
+      setTranslating(false);
+      setPhase("ready");
+      window.scrollTo({ top: 0 });
+      // Clear used prefetch
+      delete prefetchRef.current[seq];
+    } else {
+      // No prefetch — load normally
+      if (chapters.length) await loadContent(chapters, seq);
+    }
+
     if (isNext) syncProgress(seq, sourceDomain);
     else if (lastSavedSeq != null && seq !== lastSavedSeq) {
       const savedCh = chapters.find((c) => c.sequence === lastSavedSeq);
@@ -395,25 +550,28 @@ export function ChapterReader({
   // ---------------------------------------------------------------------------
   return (
     <div className="flex flex-col gap-4">
-      {/* Header — back + novel title + language toggle */}
+      {/* Header — back + novel title */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="shrink-0 size-8" asChild>
           <Link href={bookPageUrl}><ArrowLeft className="size-4" /></Link>
         </Button>
-        <Link href={bookPageUrl} className="text-sm text-muted-foreground hover:text-foreground transition-colors truncate flex-1">
+        <Link href={bookPageUrl} className="text-sm text-muted-foreground hover:text-foreground transition-colors truncate">
           {bookTitle}
         </Link>
-        {/* EN / 中文 pill */}
-        <div className="flex rounded-md border border-border text-xs overflow-hidden shrink-0">
-          <button className={`px-2.5 py-1 transition-colors ${lang === "en" ? "bg-muted font-medium" : "hover:bg-muted/50"}`} onClick={() => setLang("en")}>EN</button>
-          <button className={`px-2.5 py-1 transition-colors ${lang === "zh" ? "bg-muted font-medium" : "hover:bg-muted/50"}`} onClick={() => setLang("zh")}>中文</button>
-        </div>
       </div>
 
       {/* Chapter title — centered */}
       <h1 className="text-base sm:text-lg font-medium text-center leading-tight">
         {lang === "en" && chapterTitleTranslated ? chapterTitleTranslated : chapterTitle}
       </h1>
+
+      {/* EN / 中文 pill — centered below title */}
+      <div className="flex justify-center">
+        <div className="flex rounded-md border border-border text-xs overflow-hidden">
+          <button className={`px-3 py-1 transition-colors ${lang === "en" ? "bg-muted font-medium" : "hover:bg-muted/50"}`} onClick={() => setLang("en")}>EN</button>
+          <button className={`px-3 py-1 transition-colors ${lang === "zh" ? "bg-muted font-medium" : "hover:bg-muted/50"}`} onClick={() => setLang("zh")}>中文</button>
+        </div>
+      </div>
 
       {/* Chapter nav bar */}
       <div className="flex items-center gap-2 sm:max-w-3xl sm:mx-auto w-full">
@@ -425,8 +583,8 @@ export function ChapterReader({
         <div className="flex-1 flex items-center justify-center gap-1">
           {detectedEntities.length > 0 && (
             <Button variant={showEntities ? "secondary" : "ghost"} size="sm" onClick={() => setShowEntities(!showEntities)}>
-              <Sparkles className="size-3.5" />
-              <span className="hidden sm:inline">Entities</span>
+              <BookType className="size-3.5" />
+              <span className="hidden sm:inline">Glossary</span>
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={retranslate}>
@@ -441,9 +599,15 @@ export function ChapterReader({
           </Button>
         </div>
 
-        <Button variant="outline" size="sm" className="shrink-0" disabled={!hasNext} onClick={() => goToChapter(currentSeq + 1)}>
+        <Button variant="outline" size="sm" className="shrink-0 relative" disabled={!hasNext} onClick={() => goToChapter(currentSeq + 1)}>
           <span className="hidden sm:inline">Next</span>
           <ChevronRight className="size-4" />
+          {prefetchStatus === "ready" && hasNext && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-green-500" title="Next chapter ready" />
+          )}
+          {prefetchStatus === "loading" && hasNext && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 animate-pulse" title="Prefetching next chapter..." />
+          )}
         </Button>
       </div>
 
@@ -460,11 +624,13 @@ export function ChapterReader({
 
       {/* Jump prompt */}
       {jumpPrompt && lastSavedSeq != null && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-border/60 bg-muted/30 text-sm">
-          <p className="text-muted-foreground truncate min-w-0">Progress at Ch. {lastSavedSeq} — {jumpPrompt.savedTitle}</p>
-          <div className="flex gap-2 shrink-0">
+        <div className="w-full sm:max-w-3xl sm:mx-auto flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2.5 rounded-md border border-border bg-card text-sm">
+          <p className="min-w-0 sm:flex-1 text-muted-foreground">
+            Progress at <span className="font-medium text-foreground">Ch. {lastSavedSeq}</span> — {jumpPrompt.savedTitle}
+          </p>
+          <div className="grid grid-cols-2 sm:flex gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={() => { syncProgress(jumpPrompt.targetSeq, sourceDomain); setJumpPrompt(null); }}>
-              Save Ch. {jumpPrompt.targetSeq}
+              Stay Here
             </Button>
             <Button variant="ghost" size="sm" onClick={() => { setJumpPrompt(null); goToChapter(lastSavedSeq!); }}>
               Go Back
@@ -525,9 +691,15 @@ export function ChapterReader({
           <span className="hidden sm:inline">Previous</span>
         </Button>
         <span className="text-xs text-muted-foreground tabular-nums">{currentSeq} / {chapters.length}</span>
-        <Button variant="outline" size="sm" disabled={!hasNext} onClick={() => goToChapter(currentSeq + 1)}>
+        <Button variant="outline" size="sm" className="relative" disabled={!hasNext} onClick={() => goToChapter(currentSeq + 1)}>
           <span className="hidden sm:inline">Next</span>
           <ChevronRight className="size-4" />
+          {prefetchStatus === "ready" && hasNext && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-green-500" title="Next chapter ready" />
+          )}
+          {prefetchStatus === "loading" && hasNext && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 animate-pulse" title="Prefetching next chapter..." />
+          )}
         </Button>
       </nav>
 
@@ -631,7 +803,19 @@ function highlightOriginalEntities(text: string, entities: DetectedEntity[]): Re
   const map = new Map(entities.map((e) => [e.original, e.translated]));
   return parts.map((part, i) => {
     const t = map.get(part);
-    return t ? <span key={i} className="bg-blue-500/10 rounded px-0.5 cursor-help" title={t}>{part}</span> : part;
+    if (!t) return part;
+    const ent = entities.find((e) => e.original === part);
+    return (
+      <span key={i} className="bg-foreground/8 rounded-sm px-0.5 cursor-help relative group">
+        {part}
+        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2.5 py-1.5 rounded-md bg-popover border border-border shadow-md text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+          <span className="font-medium">{t}</span>
+          {ent?.gender && ent.gender !== "N" && (
+            <span className="ml-1.5 text-muted-foreground">{ent.gender === "M" ? "Male" : "Female"}</span>
+          )}
+        </span>
+      </span>
+    );
   });
 }
 
@@ -643,9 +827,20 @@ function highlightEntityNames(text: string, entities: DetectedEntity[]): React.R
   const regex = new RegExp(`(${escaped.join("|")})`, "gi");
   const parts = text.split(regex);
   if (parts.length === 1) return text;
-  const map = new Map(sorted.map((e) => [e.translated.toLowerCase(), e.original]));
+  const map = new Map(sorted.map((e) => [e.translated.toLowerCase(), e]));
   return parts.map((part, i) => {
-    const o = map.get(part.toLowerCase());
-    return o ? <span key={i} className="bg-violet-500/10 rounded px-0.5 cursor-help" title={o}>{part}</span> : part;
+    const ent = map.get(part.toLowerCase());
+    if (!ent) return part;
+    return (
+      <span key={i} className="bg-foreground/8 rounded-sm px-0.5 cursor-help relative group">
+        {part}
+        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2.5 py-1.5 rounded-md bg-popover border border-border shadow-md text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+          <span className="font-medium">{ent.original}</span>
+          {ent.gender && ent.gender !== "N" && (
+            <span className="ml-1.5 text-muted-foreground">{ent.gender === "M" ? "Male" : "Female"}</span>
+          )}
+        </span>
+      </span>
+    );
   });
 }

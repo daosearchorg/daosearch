@@ -18,8 +18,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 const THEMES = [
   { id: "light", label: "Original", bg: "#ffffff", fg: "#0a0a0a" },
   { id: "focus", label: "Focus", bg: "#FAF8F2", fg: "#3D3D3D" },
-  { id: "paper", label: "Paper", bg: "#F5F1E8", fg: "#3D3D3D" },
-  { id: "calm", label: "Calm", bg: "#E8DCC8", fg: "#3D3226" },
+  { id: "paper", label: "Paper", bg: "#F4F0E8", fg: "#333025" },
+  { id: "calm", label: "Calm", bg: "#EDE6D8", fg: "#2E2920" },
   { id: "quiet", label: "Quiet", bg: "#3C3C3C", fg: "#D4D4D4" },
   { id: "dark", label: "Black", bg: "#000000", fg: "#E8E8E3" },
 ] as const;
@@ -54,6 +54,7 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
   // Reader settings (localStorage)
   const [fontSize, setFontSize] = useState(FONT_SIZES.default);
   const [lineSpacing, setLineSpacing] = useState(1.75);
+  const [prefetch, setPrefetch] = useState(true);
 
   // Translation settings (DB)
   const [tier, setTier] = useState("free");
@@ -70,6 +71,7 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
     setMounted(true);
     setFontSize(Number(localStorage.getItem("reader-font-size")) || FONT_SIZES.default);
     setLineSpacing(Number(localStorage.getItem("reader-line-spacing")) || 1.75);
+    setPrefetch(localStorage.getItem("reader-prefetch") !== "false");
 
     fetch("/api/user/translation-settings")
       .then((r) => r.json())
@@ -188,6 +190,21 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
                 </button>
               ))}
             </div>
+          </div>
+          {/* Prefetch */}
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">Prefetch Next Chapter</Label>
+              <p className="text-xs text-muted-foreground">Translates the next chapter in the background for instant loading</p>
+            </div>
+            <Switch
+              checked={prefetch}
+              onCheckedChange={(checked) => {
+                setPrefetch(checked);
+                localStorage.setItem("reader-prefetch", String(checked));
+                window.dispatchEvent(new CustomEvent("reader-settings-changed"));
+              }}
+            />
           </div>
         </div>
       </TabsContent>

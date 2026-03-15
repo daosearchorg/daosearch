@@ -1,0 +1,2 @@
+# Gitleaks ignore file — add commit hashes or fingerprints for known false positives
+# Format: one fingerprint per line (from gitleaks output)
