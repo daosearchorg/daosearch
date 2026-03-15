@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -91,9 +94,8 @@ function getDominantScore(stats: BookCardStats): { pct: number; color: string } 
 }
 
 function StatRow({ stats, className }: { stats: BookCardStats; className?: string }) {
-  const score = getDominantScore(stats);
   const combinedReviews = (stats.commentCount ?? 0) + (stats.reviewCount ?? 0);
-  const hasAny = (stats.wordCount ?? 0) > 0 || stats.qqScore || combinedReviews > 0 || score != null;
+  const hasAny = (stats.wordCount ?? 0) > 0 || stats.qqScore || combinedReviews > 0 || (stats.readerCount ?? 0) > 0;
   if (!hasAny) return null;
 
   return (
@@ -116,13 +118,45 @@ function StatRow({ stats, className }: { stats: BookCardStats; className?: strin
           <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
         </span>
       )}
-      {score != null && (
+      {(stats.readerCount ?? 0) > 0 && (
         <span className="inline-flex items-center gap-1 whitespace-nowrap">
           <Users className="size-3.5 shrink-0" />
-          <span className={`font-medium tabular-nums ${score.color}`}>
-            {score.pct}%
-          </span>
+          <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
         </span>
+      )}
+    </div>
+  );
+}
+
+function ExpandableSynopsis({ text, className, clampClass = "line-clamp-3", center }: { text: string; className?: string; clampClass?: string; center?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const id = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(id);
+  }, [text]);
+
+  return (
+    <div>
+      <p
+        ref={ref}
+        className={`${className ?? ""} ${!expanded ? clampClass : ""}`}
+      >
+        {text}
+      </p>
+      {(clamped || expanded) && (
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded((v) => !v); }}
+          className={`text-xs text-muted-foreground hover:text-foreground mt-1 transition-colors block px-4 py-1.5 -mx-2 rounded-md hover:bg-muted/50 ${center ? "mx-auto" : "ml-auto sm:mx-auto"}`}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
       )}
     </div>
   );
@@ -206,9 +240,9 @@ export function BookCard({
               {stats && <StatRow stats={stats} className="justify-center mt-2 text-xs" />}
             </div>
             {cleanSynopsis && (
-              <p className="text-sm leading-relaxed mt-4 px-2 line-clamp-3 text-center text-muted-foreground">
-                {cleanSynopsis.length > 250 ? cleanSynopsis.slice(0, 250) + "..." : cleanSynopsis}
-              </p>
+              <div className="mt-4 px-2">
+                <ExpandableSynopsis text={cleanSynopsis} className="text-sm leading-relaxed text-center text-muted-foreground" center />
+              </div>
             )}
           </div>
         </Card>
@@ -263,9 +297,8 @@ export function BookCard({
   if (variant === "list") {
     const isTop3 = !disablePodium && position != null && position <= 3;
     const topBg = isTop3 && position ? LIST_TOP3_BG[position] ?? "" : "";
-    const score = stats ? getDominantScore(stats) : null;
     const combinedReviews = stats ? (stats.commentCount ?? 0) + (stats.reviewCount ?? 0) : 0;
-    const hasStats = stats && ((stats.wordCount ?? 0) > 0 || stats.qqScore || combinedReviews > 0 || score != null);
+    const hasStats = stats && ((stats.wordCount ?? 0) > 0 || stats.qqScore || combinedReviews > 0 || (stats.readerCount ?? 0) > 0);
 
     return (
       <Link href={bookUrl(bookId, title)} className="block">
@@ -336,20 +369,18 @@ export function BookCard({
                       <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
                     </span>
                   )}
-                  {score != null && (
+                  {(stats.readerCount ?? 0) > 0 && (
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       <Users className="size-3 shrink-0" />
-                      <span className={`font-medium tabular-nums ${score.color}`}>
-                        {score.pct}%
-                      </span>
+                      <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
                     </span>
                   )}
                 </div>
               ) : null}
               {cleanSynopsis && (
-                <p className="hidden sm:block text-sm leading-relaxed mt-2 line-clamp-3 overflow-hidden text-muted-foreground">
-                  {cleanSynopsis.length > 400 ? cleanSynopsis.slice(0, 400) + "..." : cleanSynopsis}
-                </p>
+                <div className="hidden sm:block mt-2">
+                  <ExpandableSynopsis text={cleanSynopsis} className="text-sm leading-relaxed text-muted-foreground" />
+                </div>
               )}
             </div>
             <div className="hidden sm:flex flex-col items-end gap-2 shrink-0 text-right">
@@ -378,12 +409,10 @@ export function BookCard({
                       <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
                     </span>
                   )}
-                  {score != null && (
+                  {(stats.readerCount ?? 0) > 0 && (
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       <Users className="size-3.5 shrink-0" />
-                      <span className={`font-medium tabular-nums ${score.color}`}>
-                        {score.pct}%
-                      </span>
+                      <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
                     </span>
                   )}
                 </div>
@@ -391,9 +420,9 @@ export function BookCard({
             </div>
           </div>
           {cleanSynopsis && (
-            <p className="sm:hidden text-xs leading-relaxed mt-1.5 px-0.5 line-clamp-3 overflow-hidden text-muted-foreground">
-              {cleanSynopsis.length > 300 ? cleanSynopsis.slice(0, 300) + "..." : cleanSynopsis}
-            </p>
+            <div className="sm:hidden mt-1.5 px-0.5">
+              <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" />
+            </div>
           )}
         </div>
       </Link>

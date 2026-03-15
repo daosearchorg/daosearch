@@ -10,9 +10,11 @@ interface BookChaptersFabProps {
   bookId: number;
   chapterCount: number;
   progressSeq: number | null;
+  bookTitleRaw?: string;
+  bookUrl?: string;
 }
 
-export function BookChaptersFab({ bookId, chapterCount, progressSeq }: BookChaptersFabProps) {
+export function BookChaptersFab({ bookId, chapterCount, progressSeq, bookTitleRaw, bookUrl }: BookChaptersFabProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -45,6 +47,8 @@ export function BookChaptersFab({ bookId, chapterCount, progressSeq }: BookChapt
               initialItems={[]}
               initialCurrentSeq={progressSeq}
               singleColumn
+              bookTitleRaw={bookTitleRaw}
+              bookUrl={bookUrl}
             />
           </div>
         </DrawerContent>

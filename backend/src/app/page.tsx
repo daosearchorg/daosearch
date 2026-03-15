@@ -134,7 +134,7 @@ function RankingCard({ item }: { item: RankItem }) {
   return (
     <Link
       href={bookUrl(item.bookId, item.titleTranslated || item.title)}
-      className="block shrink-0 w-[140px] sm:w-[155px] group"
+      className="block shrink-0 w-[120px] sm:w-[145px] group"
       draggable={false}
     >
       <div className="relative">
@@ -153,15 +153,15 @@ function RankingCard({ item }: { item: RankItem }) {
           </div>
         )}
         <span
-          className={`absolute -bottom-2.5 left-1/2 -translate-x-1/2 flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium shadow-md ring-2 ring-background ${badgeColor}`}
+          className={`absolute -bottom-2.5 left-1/2 -translate-x-1/2 flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-medium shadow-md ring-2 ring-background ${badgeColor}`}
         >
           {item.position}
         </span>
       </div>
       <div className="mt-4 px-0.5 flex flex-col items-center text-center">
-        <p className="text-sm font-medium line-clamp-2 leading-snug h-[2.625rem]">{displayTitle}</p>
-        <p className="text-[11px] text-muted-foreground mt-1 truncate max-w-full h-4">{displayAuthor}</p>
-        <div className="flex items-center justify-center gap-2 mt-1.5 h-4 text-[11px] text-muted-foreground">
+        <p className="text-sm font-medium line-clamp-2 leading-snug min-h-[2.5em]">{displayTitle}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-full">{displayAuthor}</p>
+        <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-muted-foreground">
           {(item.wordCount ?? 0) > 0 && (
             <span className="inline-flex items-center gap-0.5">
               <ScrollText className="size-3 shrink-0" />
@@ -505,8 +505,8 @@ export default async function Home() {
         {/* Top Rated — cover grid */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
           <SectionHeader title="Top Rated" href="/qidian/rankings?cycle=cycle-4&page=1" icon={Flame} />
-          <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 sm:gap-4">
-            {data.topRated.map((item, idx) => {
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
+            {data.topRated.slice(0, 12).map((item, idx) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";
               const displayAuthor = item.authorTranslated || item.author || "Unknown";
               const badgeColor = PODIUM_BADGE[item.position] ?? "bg-foreground/80 text-background";
@@ -530,14 +530,14 @@ export default async function Home() {
                         No image
                       </div>
                     )}
-                    <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full text-[10px] sm:text-[11px] font-medium shadow-md ring-2 ring-background ${badgeColor}`}>
+                    <span className={`absolute -bottom-2.5 left-1/2 -translate-x-1/2 flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-medium shadow-md ring-2 ring-background ${badgeColor}`}>
                       {item.position}
                     </span>
                   </div>
-                  <div className="mt-3.5 px-0.5 flex flex-col items-center text-center">
-                    <p className="text-[13px] sm:text-sm font-medium line-clamp-2 leading-snug h-[2.25rem] sm:h-[2.625rem]">{displayTitle}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block sm:h-4">{displayAuthor}</p>
-                    <div className="flex items-center justify-center gap-2 mt-1 h-4 text-[11px] text-muted-foreground">
+                  <div className="mt-4 px-0.5 flex flex-col items-center text-center">
+                    <p className="text-sm font-medium line-clamp-2 leading-snug min-h-[2.5em]">{displayTitle}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block">{displayAuthor}</p>
+                    <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-muted-foreground">
                       {item.qqScore && parseFloat(item.qqScore) > 0 && (
                         <span className="inline-flex items-center gap-0.5">
                           <Star className="size-3" />
@@ -704,8 +704,8 @@ export default async function Home() {
         {/* Recently Updated — cover grid */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
           <SectionHeader title="Recently Updated" href="/library?sort=updated&page=1" icon={Clock} />
-          <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 sm:gap-4">
-            {data.recentlyUpdated.map((item, idx) => {
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
+            {data.recentlyUpdated.slice(0, 12).map((item, idx) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";
               const displayAuthor = item.authorTranslated || item.author || "Unknown";
               return (
@@ -729,11 +729,11 @@ export default async function Home() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-2.5 px-0.5 flex flex-col items-center text-center">
-                    <p className="text-[13px] sm:text-sm font-medium line-clamp-2 leading-snug h-[2.25rem] sm:h-[2.625rem]">{displayTitle}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block sm:h-4">{displayAuthor}</p>
+                  <div className="mt-3 px-0.5 flex flex-col items-center text-center">
+                    <p className="text-sm font-medium line-clamp-2 leading-snug min-h-[2.5em]">{displayTitle}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-full hidden sm:block">{displayAuthor}</p>
                     {item.updateTime && (
-                      <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-0.5">{timeAgo(item.updateTime)}</p>
+                      <p className="text-[11px] text-muted-foreground/60 mt-0.5">{timeAgo(item.updateTime)}</p>
                     )}
                   </div>
                 </Link>

@@ -248,6 +248,53 @@
   }
 }
 
+/* LitRPG system panels — code blocks and bracket clusters */
+.litrpg-panel {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.875em;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.litrpg-panel::before {
+  content: "SYSTEM";
+  position: absolute;
+  top: -0.6em;
+  left: 0.75rem;
+  padding: 0 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-radius: 2px;
+}
+
+.litrpg-line {
+  padding: 0.125rem 0;
+  color: var(--foreground);
+}
+
+.litrpg-inline {
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  background: var(--muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.875em;
+  color: var(--foreground);
+}
+
+.litrpg-bracket {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
 /* Hide scrollbar but keep scroll functionality */
 * {
   -ms-overflow-style: none;

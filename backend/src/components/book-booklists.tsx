@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Users, Heart, LibraryBig, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { booklistUrl } from "@/lib/utils";
+
+interface BooklistPreview {
+  bookId: number;
+  imageUrl: string | null;
+  title: string | null;
+  titleTranslated: string | null;
+}
 
 interface BooklistItem {
   booklistId: number;
@@ -15,6 +23,7 @@ interface BooklistItem {
   curatorComment: string | null;
   curatorCommentTranslated: string | null;
   heartCount: number | null;
+  previews: BooklistPreview[];
 }
 
 interface BookBooklistsProps {
@@ -50,7 +59,7 @@ export function BookBooklists({ bookId, initialItems, total }: BookBooklistsProp
           <Link
             key={bl.booklistId}
             href={booklistUrl(bl.booklistId, bl.titleTranslated || bl.title)}
-            className="flex flex-col gap-2 rounded-lg border border-border/50 p-4 hover:bg-muted/30 transition-colors"
+            className="flex flex-col gap-2.5 rounded-lg border border-border/50 p-4 hover:bg-muted/30 transition-colors"
           >
             <span className="text-sm sm:text-base font-medium leading-snug line-clamp-2">
               {bl.titleTranslated || bl.title || "Untitled Booklist"}
@@ -79,6 +88,29 @@ export function BookBooklists({ bookId, initialItems, total }: BookBooklistsProp
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-2">
                 {bl.curatorCommentTranslated || bl.curatorComment}
               </p>
+            )}
+            {bl.previews && bl.previews.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mt-auto">
+                {bl.previews.slice(0, 4).map((preview) => (
+                  <div key={preview.bookId} className="min-w-0">
+                    <div className="relative overflow-hidden rounded-md bg-muted">
+                      {preview.imageUrl ? (
+                        <Image
+                          src={preview.imageUrl}
+                          alt={preview.titleTranslated || preview.title || ""}
+                          width={120}
+                          height={160}
+                          className="aspect-[3/4] w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex aspect-[3/4] w-full items-center justify-center text-[10px] text-muted-foreground">
+                          No img
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </Link>
         ))}

@@ -11,7 +11,7 @@ import { chapters as chaptersTable, readingProgresses, bookmarks, bookRatings, b
 import { eq, desc, and } from "drizzle-orm";
 import { slugify, bookUrl } from "@/lib/utils";
 
-import { ExternalLink, Trophy, ScrollText, BookOpen, Eye, Bookmark, Star, MessageSquareText, Heart, Users, ThumbsUp, Search } from "lucide-react";
+import { Trophy, ScrollText, BookOpen, Eye, Bookmark, Star, MessageSquareText, Heart, Users, ThumbsUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookRating } from "@/components/book-rating";
 import { BookBookmark } from "@/components/book-bookmark";
@@ -208,16 +208,8 @@ export default async function BookDetailPage({ params }: Props) {
           )}
           {/* Actions — desktop, under cover */}
           <div className="hidden sm:flex flex-col w-[220px] gap-2">
-            <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
             <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
-            {book.url && (
-              <Button variant="outline" className="w-full" asChild>
-                <a href={book.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="size-4" />
-                  Original
-                </a>
-              </Button>
-            )}
+            <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
             <BookFindSources bookId={bookId} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} currentSeq={progressSeq || undefined} />
           </div>
         </div>
@@ -240,19 +232,9 @@ export default async function BookDetailPage({ params }: Props) {
 
           {/* Actions — mobile only, right after author */}
           <div className="flex sm:hidden flex-col gap-2 mt-3">
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
             <div className="grid grid-cols-2 gap-2">
               <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
-              <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {book.url && (
-                <Button variant="outline" className="w-full" asChild>
-                  <a href={book.url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="size-4" />
-                    Original
-                  </a>
-                </Button>
-              )}
               <BookFindSources bookId={bookId} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} currentSeq={progressSeq || undefined} />
             </div>
           </div>
@@ -343,100 +325,80 @@ export default async function BookDetailPage({ params }: Props) {
           })()}
           </div>
 
-          {/* Stats bar */}
-          {stats && (() => {
-            const STAT_ICONS: Record<string, React.ReactNode> = {
-              Readers: <Eye className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Bookmarks: <Bookmark className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Ratings: <ThumbsUp className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Reviews: <MessageSquareText className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Score: <Star className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Comments: <MessageSquareText className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Favorites: <Heart className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-              Fans: <Users className="hidden sm:block size-3.5 text-muted-foreground/50" />,
-            };
-            const communityItems: { value: string; label: string; valueClassName?: string }[] = [
-              { value: formatCompact(stats.readerCount), label: "Readers" },
-              { value: formatCompact(stats.bookmarkCount), label: "Bookmarks" },
-              { value: formatCompact(stats.ratingCount), label: "Ratings" },
-              { value: formatCompact(stats.reviewCount), label: "Reviews" },
-            ];
-            if (stats.ratingCount > 0) {
-              const good = stats.ratingPositive, neutral = stats.ratingNeutral, total = stats.ratingCount;
-              const bad = total - good - neutral;
-              const gP = Math.round((good / total) * 100), nP = Math.round((neutral / total) * 100), bP = Math.round((bad / total) * 100);
-              const [pct, color] = gP >= nP && gP >= bP ? [gP, "text-green-600 dark:text-green-500"] : nP >= bP ? [nP, "text-amber-500"] : [bP, "text-red-500"];
-              communityItems.push({ value: `${pct}%`, label: "Score", valueClassName: color });
-            }
-            const qidianItems: { value: string; label: string; valueClassName?: string }[] = [
-              { value: formatCompact(stats.commentCount), label: "Comments" },
-            ];
-            if ((book.qqFavoriteCount ?? 0) > 0) qidianItems.push({ value: formatCompact(book.qqFavoriteCount!), label: "Favorites" });
-            if ((book.qqFanCount ?? 0) > 0) qidianItems.push({ value: formatCompact(book.qqFanCount!), label: "Fans" });
-            if ((book.qqScoreCount ?? 0) > 0) qidianItems.push({ value: formatCompact(book.qqScoreCount!), label: "Ratings" });
-            if (book.qqScore) { const qs = parseFloat(String(book.qqScore)); qidianItems.push({ value: String(book.qqScore), label: "Score", valueClassName: qs === 0 ? "" : qs >= 8 ? "text-green-600 dark:text-green-500" : qs >= 5 ? "text-amber-500" : "text-red-500" }); }
-
-            const StatCell = ({ item, border }: { item: typeof communityItems[0]; border?: boolean }) => (
-              <div className={`flex flex-col items-center justify-center py-2 sm:py-2.5 ${border ? "border-l border-border/40" : ""}`}>
-                <span className="inline-flex items-center gap-1">
-                  {STAT_ICONS[item.label] ?? null}
-                  <span className={`text-sm sm:text-base font-medium tabular-nums leading-none ${item.valueClassName ?? ""}`}>{item.value}</span>
-                </span>
-                <span className="text-[10px] text-muted-foreground mt-0.5">{item.label}</span>
-              </div>
-            );
+          {/* Rankings */}
+          {(() => {
             const communityBadges = communityRankings.slice(0, 2);
             const qidianBadges = rankings.slice(0, Math.min(2, 4 - communityBadges.length));
             const hasRankings = communityBadges.length > 0 || qidianBadges.length > 0;
             const PERIOD_LABELS: Record<string, string> = { "all-time": "All Time", weekly: "Weekly" };
+            if (!hasRankings) return null;
+            return (
+              <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+                {communityBadges.map((cr) => (
+                  <Link key={cr.period} href={`/daosearch/rankings?period=${cr.period}`}>
+                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-violet-500/20 bg-violet-500/5 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 transition-colors">
+                      <Trophy className="size-2.5 sm:size-3 text-violet-500" />
+                      #{cr.position} Community · {PERIOD_LABELS[cr.period] ?? cr.period}
+                    </span>
+                  </Link>
+                ))}
+                {qidianBadges.map((r) => {
+                  const gender = GENDER_LABELS[r.gender as keyof typeof GENDER_LABELS] ?? r.gender;
+                  const rankType = RANK_TYPE_LABELS[r.rankType] ?? r.rankType;
+                  const cycle = RANK_TYPE_CYCLE_LABELS[r.rankType]?.[r.cycle] ?? r.cycle;
+                  return (
+                    <Link key={`${r.gender}-${r.rankType}-${r.cycle}`} href={`/qidian/rankings?gender=${r.gender}&type=${r.rankType}&cycle=${r.cycle}`}>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors">
+                        <Trophy className="size-2.5 sm:size-3 text-amber-500" />
+                        #{r.position} {gender} {rankType} · {cycle}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* Stats */}
+          {stats && (() => {
+            const allStats: { icon: React.ReactNode; value: string; label: string; valueClassName?: string }[] = [];
+
+            // Community stats
+            if (stats.readerCount > 0) allStats.push({ icon: <Eye className="size-3" />, value: formatCompact(stats.readerCount), label: "Readers" });
+            if (stats.bookmarkCount > 0) allStats.push({ icon: <Bookmark className="size-3" />, value: formatCompact(stats.bookmarkCount), label: "Bookmarks" });
+            if (stats.ratingCount > 0) {
+              allStats.push({ icon: <ThumbsUp className="size-3" />, value: formatCompact(stats.ratingCount), label: "Ratings" });
+              const good = stats.ratingPositive, total = stats.ratingCount;
+              const neutral = stats.ratingNeutral;
+              const bad = total - good - neutral;
+              const gP = Math.round((good / total) * 100), nP = Math.round((neutral / total) * 100), bP = Math.round((bad / total) * 100);
+              const [pct, color] = gP >= nP && gP >= bP ? [gP, "text-green-600 dark:text-green-500"] : nP >= bP ? [nP, "text-amber-500"] : [bP, "text-red-500"];
+              allStats.push({ icon: <Star className="size-3" />, value: `${pct}%`, label: "Score", valueClassName: color });
+            }
+            if (stats.reviewCount > 0) allStats.push({ icon: <MessageSquareText className="size-3" />, value: formatCompact(stats.reviewCount), label: "Reviews" });
+
+            // Official stats
+            if (stats.commentCount > 0) allStats.push({ icon: <MessageSquareText className="size-3" />, value: formatCompact(stats.commentCount), label: "Comments" });
+            if ((book.qqFavoriteCount ?? 0) > 0) allStats.push({ icon: <Heart className="size-3" />, value: formatCompact(book.qqFavoriteCount!), label: "Favorites" });
+            if ((book.qqFanCount ?? 0) > 0) allStats.push({ icon: <Users className="size-3" />, value: formatCompact(book.qqFanCount!), label: "Fans" });
+            if (book.qqScore) {
+              const qs = parseFloat(String(book.qqScore));
+              allStats.push({ icon: <Star className="size-3" />, value: String(book.qqScore), label: "QD Score", valueClassName: qs === 0 ? "" : qs >= 8 ? "text-green-600 dark:text-green-500" : qs >= 5 ? "text-amber-500" : "text-red-500" });
+            }
+
+            if (!allStats.length) return null;
 
             return (
-              <div className="mt-4 rounded-lg border border-border/60 overflow-hidden">
-                {hasRankings && (
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 px-3 py-2 border-b border-border/40 bg-muted/30">
-                    {communityBadges.map((cr) => (
-                      <Link key={cr.period} href={`/daosearch/rankings?period=${cr.period}`}>
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium cursor-pointer border border-violet-500/20 bg-violet-500/5 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 transition-colors">
-                          <Trophy className="size-2.5 sm:size-3 text-violet-500" />
-                          #{cr.position} Community · {PERIOD_LABELS[cr.period] ?? cr.period}
-                        </span>
-                      </Link>
-                    ))}
-                    {qidianBadges.map((r) => {
-                      const gender = GENDER_LABELS[r.gender as keyof typeof GENDER_LABELS] ?? r.gender;
-                      const rankType = RANK_TYPE_LABELS[r.rankType] ?? r.rankType;
-                      const cycle = RANK_TYPE_CYCLE_LABELS[r.rankType]?.[r.cycle] ?? r.cycle;
-                      return (
-                        <Link key={`${r.gender}-${r.rankType}-${r.cycle}`} href={`/qidian/rankings?gender=${r.gender}&type=${r.rankType}&cycle=${r.cycle}`}>
-                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium cursor-pointer border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors">
-                            <Trophy className="size-2.5 sm:size-3 text-amber-500" />
-                            #{r.position} {gender} {rankType} · {cycle}
-                          </span>
-                        </Link>
-                      );
-                    })}
+              <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {allStats.map((s, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 rounded-lg bg-muted/50 px-3 py-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-muted-foreground">{s.icon}</span>
+                      <span className={`text-sm sm:text-base font-semibold tabular-nums leading-none ${s.valueClassName ?? ""}`}>{s.value}</span>
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">{s.label}</span>
                   </div>
-                )}
-                <div className="px-3 pt-2 pb-0.5">
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Community</span>
-                </div>
-                <div className="grid" style={{ gridTemplateColumns: `repeat(${communityItems.length}, minmax(0, 1fr))` }}>
-                  {communityItems.map((s, i) => (
-                    <StatCell key={i} item={s} border={i > 0} />
-                  ))}
-                </div>
-                {qidianItems.length > 0 && (
-                  <>
-                    <div className="border-t border-border/40 px-3 pt-2 pb-0.5">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Official</span>
-                    </div>
-                    <div className="grid" style={{ gridTemplateColumns: `repeat(${qidianItems.length}, minmax(0, 1fr))` }}>
-                      {qidianItems.map((s, i) => (
-                        <StatCell key={i} item={s} border={i > 0} />
-                      ))}
-                    </div>
-                  </>
-                )}
+                ))}
               </div>
             );
           })()}
@@ -456,14 +418,14 @@ export default async function BookDetailPage({ params }: Props) {
       {/* Synopsis */}
       {(book.synopsisTranslated || book.synopsis) && (
         <section>
-          <h2 className="text-base sm:text-lg font-medium mb-3">Synopsis</h2>
-          <Synopsis text={book.synopsisTranslated || book.synopsis!} collapsedLines={8} />
+          <h2 className="text-base sm:text-lg font-medium mb-3">About This Novel</h2>
+          <p className="text-sm sm:text-base leading-relaxed whitespace-pre-line">{book.synopsisTranslated || book.synopsis!}</p>
         </section>
       )}
 
       {/* Opinions — mobile: flat section, desktop: tabs with chapters */}
       <section className="sm:hidden flex flex-col gap-6">
-        <h2 className="text-base font-medium">Opinions</h2>
+        <h2 className="text-base font-medium">What Readers Think</h2>
         {stats && (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Rating</p>
@@ -521,6 +483,8 @@ export default async function BookDetailPage({ params }: Props) {
               bookId={bookId}
               initialItems={[]}
               initialCurrentSeq={progressSeq}
+              bookTitleRaw={book.title || ""}
+              bookUrl={book.url || undefined}
             />
           }
         />
@@ -559,6 +523,8 @@ export default async function BookDetailPage({ params }: Props) {
         bookId={bookId}
         chapterCount={stats?.chapterCount ?? chapters.total}
         progressSeq={progressSeq}
+        bookTitleRaw={book.title || ""}
+        bookUrl={book.url || undefined}
       />
     </div>
   );

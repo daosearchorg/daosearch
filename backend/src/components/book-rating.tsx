@@ -109,14 +109,14 @@ export function BookRating({ bookId, ratingPositive, ratingNeutral, ratingNegati
           return (
             <Button
               key={option.value}
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => handleClick(option.value)}
               disabled={loading}
-              className={isActive ? `border ${option.active}` : ""}
+              className={isActive ? option.active : ""}
             >
-              <Icon className="size-5 sm:size-5" />
-              <span className="hidden sm:inline">{option.label}</span>
+              <Icon className="size-4" />
+              {option.label}
             </Button>
           );
         })}

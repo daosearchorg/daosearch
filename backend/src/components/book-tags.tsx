@@ -31,7 +31,7 @@ interface EntityTagsProps {
   showHeading?: boolean;
 }
 
-function EntityTags({ apiBase, initialTags, heading = "Tags", showHeading = true }: EntityTagsProps) {
+function EntityTags({ apiBase, initialTags, heading = "Community Tags", showHeading = true }: EntityTagsProps) {
   const { status } = useSession();
   const [tagList, setTagList] = useState(initialTags);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -170,7 +170,7 @@ function EntityTags({ apiBase, initialTags, heading = "Tags", showHeading = true
           {showHeading && (
             <h2 className="text-base sm:text-lg font-medium mb-2">{heading}</h2>
           )}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className={`flex flex-wrap items-center gap-1.5 ${sortedTags.length === 0 ? "justify-center" : "justify-center sm:justify-start"}`}>
           {sortedTags.map((tag) => (
             <Badge
               key={tag.id}
@@ -190,12 +190,12 @@ function EntityTags({ apiBase, initialTags, heading = "Tags", showHeading = true
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 className={cn(
                   "rounded-full",
                   sortedTags.length === 0
-                    ? "h-8 px-3 gap-1.5 text-xs text-muted-foreground"
+                    ? "h-8 px-3 gap-1.5 text-xs"
                     : "h-7 w-7 p-0",
                 )}
                 onClick={() => {

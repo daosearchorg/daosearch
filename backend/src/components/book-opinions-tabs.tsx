@@ -28,11 +28,11 @@ export function BookOpinionsTabs({
     <Tabs value={tab} onValueChange={setTab} className="w-full">
       <TabsList className="w-full">
         <TabsTrigger value="opinions" className="flex-1">
-          Opinions
+          What Readers Think
           <span className="text-muted-foreground font-normal ml-1">({reviewCount})</span>
         </TabsTrigger>
         <TabsTrigger value="chapters" className="flex-1">
-          Chapters
+          Table of Contents
           <span className="text-muted-foreground font-normal ml-1">({chapterCount})</span>
         </TabsTrigger>
       </TabsList>

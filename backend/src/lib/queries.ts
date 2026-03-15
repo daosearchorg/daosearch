@@ -852,8 +852,10 @@ export async function getBookCommunityRankings(bookId: number) {
 
 const BOOKLIST_ITEMS_PAGE_SIZE = 10;
 
+const BOOK_BOOKLIST_PAGE_SIZE = 4;
+
 export async function getBookBooklists(bookId: number, page: number = 1) {
-  const offset = (page - 1) * BOOKLIST_ITEMS_PAGE_SIZE;
+  const offset = (page - 1) * BOOK_BOOKLIST_PAGE_SIZE;
 
   const [items, countResult] = await Promise.all([
     db
@@ -871,7 +873,7 @@ export async function getBookBooklists(bookId: number, page: number = 1) {
       .innerJoin(qidianBooklists, eq(qidianBooklistItems.booklistId, qidianBooklists.id))
       .where(eq(qidianBooklistItems.bookId, bookId))
       .orderBy(desc(sql`COALESCE(${qidianBooklists.followerCount}, 0)`))
-      .limit(BOOKLIST_ITEMS_PAGE_SIZE)
+      .limit(BOOK_BOOKLIST_PAGE_SIZE)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)` })
@@ -882,7 +884,43 @@ export async function getBookBooklists(bookId: number, page: number = 1) {
 
   const total = Number(countResult[0]?.count ?? 0);
 
-  return { items, total };
+  // Fetch 4 preview book covers per booklist
+  const booklistIds = items.map((i) => i.booklistId);
+  let previewsMap: Record<number, { bookId: number; imageUrl: string | null; title: string | null; titleTranslated: string | null }[]> = {};
+  if (booklistIds.length > 0) {
+    const previews = await db
+      .select({
+        booklistId: qidianBooklistItems.booklistId,
+        bookId: books.id,
+        imageUrl: books.imageUrl,
+        title: books.title,
+        titleTranslated: books.titleTranslated,
+      })
+      .from(qidianBooklistItems)
+      .innerJoin(books, eq(qidianBooklistItems.bookId, books.id))
+      .where(
+        and(
+          inArray(qidianBooklistItems.booklistId, booklistIds),
+          isNotNull(books.imageUrl),
+        ),
+      )
+      .orderBy(qidianBooklistItems.position)
+      .limit(booklistIds.length * 4);
+
+    for (const p of previews) {
+      if (!previewsMap[p.booklistId]) previewsMap[p.booklistId] = [];
+      if (previewsMap[p.booklistId].length < 4) {
+        previewsMap[p.booklistId].push(p);
+      }
+    }
+  }
+
+  const itemsWithPreviews = items.map((item) => ({
+    ...item,
+    previews: previewsMap[item.booklistId] || [],
+  }));
+
+  return { items: itemsWithPreviews, total };
 }
 
 export async function getBookReviews(bookId: number, page: number = 1, currentUserId?: number | null) {

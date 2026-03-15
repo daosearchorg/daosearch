@@ -226,6 +226,9 @@ def cleanup(text: str) -> str:
     text = re.sub(r" {2,}", " ", text)
     text = re.sub(r"## ?DONE ?##", "", text)
 
+    # Remove trailing scene break dots (AI often appends ... at the end)
+    text = re.sub(r"\n+\.{3}\s*$", "", text)
+
     return text.strip()
 
 

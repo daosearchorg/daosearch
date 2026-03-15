@@ -71,7 +71,7 @@ export function BookProgress({ bookId, firstChapterId, initialSeq, bookTitleRaw,
   if (seq != null) {
     return (
       <>
-        <Button variant="default" onClick={handleReadingClick}>
+        <Button variant="default" className="w-full" onClick={handleReadingClick}>
           <Eye className="size-4" />
           Continue Ch. {seq}
         </Button>
@@ -98,9 +98,9 @@ export function BookProgress({ bookId, firstChapterId, initialSeq, bookTitleRaw,
 
   return (
     <>
-      <Button variant="default" onClick={handleStartReading}>
+      <Button variant="default" className="w-full" onClick={handleStartReading}>
         <Play className="size-4 fill-current" />
-        Start
+        Start Reading
       </Button>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
       <ResponsiveDialog open={sourcesOpen} onOpenChange={setSourcesOpen} className="sm:max-w-lg">

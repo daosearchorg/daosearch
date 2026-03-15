@@ -20,7 +20,7 @@ import { ResponsiveDialog, ResponsiveDialogHeader, ResponsiveDialogTitle, Respon
 
 const NAV_LINKS = [
   { href: "/library", label: "Library", icon: Library },
-  { href: "/qidian/rankings", label: "Rankings", icon: Trophy },
+  { href: "/daosearch/rankings", label: "Rankings", icon: Trophy },
   { href: "/qidian/booklists", label: "Booklists", icon: ListOrdered },
   { href: "/daosearch/feed", label: "Feed", icon: Rss },
   { href: "/compare", label: "Compare", icon: ArrowRightLeft },
@@ -114,12 +114,58 @@ export function SiteNav() {
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72 p-0 flex flex-col">
+            <SheetContent side="right" className="w-72 p-0 flex flex-col overflow-y-auto">
               <SheetHeader className="px-6 pt-6 pb-2 shrink-0">
                 <SheetTitle className="text-lg font-semibold tracking-tight">Menu</SheetTitle>
               </SheetHeader>
 
-              <div className="flex flex-col px-3 py-2">
+              {/* User section — inline at top when authenticated */}
+              {isAuthed && (
+                <div className="px-3 pt-1 pb-0">
+                  <button
+                    onClick={() => setAccountOpen(!accountOpen)}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
+                  >
+                    <UserAvatar username={session?.user?.publicUsername || session?.user?.name || "User"} avatarUrl={session?.user?.publicAvatarUrl} className="size-6" fallbackClassName="text-[10px]" />
+                    <span className="flex-1 truncate text-left">{session?.user?.publicUsername || session?.user?.name || "Account"}</span>
+                    <ChevronsUpDown className={cn("size-4 text-muted-foreground transition-transform", accountOpen && "rotate-180")} />
+                  </button>
+                  {accountOpen && (
+                    <div className="flex flex-col pl-3 pb-1">
+                      {[
+                        { href: "/account", icon: User, label: "Profile" },
+                        { href: "/account/bookmarks", icon: Bookmark, label: "Bookmarks" },
+                        { href: "/account/lists", icon: List, label: "Lists" },
+                        { href: "/account/followed", icon: ListChecks, label: "Followed" },
+                        { href: "/account/reading", icon: BookOpen, label: "Reading" },
+                        { href: "/account/ratings", icon: Star, label: "Ratings" },
+                        { href: "/account/reviews", icon: MessageSquare, label: "Reviews" },
+                        { href: "/account/likes", icon: Heart, label: "Likes" },
+                        { href: "/account/tags", icon: Tag, label: "Tags" },
+                      ].map(({ href, icon: Icon, label }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent",
+                            pathname === href || (href !== "/account" && pathname.startsWith(href))
+                              ? "text-foreground font-medium"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          <Icon className="size-4" />
+                          {label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  <Separator className="mt-1" />
+                </div>
+              )}
+
+              {/* Nav links */}
+              <div className="flex flex-col px-3 py-2 flex-1">
                 {NAV_LINKS.map((item) => (
                   <Link
                     key={item.href}
@@ -138,57 +184,16 @@ export function SiteNav() {
                 ))}
               </div>
 
-              <SheetFooter className="mt-auto border-t px-3 py-3 relative">
+              {/* Footer — log out / log in */}
+              <div className="border-t px-3 py-3 shrink-0">
                 {isAuthed ? (
-                  <>
-                    <div className="relative">
-                      <button
-                        onClick={() => setAccountOpen(!accountOpen)}
-                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent text-muted-foreground"
-                      >
-                        <UserAvatar username={session?.user?.publicUsername || session?.user?.name || "User"} avatarUrl={session?.user?.publicAvatarUrl} className="size-5" fallbackClassName="text-[9px]" />
-                        <span className="flex-1 truncate text-left">{session?.user?.publicUsername || session?.user?.name || "Account"}</span>
-                        <ChevronsUpDown className="size-4 text-muted-foreground" />
-                      </button>
-                      {accountOpen && (
-                        <div className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border bg-popover p-1 shadow-md">
-                          {[
-                            { href: "/account", icon: User, label: "Profile" },
-                            { href: "/account/bookmarks", icon: Bookmark, label: "Bookmarks" },
-                            { href: "/account/lists", icon: List, label: "Lists" },
-                            { href: "/account/followed", icon: ListChecks, label: "Followed" },
-                            { href: "/account/reading", icon: BookOpen, label: "Reading" },
-                            { href: "/account/ratings", icon: Star, label: "Ratings" },
-                            { href: "/account/reviews", icon: MessageSquare, label: "Reviews" },
-                            { href: "/account/likes", icon: Heart, label: "Likes" },
-                            { href: "/account/tags", icon: Tag, label: "Tags" },
-                          ].map(({ href, icon: Icon, label }) => (
-                            <Link
-                              key={href}
-                              href={href}
-                              onClick={() => setOpen(false)}
-                              className={cn(
-                                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
-                                pathname === href || (href !== "/account" && pathname.startsWith(href))
-                                  ? "text-foreground"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              <Icon className="size-4" />
-                              {label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => { signOut(); setOpen(false); }}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent text-destructive"
-                    >
-                      <LogOut className="size-5" />
-                      Log out
-                    </button>
-                  </>
+                  <button
+                    onClick={() => { signOut(); setOpen(false); }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent text-destructive"
+                  >
+                    <LogOut className="size-5" />
+                    Log out
+                  </button>
                 ) : (
                   <button
                     onClick={() => { setOpen(false); requestAnimationFrame(() => setLoginOpen(true)); }}
@@ -198,13 +203,13 @@ export function SiteNav() {
                     Log in
                   </button>
                 )}
-              </SheetFooter>
+              </div>
             </SheetContent>
           </Sheet>
         </div>
       </div>
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
-      <ResponsiveDialog open={readerSettingsOpen} onOpenChange={setReaderSettingsOpen} className="sm:max-w-md">
+      <ResponsiveDialog open={readerSettingsOpen} onOpenChange={setReaderSettingsOpen} className="sm:max-w-lg">
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Reader Settings</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>Customize your reading experience</ResponsiveDialogDescription>

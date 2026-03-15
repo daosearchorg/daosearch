@@ -44,9 +44,11 @@ RULES:
 - <<Name|G>> are pre-translated entities with gender (M/F/N). Output without markers. Use gender for pronouns (M=he, F=she).
 
 FORMATTING (markdown):
-- *Italics* for internal thoughts, memories. **Bold** for impacts, sound effects.
-- Scene breaks: three dots on own line (...) with blank lines around.
-- "Double quotes" for spoken dialogue. Only format when source text calls for it."""
+- *Italics* for internal thoughts, memories. **Bold** for impacts, sound effects, onomatopoeia.
+- "Double quotes" for spoken dialogue. Only format when source text calls for it.
+- Do NOT add scene break dots (...) at the end of the translation.
+
+SYSTEM/GAME UI: Multi-line status panels/screens → ``` code fences. Single-line alerts → [Square brackets]."""
 
 
 # ---------------------------------------------------------------------------

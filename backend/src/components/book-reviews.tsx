@@ -119,23 +119,30 @@ function ExpandableText({ text }: { text: string }) {
 
   useEffect(() => {
     const el = textRef.current;
-    if (el) {
-      setClamped(el.scrollHeight > el.clientHeight);
-    }
+    if (!el) return;
+    // Check after a frame so line-clamp CSS is applied
+    const check = () => setClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    // Re-check after fonts load / layout shifts
+    const id = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(id);
   }, [text]);
+
+  const toggle = () => setExpanded((e) => !e);
 
   return (
     <div className="mt-1">
       <p
         ref={textRef}
-        className={`text-sm sm:text-base whitespace-pre-line break-words ${!expanded ? "line-clamp-4" : ""}`}
+        onClick={clamped || expanded ? toggle : undefined}
+        className={`text-sm sm:text-base whitespace-pre-line break-words ${!expanded ? "line-clamp-4" : ""} ${clamped || expanded ? "cursor-pointer" : ""}`}
       >
         {text}
       </p>
       {(clamped || expanded) && (
         <button
-          onClick={() => setExpanded((e) => !e)}
-          className="text-xs text-muted-foreground hover:text-foreground mt-0.5 transition-colors"
+          onClick={toggle}
+          className="text-xs text-muted-foreground hover:text-foreground mt-1 transition-colors block ml-auto sm:mx-auto sm:text-center text-right"
         >
           {expanded ? "Show less" : "Show more"}
         </button>
@@ -794,11 +801,11 @@ export function BookReviews({
         </div>
       )}
 
-      {/* Qidian subsection */}
+      {/* Official comments subsection */}
       {showQidian && (
         <div className="flex flex-col gap-4">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Qidian
+            Official
             <span className="ml-1.5 normal-case tracking-normal">({commentTotal})</span>
             {lastCommentsScrapedAt && (
               <span className="ml-1.5 text-[10px] normal-case tracking-normal inline-flex items-center gap-1">
@@ -833,12 +840,12 @@ export function BookReviews({
                         const imgs = JSON.parse(comment.images) as Array<string | { url: string }>;
                         if (!imgs.length) return null;
                         return (
-                          <div className="flex flex-wrap gap-2 mt-2">
+                          <div className="flex gap-2 mt-2 overflow-x-auto">
                             {imgs.map((img, i) => {
                               const url = typeof img === "string" ? img : img.url;
                               if (!url) return null;
                               return (
-                                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
                                   <img
                                     src={url}
                                     alt=""

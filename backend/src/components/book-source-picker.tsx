@@ -144,7 +144,7 @@ export function BookSourcePicker({
 
       {!loading && allSources.length > 0 && (
         <div className="flex flex-col gap-2">
-          <GroupedSources sources={allSources} onSelect={onSelect} />
+          <GroupedSources sources={allSources} onSelect={onSelect} bookTitleRaw={bookTitleRaw} />
           <p className="text-[11px] text-muted-foreground/50 flex items-center gap-1 mt-1">
             <Globe className="size-3 shrink-0" />
             Fetched live from the web — nothing is stored by DaoSearch.
@@ -158,9 +158,11 @@ export function BookSourcePicker({
 function GroupedSources({
   sources,
   onSelect,
+  bookTitleRaw,
 }: {
   sources: SearchResult[];
   onSelect: (url: string, domain: string) => void;
+  bookTitleRaw: string;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -184,7 +186,7 @@ function GroupedSources({
 
         return (
           <div key={domain} className="flex flex-col gap-1">
-            <SourceCard result={first} onSelect={onSelect} />
+            <SourceCard result={first} onSelect={onSelect} bookTitleRaw={bookTitleRaw} />
             {rest.length > 0 && !isExpanded && (
               <button
                 onClick={() => setExpanded((e) => ({ ...e, [domain]: true }))}
@@ -195,7 +197,7 @@ function GroupedSources({
               </button>
             )}
             {isExpanded && rest.map((r) => (
-              <SourceCard key={r.url} result={r} onSelect={onSelect} />
+              <SourceCard key={r.url} result={r} onSelect={onSelect} bookTitleRaw={bookTitleRaw} />
             ))}
             {isExpanded && rest.length > 0 && (
               <button
@@ -212,12 +214,25 @@ function GroupedSources({
   );
 }
 
+function highlightMatchingChars(text: string, reference: string) {
+  if (!reference || !text) return text;
+  const refChars = new Set(reference.split(""));
+  return text.split("").map((char, i) => {
+    if (refChars.has(char)) {
+      return <span key={i} className="text-foreground font-medium">{char}</span>;
+    }
+    return <span key={i}>{char}</span>;
+  });
+}
+
 function SourceCard({
   result,
   onSelect,
+  bookTitleRaw,
 }: {
   result: SearchResult;
   onSelect: (url: string, domain: string) => void;
+  bookTitleRaw: string;
 }) {
   const hasTitle = result.title || result.title_en;
   const displayTitle = result.title_en || result.title;
@@ -240,6 +255,11 @@ function SourceCard({
       </div>
       {hasTitle && (
         <p className="text-sm leading-tight">{displayTitle}</p>
+      )}
+      {result.title && result.title !== displayTitle && (
+        <p className="text-xs text-muted-foreground/60 leading-tight">
+          {highlightMatchingChars(result.title, bookTitleRaw)}
+        </p>
       )}
       {displaySnippet && (
         <p className="text-xs text-muted-foreground line-clamp-2">{displaySnippet}</p>

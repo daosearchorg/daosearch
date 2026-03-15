@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { translateBatch, translateText, onRateLimitChange } from "@/lib/google-translate";
+import { ChapterParagraph } from "@/components/chapter-markdown";
 import {
   Drawer,
   DrawerContent,
@@ -265,10 +266,13 @@ export function ChapterReader({
     setChapterTitleTranslated("");
     setTranslating(true);
 
-    // Translate title
-    if (chapterTitle) {
+    // Use pre-translated title from chapter list if available, otherwise translate
+    const currentCh = chapters.find((c) => c.sequence === currentSeq);
+    if (currentCh?.title_en) {
+      setChapterTitleTranslated(currentCh.title_en);
+    } else if (chapterTitle) {
       translateText(chapterTitle).then((t) => {
-        if (t !== chapterTitle) setChapterTitleTranslated(t);
+        if (t !== chapterTitle) setChapterTitleTranslated(titleCase(t));
       });
     }
 
@@ -382,8 +386,12 @@ export function ChapterReader({
         let titleTranslated = "";
         let entities: DetectedEntity[] = [];
 
-        // 2. Translate title
-        titleTranslated = await translateText(rawTitle);
+        // 2. Use pre-translated title from chapter list, or translate
+        if (nextChapter.title_en) {
+          titleTranslated = nextChapter.title_en;
+        } else {
+          titleTranslated = titleCase(await translateText(rawTitle));
+        }
 
         if (controller.signal.aborted) return;
 
@@ -502,7 +510,8 @@ export function ChapterReader({
       if (chapters.length) await loadContent(chapters, seq);
     }
 
-    if (isNext) syncProgress(seq, sourceDomain);
+    const isSequential = seq === currentSeq + 1 || seq === currentSeq - 1;
+    if (isSequential) syncProgress(seq, sourceDomain);
     else if (lastSavedSeq != null && seq !== lastSavedSeq) {
       const savedCh = chapters.find((c) => c.sequence === lastSavedSeq);
       setJumpPrompt({ targetSeq: seq, savedTitle: savedCh ? (savedCh.title_en || savedCh.title) : `Ch. ${lastSavedSeq}` });
@@ -666,11 +675,9 @@ export function ChapterReader({
       {/* Content */}
       <article className="w-full sm:max-w-3xl sm:mx-auto" style={{ fontSize: `${readerFontSize}px`, lineHeight: readerLineSpacing }}>
         {lang === "en" && translationDone ? (
-          // Translation complete — show only translated paragraphs (no 1:1 mapping with original)
+          // Translation complete — show only translated paragraphs
           translatedParagraphs.filter(Boolean).map((text, i) => (
-            <p key={i} className=" text-foreground/90 mb-3 sm:mb-4">
-              {showEntities ? highlightEntityNames(text, detectedEntities) : text}
-            </p>
+            <ChapterParagraph key={i} text={text} className="text-foreground/90 mb-3 sm:mb-4" entities={detectedEntities} showEntities={showEntities} />
           ))
         ) : lang === "en" && translating ? (
           // Translation in progress — show original as muted, replace with translated as they arrive
@@ -678,14 +685,10 @@ export function ChapterReader({
             const translated = translatedParagraphs[i];
             const entityPhase = !translatedParagraphs.some(Boolean) && detectedEntities.length > 0;
             if (translated) {
-              return (
-                <p key={i} className=" text-foreground/90 mb-3 sm:mb-4 animate-in fade-in duration-200">
-                  {showEntities ? highlightEntityNames(translated, detectedEntities) : translated}
-                </p>
-              );
+              return <ChapterParagraph key={i} text={translated} className="text-foreground/90 mb-3 sm:mb-4 animate-in fade-in duration-200" entities={detectedEntities} showEntities={showEntities} />;
             }
             return (
-              <p key={i} className=" text-muted-foreground/50 mb-3 sm:mb-4 transition-colors duration-200">
+              <p key={i} className="text-muted-foreground/50 mb-3 sm:mb-4 transition-colors duration-200">
                 {entityPhase && detectedEntities.length > 0 ? highlightOriginalEntities(p, detectedEntities) : p}
               </p>
             );
@@ -797,6 +800,13 @@ function ChapterList({ chapters, currentSeq, onSelect }: { chapters: SourceChapt
   );
 }
 
+const TITLE_LOWER = new Set(["a","an","the","and","but","or","nor","for","yet","so","in","on","at","to","by","of","up","as","is","if","it","no"]);
+function titleCase(text: string): string {
+  const words = text.split(" ");
+  if (!words.length) return text;
+  return words.map((w, i) => (i === 0 || i === words.length - 1 || !TITLE_LOWER.has(w.toLowerCase())) ? w.charAt(0).toUpperCase() + w.slice(1) : w.toLowerCase()).join(" ");
+}
+
 function parseSSE(block: string): { event: string; data: string } {
   if (!block.trim()) return { event: "", data: "" };
   const lines = block.split("\n");
@@ -840,12 +850,12 @@ function highlightEntityNames(text: string, entities: DetectedEntity[]): React.R
   const sorted = [...entities].filter((e) => e.translated.length > 1).sort((a, b) => b.translated.length - a.translated.length);
   if (!sorted.length) return text;
   const escaped = sorted.map((e) => e.translated.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+  const regex = new RegExp(`\\b(${escaped.join("|")})\\b`, "g");
   const parts = text.split(regex);
   if (parts.length === 1) return text;
-  const map = new Map(sorted.map((e) => [e.translated.toLowerCase(), e]));
+  const map = new Map(sorted.map((e) => [e.translated, e]));
   return parts.map((part, i) => {
-    const ent = map.get(part.toLowerCase());
+    const ent = map.get(part);
     if (!ent) return part;
     return (
       <span key={i} className="bg-foreground/8 rounded-sm px-0.5 cursor-help relative group">
