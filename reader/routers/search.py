@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
 from schemas import SearchResult
-from scraper.search import search_novels, search_novels_raw, translate_results
+from scraper.search import search_novels, search_novels_raw, translate_results, _get_cached_search, _cache_search
 
 router = APIRouter()
 
@@ -27,6 +27,13 @@ async def search(
 
 
 async def _stream_search(query: str):
+    # Check cache first
+    cached = _get_cached_search(query)
+    if cached:
+        yield _sse("status", "Loaded from cache")
+        yield _sse("results", json.dumps([r.model_dump() for r in cached]))
+        return
+
     yield _sse("status", "Searching the web...")
 
     try:
@@ -43,6 +50,8 @@ async def _stream_search(query: str):
     yield _sse("status", "Found sources. Translating...")
 
     await translate_results(results)
+
+    _cache_search(query, results)
 
     yield _sse("status", "Done")
     yield _sse("results", json.dumps([r.model_dump() for r in results]))

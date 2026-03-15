@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { translateBatch, translateText } from "@/lib/google-translate";
+import { translateBatch, translateText, onRateLimitChange } from "@/lib/google-translate";
 import {
   Drawer,
   DrawerContent,
@@ -96,6 +96,7 @@ export function ChapterReader({
   const [lang, setLang] = useState<"en" | "zh">("en");
   const [showEntities, setShowEntities] = useState(false);
   const [retranslateKey, setRetranslateKey] = useState(0);
+  const [rateLimited, setRateLimited] = useState(false);
   const [readerFontSize, setReaderFontSize] = useState(16);
   const [readerLineSpacing, setReaderLineSpacing] = useState(1.75);
   const [prefetchEnabled, setPrefetchEnabled] = useState(true);
@@ -117,12 +118,24 @@ export function ChapterReader({
     return () => window.removeEventListener("reader-settings-changed", loadSettings);
   }, []);
 
-  // Load user's translation tier on mount
+  // Load user's translation tier on mount + listen for changes
   useEffect(() => {
     fetch("/api/user/translation-settings")
       .then((r) => r.json())
       .then((data) => { if (data.tier) setTranslationTier(data.tier); })
       .catch(() => {});
+    const handler = (e: Event) => {
+      const tier = (e as CustomEvent).detail?.tier;
+      if (tier) setTranslationTier(tier);
+    };
+    window.addEventListener("translation-settings-changed", handler);
+    return () => window.removeEventListener("translation-settings-changed", handler);
+  }, []);
+
+  // Listen for rate limit changes from GT client
+  useEffect(() => {
+    const unsub = onRateLimitChange(setRateLimited);
+    return () => { unsub(); };
   }, []);
 
   const getDomain = (url: string) => {
@@ -263,11 +276,13 @@ export function ChapterReader({
 
     if (translationTier === "free") {
       // Free: client-side GT
-      const BATCH = 10;
+      const BATCH = 30;
       const translated: string[] = new Array(paragraphs.length).fill("");
       (async () => {
         for (let i = 0; i < paragraphs.length; i += BATCH) {
           if (translationAbortRef.current) break;
+          // Small delay between batches to avoid 429
+          if (i > 0) await new Promise((r) => setTimeout(r, 300));
           const result = await translateBatch(paragraphs.slice(i, i + BATCH));
           for (let j = 0; j < result.length; j++) translated[i + j] = result[j];
           setTranslatedParagraphs([...translated]);
@@ -375,10 +390,11 @@ export function ChapterReader({
         // 3. Translate based on tier
         if (translationTier === "free") {
           // Client-side GT batch translation
-          const BATCH = 10;
+          const BATCH = 30;
           translated = new Array(paragraphs.length).fill("");
           for (let i = 0; i < paragraphs.length; i += BATCH) {
             if (controller.signal.aborted) break;
+            if (i > 0) await new Promise((r) => setTimeout(r, 300));
             const result = await translateBatch(paragraphs.slice(i, i + BATCH));
             for (let j = 0; j < result.length; j++) translated[i + j] = result[j];
           }
@@ -615,7 +631,7 @@ export function ChapterReader({
       {translating && (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="size-3 animate-spin shrink-0" />
-          <span className="truncate">{loadingStatus}</span>
+          <span className="truncate">{rateLimited ? "Rate limited — waiting to retry..." : "Translating..."}</span>
           {translatedParagraphs.some(Boolean) && (
             <span className="tabular-nums">{translatedParagraphs.filter(Boolean).length}/{paragraphs.length}</span>
           )}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 from urllib.parse import urlparse
@@ -12,6 +14,9 @@ from config import settings
 from schemas import SearchResult
 from scraper.sites import get_scrapers, get_site_priority
 from scraper.translate import translate_batch, title_case
+from scraper.proxy import _get_redis
+
+SEARCH_CACHE_TTL = 3600  # 1 hour
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +115,41 @@ async def translate_results(results: list[SearchResult]) -> None:
 
 
 async def search_novels(query: str, max_results: int = 20) -> list[SearchResult]:
-    """Search + translate in one call (non-streaming)."""
+    """Search + translate in one call (non-streaming). Cached for 1 hour."""
+    # Check cache
+    cached = _get_cached_search(query)
+    if cached:
+        return cached
+
     results = await search_novels_raw(query, max_results)
     await translate_results(results)
+
+    # Cache results
+    _cache_search(query, results)
     return results
+
+
+def _search_cache_key(query: str) -> str:
+    h = hashlib.md5(query.encode()).hexdigest()
+    return f"reader:search:{h}"
+
+
+def _get_cached_search(query: str) -> list[SearchResult] | None:
+    try:
+        r = _get_redis()
+        data = r.get(_search_cache_key(query))
+        if data:
+            items = json.loads(data)
+            return [SearchResult(**item) for item in items]
+    except Exception:
+        pass
+    return None
+
+
+def _cache_search(query: str, results: list[SearchResult]) -> None:
+    try:
+        r = _get_redis()
+        data = json.dumps([res.model_dump() for res in results])
+        r.setex(_search_cache_key(query), SEARCH_CACHE_TTL, data)
+    except Exception:
+        pass

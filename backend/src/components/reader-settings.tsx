@@ -34,7 +34,7 @@ const LINE_SPACINGS = [
 
 const TIERS = [
   { id: "free", label: "Free", desc: "Google Translate" },
-  { id: "premium", label: "DaoSearch AI", desc: "Gemini + Entities" },
+  { id: "premium", label: "Dao AI", desc: "Gemini + Entities" },
   { id: "byok", label: "BYOK", desc: "Your own API key" },
 ] as const;
 
@@ -115,6 +115,8 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
         }),
       });
       if (byokKey) { setHasByokKey(true); setByokKey(""); }
+      // Notify chapter reader that translation tier changed
+      window.dispatchEvent(new CustomEvent("translation-settings-changed", { detail: { tier } }));
       onSaved?.();
     } catch {}
     setSaving(false);
@@ -190,21 +192,6 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
                 </button>
               ))}
             </div>
-          </div>
-          {/* Prefetch */}
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Prefetch Next Chapter</Label>
-              <p className="text-xs text-muted-foreground">Translates the next chapter in the background for instant loading</p>
-            </div>
-            <Switch
-              checked={prefetch}
-              onCheckedChange={(checked) => {
-                setPrefetch(checked);
-                localStorage.setItem("reader-prefetch", String(checked));
-                window.dispatchEvent(new CustomEvent("reader-settings-changed"));
-              }}
-            />
           </div>
         </div>
       </TabsContent>
@@ -295,6 +282,22 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
                 )}
               </div>
             )}
+
+            {/* Prefetch */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm">Prefetch Next Chapter</Label>
+                <p className="text-xs text-muted-foreground">Pre-translates the next chapter in the background</p>
+              </div>
+              <Switch
+                checked={prefetch}
+                onCheckedChange={(checked) => {
+                  setPrefetch(checked);
+                  localStorage.setItem("reader-prefetch", String(checked));
+                  window.dispatchEvent(new CustomEvent("reader-settings-changed"));
+                }}
+              />
+            </div>
 
             <Button onClick={handleSaveTranslation} disabled={saving} className="w-full">
               {saving ? <Loader2 className="size-4 animate-spin" /> : "Save"}

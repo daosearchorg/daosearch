@@ -1,4 +1,9 @@
-use_default_settings: true
+use_default_settings:
+  engines:
+    keep_only:
+      - google
+      - bing
+      - duckduckgo
 
 server:
   secret_key: "daosearch-reader-searxng"
@@ -9,7 +14,10 @@ search:
   formats:
     - html
     - json
-  default_lang: "zh"
+  default_lang: "auto"
+
+outgoing:
+  request_timeout: 10
 
 engines:
   - name: google
