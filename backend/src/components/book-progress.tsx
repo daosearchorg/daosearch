@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Eye, Play, Loader2 } from "lucide-react";
 import { LoginDialog } from "@/components/login-dialog";
@@ -13,20 +14,11 @@ interface BookProgressProps {
 }
 
 export function BookProgress({ bookId, firstChapterId, initialSeq }: BookProgressProps) {
+  const router = useRouter();
   const { status } = useSession();
   const [seq, setSeq] = useState<number | null>(initialSeq ?? null);
   const [saving, setSaving] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-
-  const openChapters = () => {
-    const isMobile = window.innerWidth < 640;
-    if (isMobile) {
-      window.dispatchEvent(new CustomEvent("open-chapters-drawer"));
-    } else {
-      window.dispatchEvent(new CustomEvent("open-chapters-tab"));
-      document.getElementById("chapters")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   const handleStartReading = async () => {
     if (status !== "authenticated") {
@@ -48,14 +40,14 @@ export function BookProgress({ bookId, firstChapterId, initialSeq }: BookProgres
         window.dispatchEvent(new CustomEvent("bookmark-updated", {
           detail: { bookmarked: true, status: "reading" },
         }));
-        openChapters();
       }
     } catch {}
     setSaving(false);
+    router.push(`/book/${bookId}/read?seq=1`);
   };
 
   const handleReadingClick = () => {
-    openChapters();
+    router.push(`/book/${bookId}/read?seq=${seq}`);
   };
 
   if (seq != null) {

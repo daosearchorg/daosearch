@@ -151,6 +151,15 @@ services:
     restart: "no"
     mem_limit: 6g
 
+  # SearXNG — meta search engine for novel source discovery
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "8889:8080"
+    volumes:
+      - ./reader/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

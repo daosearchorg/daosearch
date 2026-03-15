@@ -256,6 +256,7 @@ class ReadingProgress(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
     chapter_id = Column(Integer, ForeignKey('chapters.id', ondelete='SET NULL'), nullable=True)
+    source_domain = Column(String(255), nullable=True)
     last_read_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
@@ -697,3 +698,51 @@ class NotificationPreference(Base):
 
     def __repr__(self):
         return f"<NotificationPreference(id={self.id}, user_id={self.user_id}, type='{self.type}')>"
+
+
+# ============================================================================
+# Reader Tables
+# ============================================================================
+
+class BookSource(Base):
+    __tablename__ = 'book_sources'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
+    domain = Column(String(255), nullable=False)
+    novel_url = Column(String(1000), nullable=False)
+    last_checked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+
+    book = relationship("Book")
+
+    __table_args__ = (
+        UniqueConstraint('book_id', 'domain', name='uq_book_source_domain'),
+        Index('idx_book_sources_book_id', 'book_id'),
+    )
+
+    def __repr__(self):
+        return f"<BookSource(id={self.id}, book_id={self.book_id}, domain='{self.domain}')>"
+
+
+class SourceChapter(Base):
+    __tablename__ = 'source_chapters'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
+    domain = Column(String(255), nullable=False)
+    sequence = Column(Integer, nullable=False)
+    title = Column(String(500), nullable=True)
+    url = Column(String(1000), nullable=False)
+    last_fetched_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+
+    book = relationship("Book")
+
+    __table_args__ = (
+        UniqueConstraint('book_id', 'domain', 'sequence', name='uq_source_chapter'),
+        Index('idx_source_chapters_book_domain', 'book_id', 'domain'),
+    )
+
+    def __repr__(self):
+        return f"<SourceChapter(id={self.id}, book_id={self.book_id}, domain='{self.domain}', seq={self.sequence})>"

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowRight, BookOpen, ExternalLink, Loader2 } from "lucide-react";
 import { LoginDialog } from "@/components/login-dialog";
 
 interface Chapter {
@@ -21,6 +22,7 @@ interface BookChaptersProps {
 }
 
 export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn }: BookChaptersProps) {
+  const router = useRouter();
   const { status } = useSession();
   const [items, setItems] = useState<Chapter[]>(initialItems ?? []);
   const [loading, setLoading] = useState(!initialItems?.length);
@@ -54,15 +56,14 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
 
     setCurrentSeq(ch.sequenceNumber);
 
-    try {
-      await fetch(`/api/books/${bookId}/progress`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chapterId: ch.id }),
-      });
-    } catch {
-      // Don't revert — the optimistic update feels better
-    }
+    // Update progress in background, navigate to reader
+    fetch(`/api/books/${bookId}/progress`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chapterId: ch.id }),
+    }).catch(() => {});
+
+    router.push(`/book/${bookId}/read?seq=${ch.sequenceNumber}`);
   };
 
   if (loading) {
@@ -110,7 +111,7 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
                 {ch.titleTranslated || ch.title || `Chapter ${ch.sequenceNumber}`}
               </span>
               {isCurrent && (
-                <ArrowRight className="ml-auto shrink-0 size-3.5 text-muted-foreground mr-1" />
+                <BookOpen className="ml-auto shrink-0 size-3.5 text-muted-foreground mr-1" />
               )}
               {isRead && !isCurrent && (
                 <span className="ml-auto shrink-0 size-1.5 rounded-full bg-muted-foreground/30 mr-1" />
