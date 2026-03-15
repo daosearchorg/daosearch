@@ -123,12 +123,25 @@ class QidiantuBooklistScraper:
 
     def crawl_booklist_index(self, max_pages: int = 10000, upsert_progressively: bool = False) -> list[dict]:
         """Crawl paginated booklist index pages in concurrent batches of 20.
-        If upsert_progressively=True, upserts each batch to DB immediately."""
+        If upsert_progressively=True, upserts each batch to DB immediately.
+        Stops early when all entries in a batch already exist in the DB
+        (index is newest-first, so hitting known entries means we've caught up)."""
         all_lists = []
         page = 1
         consecutive_empty_batches = 0
+        consecutive_all_known_batches = 0
         total_created = 0
         total_updated = 0
+
+        # Load existing booklist IDs so we can detect when we've caught up
+        known_ids: set[int] = set()
+        try:
+            with db_manager.get_session() as session:
+                rows = session.query(QidianBooklist.qidiantu_id).all()
+                known_ids = {r.qidiantu_id for r in rows}
+            logger.info(f"Loaded {len(known_ids)} known booklist IDs from DB")
+        except Exception as e:
+            logger.warning(f"Failed to load known booklist IDs: {e}")
 
         while page <= max_pages:
             batch_end = min(page + self.BATCH_SIZE, max_pages + 1)
@@ -163,13 +176,25 @@ class QidiantuBooklistScraper:
 
             if batch_found > 0:
                 consecutive_empty_batches = 0
+
+                # Check how many entries are already known
+                new_in_batch = [e for e in batch_entries if e['qidiantu_id'] not in known_ids]
+                if new_in_batch:
+                    consecutive_all_known_batches = 0
+                    # Add newly seen IDs to known set
+                    for e in new_in_batch:
+                        known_ids.add(e['qidiantu_id'])
+                else:
+                    consecutive_all_known_batches += 1
+                    logger.info(f"Batch {batch_pages[0]}-{batch_pages[-1]}: all {batch_found} entries already in DB ({consecutive_all_known_batches} consecutive)")
+
                 if upsert_progressively and batch_entries:
                     result = self._upsert_booklists(batch_entries)
                     total_created += result['created']
                     total_updated += result['updated']
                     logger.info(f"Batch upserted: {result['created']} created, {result['updated']} updated (total in DB: {total_created} created, {total_updated} updated)")
                 else:
-                    logger.info(f"Batch complete: {batch_found} booklists found")
+                    logger.info(f"Batch complete: {batch_found} booklists found ({len(new_in_batch)} new)")
             elif batch_all_network_errors:
                 # Don't count network failures as empty — just skip and continue
                 logger.warning(f"Batch {batch_pages[0]}-{batch_pages[-1]}: all network errors, skipping (not counting as empty)")
@@ -177,6 +202,10 @@ class QidiantuBooklistScraper:
                 consecutive_empty_batches += 1
                 logger.warning(f"Batch {batch_pages[0]}-{batch_pages[-1]}: all empty ({consecutive_empty_batches} consecutive)")
 
+            # Stop if 2 consecutive batches where all entries already exist in DB
+            if consecutive_all_known_batches >= 2:
+                logger.info("2 consecutive batches with all known entries — caught up, stopping")
+                break
             # Stop if 5 consecutive truly empty batches (not network errors), or last page has no next link
             if consecutive_empty_batches >= 5:
                 logger.info("5 consecutive empty batches, stopping")
@@ -188,7 +217,7 @@ class QidiantuBooklistScraper:
             page = batch_end
             self._delay(0.5, 1.5)
 
-        logger.info(f"Index crawl complete: {len(all_lists)} booklists found")
+        logger.info(f"Index crawl complete: {len(all_lists)} booklists found ({total_created} new)")
         return all_lists
 
     def _parse_index_page(self, soup: BeautifulSoup) -> list[dict]:

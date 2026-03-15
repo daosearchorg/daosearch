@@ -44,7 +44,12 @@ DISCOVERY_COOLDOWN_DAYS = 7                  # minimum days between discovery ru
 MIN_SAMPLES = 20
 
 # Prefixes that are always blocked — chapter/reader pages, not worth crawling
-HARDCODED_BLOCKED = {'/book-read', '/book-chapter', '/book-chapter-detail'}
+HARDCODED_BLOCKED = {
+    '/book-read', '/book-chapter', '/book-chapter-detail',
+    '/kol', '/kol-rec', '/kol-ask', '/kol-list', '/kol-list-rec',
+    '/audio-detail', '/book-shelf', '/book-search', '/ask',
+    '/book-comment', '/book-comment-detail', '/',
+}
 
 
 def _extract_prefix(url: str) -> str:
