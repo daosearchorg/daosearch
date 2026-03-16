@@ -14,7 +14,7 @@ from scraper.proxy import get_random_proxy, format_for_httpx
 
 logger = logging.getLogger(__name__)
 
-GT_PARAMS = {"_x_tr_sl": "zh", "_x_tr_tl": "en", "_x_tr_hl": "en-GB"}
+GT_PARAMS = {"_x_tr_sl": "zh-CN", "_x_tr_tl": "en", "_x_tr_hl": "en-US", "_x_tr_pto": "wapp"}
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
@@ -31,8 +31,6 @@ def to_gt_url(url: str) -> str:
     """
     parsed = urlparse(url)
     hostname = parsed.hostname
-    if hostname.startswith("www."):
-        hostname = hostname[4:]
     gt_host = hostname.replace(".", "-") + ".translate.goog"
     params = "&".join(f"{k}={v}" for k, v in GT_PARAMS.items())
     query = f"{parsed.query}&{params}" if parsed.query else params
