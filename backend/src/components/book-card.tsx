@@ -157,15 +157,13 @@ function ExpandableSynopsis({ text, className, maxLen = TRUNCATE_LEN }: { text: 
   const truncated = text.slice(0, maxLen).replace(/\s+\S*$/, "");
   return (
     <div>
-      <p className={className}>
-        {truncated}
-        <span
-          onClick={toggle}
-          className="text-xs text-foreground/40 hover:text-foreground cursor-pointer font-medium transition-colors px-2 py-0.5 rounded hover:bg-muted/50"
-        >
-          ...more
-        </span>
-      </p>
+      <p className={className}>{truncated}</p>
+      <span
+        onClick={toggle}
+        className="inline-block mt-1 float-right text-xs text-foreground/40 hover:text-foreground cursor-pointer font-medium transition-colors px-2 py-0.5 -mr-2 rounded hover:bg-muted/50"
+      >
+        ...more
+      </span>
     </div>
   );
 }
@@ -313,7 +311,7 @@ export function BookCard({
     const url = bookUrl(bookId, title);
 
     return (
-      <div className={`flex flex-col py-4 sm:py-5 px-2 sm:px-4 rounded-xl ${topBg}`}>
+      <div className={`flex flex-col py-2.5 sm:py-5 px-2 sm:px-4 rounded-xl ${topBg}`}>
         <div className="flex items-start gap-3.5 sm:gap-5">
           {isTop3 && position && (
             <span className={`hidden sm:flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-sm font-medium shadow-sm ring-1 ring-white/80 ${PODIUM_BADGE_COLORS[position] ?? ""}`}>
