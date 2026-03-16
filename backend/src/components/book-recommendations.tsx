@@ -120,7 +120,7 @@ export function BookRecommendations({ books }: { books: RecommendedBook[] }) {
                   </div>
                 )}
                 <div className="mt-2 min-w-0">
-                  <p className="text-sm font-medium line-clamp-2 leading-tight min-h-[2.5em]">{displayTitle}</p>
+                  <p className="text-sm font-medium line-clamp-2 leading-tight min-h-[2.5em] text-center">{displayTitle}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 text-center">{displayAuthor}</p>
                   <div className="flex items-center justify-center gap-2 mt-1 text-xs text-muted-foreground">
                     {(book.wordCount ?? 0) > 0 && (
