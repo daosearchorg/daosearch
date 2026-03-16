@@ -87,7 +87,7 @@ export function BookRecommendations({ books }: { books: RecommendedBook[] }) {
       <div className="-mx-4 sm:-mx-0">
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto scrollbar-none px-4 sm:px-0 pb-2 cursor-grab select-none"
+          className="flex gap-3 overflow-x-auto no-scrollbar px-4 sm:px-0 pb-2 cursor-grab select-none"
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
@@ -101,7 +101,7 @@ export function BookRecommendations({ books }: { books: RecommendedBook[] }) {
               <Link
                 key={book.id}
                 href={bookUrl(book.id, book.titleTranslated)}
-                className="block shrink-0 w-[140px] group"
+                className="block shrink-0 w-[110px] sm:w-[140px] group"
                 onClickCapture={onClickCapture}
                 draggable={false}
               >
@@ -111,11 +111,11 @@ export function BookRecommendations({ books }: { books: RecommendedBook[] }) {
                     alt={displayTitle}
                     width={140}
                     height={196}
-                    className="rounded-lg object-cover w-[140px] h-[196px] group-hover:opacity-80 transition-opacity pointer-events-none"
+                    className="rounded-lg object-cover w-[110px] h-[154px] sm:w-[140px] sm:h-[196px] group-hover:opacity-80 transition-opacity pointer-events-none"
                     draggable={false}
                   />
                 ) : (
-                  <div className="flex w-[140px] h-[196px] items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
+                  <div className="flex w-[110px] h-[154px] sm:w-[140px] sm:h-[196px] items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
                     No cover
                   </div>
                 )}

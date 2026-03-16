@@ -419,7 +419,7 @@ export default async function BookDetailPage({ params }: Props) {
       {(book.synopsisTranslated || book.synopsis) && (
         <section>
           <h2 className="text-base sm:text-lg font-medium mb-3">About This Novel</h2>
-          <p className="text-sm sm:text-base leading-relaxed whitespace-pre-line">{book.synopsisTranslated || book.synopsis!}</p>
+          <p className="text-sm sm:text-base text-foreground/70 leading-relaxed whitespace-pre-line">{book.synopsisTranslated || book.synopsis!}</p>
         </section>
       )}
 

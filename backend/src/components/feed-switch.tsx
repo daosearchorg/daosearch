@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/daosearch/feed", label: "Community" },
   { href: "/qidian/feed", label: "Official" },
+  { href: "/daosearch/feed", label: "Community" },
 ] as const;
 
 export function FeedSwitch() {

@@ -432,7 +432,7 @@ export function BookCard({
         </div>
         {cleanSynopsis && (
           <div className="sm:hidden mt-1.5 px-0.5">
-            <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" maxLen={120} />
+            <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" maxLen={250} />
           </div>
         )}
       </div>
