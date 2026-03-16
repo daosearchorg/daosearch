@@ -168,14 +168,12 @@ export function CommunityBooklistsList({ items, showPodium = true }: CommunityBo
 
   return (
     <>
-      {/* Top 3: horizontal row on desktop, breaking out of max-w container */}
+      {/* Top 3 podium */}
       {topItems.length > 0 && (
-        <div className="hidden sm:block relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen px-4 lg:px-8">
-          <div className="grid grid-cols-3 gap-5 max-w-[100rem] mx-auto">
-            {topItems.map((item) => (
-              <CommunityBooklistCard key={item.id} item={item} />
-            ))}
-          </div>
+        <div className="hidden sm:grid grid-cols-3 gap-5">
+          {topItems.map((item) => (
+            <CommunityBooklistCard key={item.id} item={item} />
+          ))}
         </div>
       )}
 
