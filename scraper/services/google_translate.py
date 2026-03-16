@@ -38,20 +38,48 @@ _TITLE_CASE_LOWER = {
 
 
 def _title_case(text: str) -> str:
-    """Smart title case: capitalize words except articles/prepositions (unless first/last)."""
+    """Smart title case: capitalize words except articles/prepositions.
+    Handles emoji prefixes (skips non-alpha tokens), brackets, and parentheses."""
     if not text:
         return text
     words = text.split()
     if not words:
         return text
+
+    _has_alpha = re.compile(r'[a-zA-Z]')
+    found_first_alpha = False
+    after_bracket = False
     result = []
+
     for i, word in enumerate(words):
-        if i == 0 or i == len(words) - 1:
+        has_alpha = bool(_has_alpha.search(word))
+        is_last = i == len(words) - 1
+
+        if word and word[0] in '([':
+            # Bracket/paren word: capitalize letter after bracket
+            result.append(word[0] + word[1:].capitalize() if len(word) > 1 else word)
+            if has_alpha:
+                found_first_alpha = True
+        elif is_last and has_alpha:
+            # Last word: always capitalize
             result.append(word.capitalize())
-        elif word.lower() in _TITLE_CASE_LOWER:
+        elif (not found_first_alpha and has_alpha) or after_bracket:
+            # First alphabetic word or word right after closing bracket
+            result.append(word.capitalize())
+            if has_alpha:
+                found_first_alpha = True
+            after_bracket = False
+        elif has_alpha and word.lower() in _TITLE_CASE_LOWER:
             result.append(word.lower())
-        else:
+        elif has_alpha:
             result.append(word.capitalize())
+        else:
+            # Non-alpha (emoji, numbers) — keep as-is
+            result.append(word)
+
+        if word and word[-1] in '])':
+            after_bracket = True
+
     return ' '.join(result)
 
 

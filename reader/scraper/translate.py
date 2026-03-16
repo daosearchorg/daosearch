@@ -37,20 +37,58 @@ def has_chinese(text: str) -> bool:
     return bool(_CHINESE_RE.search(text))
 
 
+_HAS_ALPHA = re.compile(r"[a-zA-Z]")
+
+
 def title_case(text: str) -> str:
-    """Smart title case: capitalize words except articles/prepositions (unless first/last)."""
+    """Smart title case: capitalize words except articles/prepositions.
+    Handles emoji prefixes, brackets, and parentheses."""
     words = text.split()
     if not words:
         return text
+
+    found_first_alpha = False
+    after_bracket = False
     result = []
+
     for i, w in enumerate(words):
-        if i == 0 or i == len(words) - 1:
+        has_alpha = bool(_HAS_ALPHA.search(w))
+        is_last = i == len(words) - 1
+
+        if w and w[0] in "([":
+            result.append(w[0] + w[1:].capitalize() if len(w) > 1 else w)
+            if has_alpha:
+                found_first_alpha = True
+        elif is_last and has_alpha:
             result.append(w.capitalize())
-        elif w.lower() in _TITLE_LOWER:
+        elif (not found_first_alpha and has_alpha) or after_bracket:
+            result.append(w.capitalize())
+            if has_alpha:
+                found_first_alpha = True
+            after_bracket = False
+        elif has_alpha and w.lower() in _TITLE_LOWER:
             result.append(w.lower())
-        else:
+        elif has_alpha:
             result.append(w.capitalize())
+        else:
+            result.append(w)
+
+        if w and w[-1] in "])":
+            after_bracket = True
+
     return " ".join(result)
+
+
+def clean_title(text: str) -> str:
+    """Post-process a translated title: strip quotes, trailing periods, apply title case."""
+    if not text:
+        return text
+    text = text.strip()
+    text = re.sub(r'^[""\u201c\u201d]+|[""\u201c\u201d]+$', "", text)
+    text = re.sub(r"^['']+|['']+$", "", text)
+    text = re.sub(r"\.\s*$", "", text)
+    text = text.strip()
+    return title_case(text)
 
 
 def _clean(text: str) -> str:

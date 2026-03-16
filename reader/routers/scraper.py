@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from schemas import NovelData, ChapterEntry, ChapterContent
 from scraper.sites import get_scraper
-from scraper.translate import translate_batch, title_case
+from scraper.translate import translate_batch, clean_title
 from scraper.proxy import _get_redis
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ async def _translate_chapter_titles(chapters: list[ChapterEntry]) -> None:
 
         for i, ch in enumerate(chapters):
             if i < len(translated) and translated[i] and translated[i] != ch.title:
-                ch.title_en = title_case(translated[i])
+                ch.title_en = clean_title(translated[i])
     except Exception as e:
         logger.debug(f"Chapter title translation failed: {e}")
 

@@ -13,7 +13,7 @@ import httpx
 from config import settings
 from schemas import SearchResult
 from scraper.sites import get_scrapers, get_site_priority
-from scraper.translate import translate_batch, title_case
+from scraper.translate import translate_batch, clean_title
 from scraper.proxy import _get_redis
 
 SEARCH_CACHE_TTL = 3600  # 1 hour
@@ -110,7 +110,7 @@ async def translate_results(results: list[SearchResult]) -> None:
     translated = await translate_batch(texts_to_translate)
     n = len(results)
     for i, r in enumerate(results):
-        r.title_en = title_case(translated[i])
+        r.title_en = clean_title(translated[i])
         r.snippet_en = translated[n + i]
 
 
