@@ -6,6 +6,7 @@ import NextTopLoader from "nextjs-toploader";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { ThemeColor } from "@/components/theme-color";
+import { BookmarkProvider } from "@/components/bookmark-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -79,9 +80,11 @@ export default function RootLayout({
           <ThemeColor />
           <NextTopLoader color="var(--foreground)" height={2} showSpinner={false} shadow={false} />
           <SessionProvider>
-            <SiteNav />
-            {children}
-            <SiteFooter />
+            <BookmarkProvider>
+              <SiteNav />
+              {children}
+              <SiteFooter />
+            </BookmarkProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

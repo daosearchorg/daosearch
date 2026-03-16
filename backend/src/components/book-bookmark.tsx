@@ -127,6 +127,7 @@ export function BookBookmark({ bookId, bookmarkCount, initialBookmarked, initial
       await fetch(`/api/books/${bookId}/bookmark`, {
         method: wasBookmarked ? "DELETE" : "POST",
       });
+      window.dispatchEvent(new CustomEvent("bookmark-updated", { detail: { bookId, bookmarked: !wasBookmarked } }));
     } catch {
       setBookmarked(wasBookmarked);
       setCount((c) => c + (wasBookmarked ? 1 : -1));

@@ -5,8 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ScrollText, MessageSquareText, Star, Users } from "lucide-react";
+import { ScrollText, MessageSquareText, Star, Users, Bookmark } from "lucide-react";
 import { bookUrl } from "@/lib/utils";
+import { useBookmarkedIds } from "@/components/bookmark-context";
 
 const POSITION_COLORS: Record<number, string> = {
   1: "text-amber-500",
@@ -128,6 +129,16 @@ function StatRow({ stats, className }: { stats: BookCardStats; className?: strin
   );
 }
 
+function BookmarkIndicator({ bookId }: { bookId: number }) {
+  const { bookmarkedIds, isLoaded } = useBookmarkedIds();
+  if (!isLoaded || !bookmarkedIds.has(bookId)) return null;
+  return (
+    <span className="absolute top-1.5 right-1.5 flex items-center justify-center size-6 rounded-full bg-black/50 backdrop-blur-sm">
+      <Bookmark className="size-3.5 fill-white text-white" />
+    </span>
+  );
+}
+
 function ExpandableSynopsis({ text, className, clampClass = "line-clamp-3" }: { text: string; className?: string; clampClass?: string }) {
   const [expanded, setExpanded] = useState(false);
   const [clamped, setClamped] = useState(false);
@@ -214,6 +225,7 @@ export function BookCard({
                 No image
               </div>
             )}
+            <BookmarkIndicator bookId={bookId} />
             {position != null && (
               <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium shadow-lg ring-2 ring-background ${badgeColor}`}>
                 {position}
@@ -258,19 +270,22 @@ export function BookCard({
         <div
           className={`flex items-start gap-4 sm:gap-5 rounded-xl border border-l-[3px] ${borderColor} p-4 sm:p-5 transition-colors hover:bg-accent/50`}
         >
-          {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={displayTitle}
-              width={120}
-              height={160}
-              className="shrink-0 rounded-lg object-cover w-[90px] h-[120px] sm:w-[120px] sm:h-[160px]"
-            />
-          ) : (
-            <div className="flex shrink-0 items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground w-[90px] h-[120px] sm:w-[120px] sm:h-[160px]">
-              No image
-            </div>
-          )}
+          <div className="relative shrink-0">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={displayTitle}
+                width={120}
+                height={160}
+                className="rounded-lg object-cover w-[90px] h-[120px] sm:w-[120px] sm:h-[160px]"
+              />
+            ) : (
+              <div className="flex items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground w-[90px] h-[120px] sm:w-[120px] sm:h-[160px]">
+                No image
+              </div>
+            )}
+            <BookmarkIndicator bookId={bookId} />
+          </div>
           <div className="min-w-0 flex-1 py-1">
             <div className="flex items-center gap-2 mb-1">
               {position != null && (
@@ -335,6 +350,7 @@ export function BookCard({
                 {position}
               </span>
             )}
+            <BookmarkIndicator bookId={bookId} />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
@@ -434,19 +450,22 @@ export function BookCard({
   return (
     <Link href={bookUrl(bookId, title)} className="block">
       <Card className="overflow-hidden transition-colors hover:bg-accent/50 gap-0 p-0">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={displayTitle}
-            width={200}
-            height={267}
-            className="h-52 w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-52 w-full items-center justify-center bg-muted text-sm text-muted-foreground">
-            No image
-          </div>
-        )}
+        <div className="relative">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={displayTitle}
+              width={200}
+              height={267}
+              className="h-52 w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-52 w-full items-center justify-center bg-muted text-sm text-muted-foreground">
+              No image
+            </div>
+          )}
+          <BookmarkIndicator bookId={bookId} />
+        </div>
         <div className="flex flex-1 flex-col gap-1.5 p-4">
           <p className="line-clamp-2 text-base font-medium">{displayTitle}</p>
           {title && titleOriginal && (
