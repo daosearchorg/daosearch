@@ -354,8 +354,6 @@ class BookScraper:
                     (c.qq_user_id, c.comment_created_at): c for c in existing_comments_rows
                 }
 
-                r2_public = config.r2.get('public_url') or ''
-                pending_avatars = []  # Collect (user_id, source_url) for parallel upload after commit
 
                 for comment_raw in comments_data:
                     try:
@@ -379,9 +377,7 @@ class BookScraper:
                                 )
                                 session.add(qq_user)
                                 session.flush()
-                                # Queue avatar for parallel upload after commit
-                                if raw_icon and not raw_icon.startswith(r2_public):
-                                    pending_avatars.append((qq_user.id, raw_icon))
+                                # Avatar uploads to R2 disabled — using QQ CDN links directly
                             except Exception:
                                 session.rollback()
                                 qq_user = uid_to_user.get(uid) or session.query(QQUser).filter(QQUser.uid == uid).first()
@@ -392,9 +388,7 @@ class BookScraper:
                             # Update nickname if changed
                             if user_info.get('nickname'):
                                 qq_user.nickname = user_info['nickname']
-                            # Queue avatar for parallel upload after commit
-                            if raw_icon and qq_user.icon_url and not qq_user.icon_url.startswith(r2_public):
-                                pending_avatars.append((qq_user.id, raw_icon))
+                            # Avatar uploads to R2 disabled — using QQ CDN links directly
 
                         # Parse comment timestamp (epoch ms)
                         comment_created_at = None
@@ -453,23 +447,7 @@ class BookScraper:
                 session.commit()
                 logger.info(f"Saved {saved_count} new comments for book {book_id}")
 
-            # Parallel avatar uploads (outside session — each upload manages its own DB write)
-            if pending_avatars:
-                logger.info(f"Uploading {len(pending_avatars)} avatars in parallel for book {book_id}")
-                with ThreadPoolExecutor(max_workers=min(20, len(pending_avatars))) as executor:
-                    futures = {
-                        executor.submit(upload_avatar_image, user_id, url): user_id
-                        for user_id, url in pending_avatars
-                    }
-                    ok = 0
-                    for future in as_completed(futures):
-                        try:
-                            result = future.result()
-                            if result.get('status') == 'ok':
-                                ok += 1
-                        except Exception:
-                            pass
-                    logger.info(f"Uploaded {ok}/{len(pending_avatars)} avatars for book {book_id}")
+            # Avatar uploads to R2 disabled — using QQ CDN links directly
 
         except Exception as e:
             logger.error(f"Failed to save comments to database: {e}")

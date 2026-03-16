@@ -30,7 +30,6 @@ class AutoScheduler:
             'refresh_charts': 0,
             'refresh_booklists': 0,
             'refresh_book_stats': 0,
-            'upload_images': 0,
             'booklist_missing_translations': 0,
         }
 
@@ -101,14 +100,7 @@ class AutoScheduler:
             except Exception as e:
                 logger.error(f"Failed to schedule book stats refresh: {e}")
 
-        # Upload images to R2 every 15 minutes
-        if current_time - self.last_runs['upload_images'] >= 900:
-            try:
-                job_id = self.queue_manager.add_general_job('upload_images', limit=5000)
-                logger.info(f"Scheduled image upload task: {job_id}")
-                self.last_runs['upload_images'] = current_time
-            except Exception as e:
-                logger.error(f"Failed to schedule image upload task: {e}")
+        # Image uploads to R2 disabled — using QQ CDN links directly to save R2 costs
 
         # Refresh booklists every 24 hours
         if current_time - self.last_runs['refresh_booklists'] >= 86400:
