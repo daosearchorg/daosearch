@@ -128,42 +128,33 @@ function StatRow({ stats, className }: { stats: BookCardStats; className?: strin
   );
 }
 
-const TRUNCATE_LEN = 180;
-
-function ExpandableSynopsis({ text, className, maxLen = TRUNCATE_LEN }: { text: string; className?: string; maxLen?: number }) {
+function ExpandableSynopsis({ text, className, clampClass = "line-clamp-3" }: { text: string; className?: string; clampClass?: string }) {
   const [expanded, setExpanded] = useState(false);
-  const needsTruncate = text.length > maxLen;
+  const [clamped, setClamped] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
 
-  if (!needsTruncate) {
-    return <p className={className}>{text}</p>;
-  }
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const id = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(id);
+  }, [text]);
 
   const toggle = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setExpanded((v) => !v); };
 
-  if (expanded) {
-    return (
-      <div>
-        <p className={className}>{text}</p>
+  return (
+    <div>
+      <p ref={ref} className={`${className ?? ""} ${!expanded ? clampClass : ""}`}>{text}</p>
+      {(clamped || expanded) && (
         <span
           onClick={toggle}
           className="inline-block mt-1 float-right text-xs text-foreground/40 hover:text-foreground cursor-pointer font-medium transition-colors px-2 py-0.5 -mr-2 rounded hover:bg-muted/50"
         >
-          less
+          {expanded ? "less" : "...more"}
         </span>
-      </div>
-    );
-  }
-
-  const truncated = text.slice(0, maxLen).replace(/\s+\S*$/, "");
-  return (
-    <div>
-      <p className={className}>{truncated}</p>
-      <span
-        onClick={toggle}
-        className="inline-block mt-1 float-right text-xs text-foreground/40 hover:text-foreground cursor-pointer font-medium transition-colors px-2 py-0.5 -mr-2 rounded hover:bg-muted/50"
-      >
-        ...more
-      </span>
+      )}
     </div>
   );
 }
@@ -311,7 +302,7 @@ export function BookCard({
     const url = bookUrl(bookId, title);
 
     return (
-      <div className={`flex flex-col py-2.5 sm:py-5 px-2 sm:px-4 rounded-xl ${topBg}`}>
+      <div className={`flex flex-col py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl ${topBg}`}>
         <div className="flex items-start gap-3.5 sm:gap-5">
           {isTop3 && position && (
             <span className={`hidden sm:flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-sm font-medium shadow-sm ring-1 ring-white/80 ${PODIUM_BADGE_COLORS[position] ?? ""}`}>
@@ -432,7 +423,7 @@ export function BookCard({
         </div>
         {cleanSynopsis && (
           <div className="sm:hidden mt-1.5 px-0.5">
-            <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" maxLen={250} />
+            <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" clampClass="line-clamp-4" />
           </div>
         )}
       </div>

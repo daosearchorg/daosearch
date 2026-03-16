@@ -55,6 +55,22 @@ def _title_case(text: str) -> str:
     return ' '.join(result)
 
 
+def _clean_title(text: str) -> str:
+    """Post-process a translated title: strip quotes, trailing periods, apply title case."""
+    if not text:
+        return text
+    # Strip surrounding quotes (straight and curly)
+    text = text.strip()
+    text = re.sub(r'^[""\u201c\u201d]+|[""\u201c\u201d]+$', '', text)
+    text = re.sub(r"^['']+|['']+$", '', text)
+    # Strip trailing period (titles shouldn't end with one)
+    text = re.sub(r'\.\s*$', '', text)
+    text = text.strip()
+    # Apply title case
+    text = _title_case(text)
+    return text
+
+
 def _sentence_case(text: str) -> str:
     """Ensure proper sentence capitalization: first letter and after periods."""
     if not text:
@@ -405,7 +421,7 @@ class GoogleTranslateClient:
 
         # Apply casing after cleanup
         if field_name in ('title', 'genre', 'subgenre'):
-            text = _title_case(text)
+            text = _clean_title(text)
         elif field_name == 'author':
             text = ' '.join(w.capitalize() for w in text.split()) if text else text
         elif field_name == 'synopsis':
@@ -427,11 +443,10 @@ class GoogleTranslateClient:
                 translated = self._translate_text(val)
                 translated = _clean_text(translated)
 
-                # Apply appropriate casing
+                # Apply appropriate casing and cleanup
                 if field in ('title', 'genre', 'subgenre'):
-                    translated = _title_case(translated)
+                    translated = _clean_title(translated)
                 elif field == 'author':
-                    # Capitalize each word for author names
                     translated = ' '.join(w.capitalize() for w in translated.split())
                 elif field == 'synopsis':
                     translated = _sentence_case(translated)
@@ -455,13 +470,11 @@ class GoogleTranslateClient:
 
         result = []
         for i, t in enumerate(translated):
-            t = _clean_text(t)
-            t = _title_case(t)
+            t = _clean_title(_clean_text(t))
             if strict and self.has_chinese_characters(t):
                 logger.warning(f"Chapter translation contains Chinese: {t}")
-                # Retry individually
                 try:
-                    t = _title_case(_clean_text(self._translate_text(chapters[i]['title'])))
+                    t = _clean_title(_clean_text(self._translate_text(chapters[i]['title'])))
                 except Exception:
                     t = f"Chapter {chapters[i]['title']}"
             result.append(t)
@@ -509,7 +522,7 @@ class GoogleTranslateClient:
 
         if data.get('title'):
             try:
-                translated = _title_case(_clean_text(self._translate_text(data['title'])))
+                translated = _clean_title(_clean_text(self._translate_text(data['title'])))
                 if not self.has_chinese_characters(translated):
                     result['title'] = translated
                 else:
@@ -532,7 +545,7 @@ class GoogleTranslateClient:
                 translated_tags = self._translate_batch_joined(data['tags'], batch_size=20)
                 valid_tags = []
                 for t in translated_tags:
-                    t = _title_case(_clean_text(t))
+                    t = _clean_title(_clean_text(t))
                     if t and not self.has_chinese_characters(t):
                         valid_tags.append(t)
                 if valid_tags:
