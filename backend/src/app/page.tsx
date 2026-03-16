@@ -42,6 +42,7 @@ import { HeroSearch } from "@/components/hero-search";
 import { AnimatedCounter } from "@/components/animated-counter";
 import type { DaoSearchFeedItem } from "@/lib/queries";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 900;
 
 export const metadata: Metadata = {
