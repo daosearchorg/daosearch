@@ -52,7 +52,8 @@ class QueueManager:
             url,
             job_id=job_id,
             job_timeout='15m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=3)
         )
         return job.id
@@ -68,7 +69,8 @@ class QueueManager:
                 args=(url,),
                 job_id=f"scrape_book_{book_id}",
                 timeout='15m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=3)
             )
             for url, book_id in jobs
@@ -89,7 +91,8 @@ class QueueManager:
                 args=(url, book_id),
                 job_id=f"refresh_book_{book_id}",
                 timeout='10m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=2)
             )
             for url, book_id in jobs
@@ -109,7 +112,8 @@ class QueueManager:
                 args=(url, book_id),
                 job_id=f"scrape_comments_{book_id}",
                 timeout='30m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=2)
             )
             for url, book_id in jobs
@@ -138,7 +142,8 @@ class QueueManager:
                 args=(book_id,),
                 job_id=f"translate_{job_type}_{book_id}",
                 timeout='10m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=3)
             )
             for book_id in book_ids
@@ -158,7 +163,8 @@ class QueueManager:
                 args=(qid,),
                 job_id=f"scrape_booklist_{qid}",
                 timeout='30m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=2)
             )
             for qid in qidiantu_ids
@@ -178,7 +184,8 @@ class QueueManager:
                 args=(gender, rank_type, cycle, page),
                 job_id=f"scrape_chart_{gender}_{rank_type}_{cycle}_{page}",
                 timeout='10m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=2)
             )
             for gender, rank_type, cycle, page in jobs
@@ -197,7 +204,8 @@ class QueueManager:
                 book_id,
                 job_id=job_id,
                 job_timeout='10m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=3)
             )
         elif job_type == 'chapters':
@@ -206,7 +214,8 @@ class QueueManager:
                 book_id,
                 job_id=job_id,
                 job_timeout='15m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=2)
             )
         elif job_type == 'booklist':
@@ -215,7 +224,8 @@ class QueueManager:
                 book_id,
                 job_id=job_id,
                 job_timeout='10m',
-                result_ttl=0,
+                result_ttl=60,
+            failure_ttl=86400,
                 retry=Retry(max=3)
             )
         else:
@@ -230,7 +240,8 @@ class QueueManager:
             book_id,
             batch_size,
             job_timeout='15m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -246,7 +257,8 @@ class QueueManager:
             offset,
             job_id=job_id,
             job_timeout='15m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -265,7 +277,8 @@ class QueueManager:
             qidiantu_id,
             job_id=job_id,
             job_timeout='30m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -285,7 +298,8 @@ class QueueManager:
             book_id,
             job_id=job_id,
             job_timeout='30m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -301,7 +315,8 @@ class QueueManager:
             max_id,
             job_id=job_id,
             job_timeout='15m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -317,7 +332,8 @@ class QueueManager:
             max_id,
             job_id=job_id,
             job_timeout='15m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -332,7 +348,8 @@ class QueueManager:
             book_id,
             job_id=job_id,
             job_timeout='10m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -349,7 +366,8 @@ class QueueManager:
             page,
             job_id=job_id,
             job_timeout='10m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=2)
         )
         return job.id
@@ -361,7 +379,8 @@ class QueueManager:
             **kwargs,
             job_id=job_id,
             job_timeout='30m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=1)
         )
         return job.id
@@ -372,7 +391,8 @@ class QueueManager:
             f'workers.maintenance.{task_type}',
             **kwargs,
             job_timeout='30m',
-            result_ttl=0,
+            result_ttl=60,
+            failure_ttl=86400,
             retry=Retry(max=1)
         )
         return job.id
