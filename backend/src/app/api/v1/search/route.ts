@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const results = await quickSearchBooks(q);
-    return apiSuccess(results);
+    return apiSuccess(results, undefined, 30);
   } catch {
     return apiError("INTERNAL_ERROR", "Search failed", 500);
   }

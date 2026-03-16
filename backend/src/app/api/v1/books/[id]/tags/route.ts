@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
   try {
     const tags = await getBookTags(bookId);
-    return apiSuccess(tags);
+    return apiSuccess(tags, undefined, 60);
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch tags", 500);
   }

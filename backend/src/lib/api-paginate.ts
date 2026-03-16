@@ -4,21 +4,20 @@
  * and slices the results accordingly.
  *
  * Example: limit=10, page=2 → items 11-20 from the dataset
+ *
+ * `internalPageSize` avoids an extra fetch of page 1 just to discover the page size.
+ * Defaults to 49 (PAGINATION_SIZE used across most queries).
  */
 export async function paginatedQuery<T>(
   queryFn: (page: number) => Promise<{ items: T[]; total: number; totalPages: number }>,
   page: number,
   limit?: number,
+  internalPageSize: number = 49,
 ): Promise<{ items: T[]; total: number; totalPages: number; page: number }> {
   if (!limit) {
     const result = await queryFn(page);
     return { ...result, page };
   }
-
-  const result = await queryFn(1);
-  const internalPageSize = result.items.length || limit;
-  const total = result.total;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   // Calculate which items we need
   const startIdx = (page - 1) * limit;
@@ -27,19 +26,17 @@ export async function paginatedQuery<T>(
   const internalPage = Math.floor(startIdx / internalPageSize) + 1;
   const offsetInPage = startIdx % internalPageSize;
 
-  let items: T[];
-  if (internalPage === 1) {
-    items = result.items.slice(offsetInPage, offsetInPage + limit);
-  } else {
-    const pageResult = await queryFn(internalPage);
-    items = pageResult.items.slice(offsetInPage, offsetInPage + limit);
+  const result = await queryFn(internalPage);
+  const total = result.total;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    // If we need items spanning two internal pages
-    if (items.length < limit && offsetInPage + limit > internalPageSize) {
-      const nextResult = await queryFn(internalPage + 1);
-      const remaining = limit - items.length;
-      items = items.concat(nextResult.items.slice(0, remaining));
-    }
+  let items = result.items.slice(offsetInPage, offsetInPage + limit);
+
+  // If we need items spanning two internal pages
+  if (items.length < limit && offsetInPage + limit > internalPageSize) {
+    const nextResult = await queryFn(internalPage + 1);
+    const remaining = limit - items.length;
+    items = items.concat(nextResult.items.slice(0, remaining));
   }
 
   return { items, total, totalPages, page };

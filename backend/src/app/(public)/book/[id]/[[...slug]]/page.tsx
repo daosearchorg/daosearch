@@ -28,6 +28,8 @@ import { CopyText } from "@/components/copy-text";
 import { Synopsis } from "@/components/synopsis";
 import { BookFindSources } from "@/components/book-find-sources";
 
+export const revalidate = 60;
+
 interface Props {
   params: Promise<{ id: string; slug?: string[] }>;
   searchParams: Promise<Record<string, string | undefined>>;

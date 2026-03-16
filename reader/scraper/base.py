@@ -72,7 +72,7 @@ class BaseScraper(ABC):
                         # GT sometimes returns 403 with valid content — don't raise
                         # GT passes through raw bytes, so decode with encoding if specified
                         html = resp.content.decode(encoding, errors="replace") if encoding else resp.text
-                        if len(html) > 500:
+                        if len(html) > 500 and "security verification" not in html and "Unable to connect to the website" not in html:
                             return html
                 except Exception as e:
                     label = "proxied GT" if attempt_proxy else "direct GT"

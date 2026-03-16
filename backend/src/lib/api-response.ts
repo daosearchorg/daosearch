@@ -6,12 +6,16 @@ interface Pagination {
   total: number;
 }
 
-export function apiSuccess(data: unknown, pagination?: Pagination) {
+export function apiSuccess(data: unknown, pagination?: Pagination, cacheSeconds?: number) {
   const body: Record<string, unknown> = { data };
   if (pagination) {
     body.pagination = pagination;
   }
-  return NextResponse.json(body);
+  const headers: Record<string, string> = {};
+  if (cacheSeconds) {
+    headers["Cache-Control"] = `public, max-age=${cacheSeconds}, s-maxage=${cacheSeconds * 2}`;
+  }
+  return NextResponse.json(body, { headers });
 }
 
 export function apiError(code: string, message: string, status: number = 400) {

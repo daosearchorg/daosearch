@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     if (!book) {
       return apiError("NOT_FOUND", "Book not found", 404);
     }
-    return apiSuccess({ ...book, stats });
+    return apiSuccess({ ...book, stats }, undefined, 60);
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch book", 500);
   }

@@ -23,6 +23,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return apiSuccess(
       { booklist: result.booklist, items: result.items },
       { page, totalPages: result.totalPages, total: result.total },
+      300,
     );
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch booklist", 500);

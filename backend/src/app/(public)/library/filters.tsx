@@ -131,8 +131,14 @@ export function LibraryFilters({ primaryGenres, subgenres, genrePairs, popularTa
   expandedRef.current = expanded;
   const applyRef = useRef(apply);
   applyRef.current = apply;
+  const mountedRef = useRef(false);
 
   useEffect(() => {
+    // Skip the initial mount — only debounce when user actually types
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
     if (expandedRef.current) return; // only auto-apply when collapsed
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {

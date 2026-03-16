@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   try {
     const result = await getBookReviews(bookId, page);
-    return apiSuccess(result.items, { page, totalPages: result.totalPages, total: result.total });
+    return apiSuccess(result.items, { page, totalPages: result.totalPages, total: result.total }, 60);
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch reviews", 500);
   }

@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     }
 
     const recommendations = await getBookRecommendationsWithStats(qqIds);
-    return apiSuccess(recommendations);
+    return apiSuccess(recommendations, undefined, 300);
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch recommendations", 500);
   }

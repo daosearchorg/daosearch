@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       page,
       limit,
     );
-    return apiSuccess(result.items, { page: result.page, totalPages: result.totalPages, total: result.total });
+    return apiSuccess(result.items, { page: result.page, totalPages: result.totalPages, total: result.total }, 300);
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch rankings", 500);
   }

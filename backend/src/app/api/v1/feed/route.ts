@@ -12,10 +12,10 @@ export async function GET(req: NextRequest) {
   try {
     if (type === "activity") {
       const result = await paginatedQuery((p) => getDaoSearchFeed(p), page, limit);
-      return apiSuccess(result.items, { page: result.page, totalPages: result.totalPages, total: result.total });
+      return apiSuccess(result.items, { page: result.page, totalPages: result.totalPages, total: result.total }, 60);
     }
     const result = await paginatedQuery((p) => getLatestQidianComments(p), page, limit);
-    return apiSuccess(result.items, { page: result.page, totalPages: result.totalPages, total: result.total });
+    return apiSuccess(result.items, { page: result.page, totalPages: result.totalPages, total: result.total }, 60);
   } catch {
     return apiError("INTERNAL_ERROR", "Failed to fetch feed", 500);
   }
