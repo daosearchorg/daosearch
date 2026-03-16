@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import NextTopLoader from "nextjs-toploader";
@@ -8,7 +8,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { ThemeColor } from "@/components/theme-color";
 import "./globals.css";
 
-const manrope = Manrope({
+const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
 });
@@ -68,7 +68,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="bg-background">
       <body
-        className={`${manrope.variable} antialiased flex min-h-dvh flex-col overflow-x-hidden`}
+        className={`${inter.variable} antialiased flex min-h-dvh flex-col overflow-x-hidden`}
       >
         <ThemeProvider
           attribute="class"

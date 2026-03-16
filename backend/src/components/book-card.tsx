@@ -128,36 +128,44 @@ function StatRow({ stats, className }: { stats: BookCardStats; className?: strin
   );
 }
 
-function ExpandableSynopsis({ text, className, clampClass = "line-clamp-3", center }: { text: string; className?: string; clampClass?: string; center?: boolean }) {
+const TRUNCATE_LEN = 180;
+
+function ExpandableSynopsis({ text, className, maxLen = TRUNCATE_LEN }: { text: string; className?: string; maxLen?: number }) {
   const [expanded, setExpanded] = useState(false);
-  const [clamped, setClamped] = useState(false);
-  const ref = useRef<HTMLParagraphElement>(null);
+  const needsTruncate = text.length > maxLen;
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const check = () => setClamped(el.scrollHeight > el.clientHeight + 1);
-    check();
-    const id = requestAnimationFrame(check);
-    return () => cancelAnimationFrame(id);
-  }, [text]);
+  if (!needsTruncate) {
+    return <p className={className}>{text}</p>;
+  }
 
+  const toggle = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setExpanded((v) => !v); };
+
+  if (expanded) {
+    return (
+      <div>
+        <p className={className}>{text}</p>
+        <span
+          onClick={toggle}
+          className="inline-block mt-1 float-right text-xs text-foreground/40 hover:text-foreground cursor-pointer font-medium transition-colors px-2 py-0.5 -mr-2 rounded hover:bg-muted/50"
+        >
+          less
+        </span>
+      </div>
+    );
+  }
+
+  const truncated = text.slice(0, maxLen).replace(/\s+\S*$/, "");
   return (
     <div>
-      <p
-        ref={ref}
-        className={`${className ?? ""} ${!expanded ? clampClass : ""}`}
-      >
-        {text}
-      </p>
-      {(clamped || expanded) && (
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded((v) => !v); }}
-          className={`text-xs text-muted-foreground hover:text-foreground mt-1 transition-colors block px-4 py-1.5 -mx-2 rounded-md hover:bg-muted/50 ${center ? "mx-auto" : "ml-auto sm:mx-auto"}`}
+      <p className={className}>
+        {truncated}
+        <span
+          onClick={toggle}
+          className="text-xs text-foreground/40 hover:text-foreground cursor-pointer font-medium transition-colors px-2 py-0.5 rounded hover:bg-muted/50"
         >
-          {expanded ? "Show less" : "Show more"}
-        </button>
-      )}
+          ...more
+        </span>
+      </p>
     </div>
   );
 }
@@ -190,63 +198,65 @@ export function BookCard({
     };
     const podiumBg = position ? podiumBgMap[position] ?? "" : "";
 
+    const url = bookUrl(bookId, title);
+
     return (
-      <Link href={bookUrl(bookId, title)} className="group block">
-        <Card className="border-0 shadow-none bg-transparent gap-0 p-0">
-          <div className={`flex flex-col items-center text-center h-full rounded-xl p-4 ${podiumBg}`}>
-            <div className="relative">
-              {imageUrl ? (
-                <Image
-                  src={imageUrl}
-                  alt={displayTitle}
-                  width={isFirst ? 180 : 140}
-                  height={isFirst ? 240 : 187}
-                  className={`rounded-xl object-cover shadow-md transition-transform duration-300 group-hover:scale-[1.03] ${
-                    isFirst
-                      ? "w-[180px] h-[240px]"
-                      : "w-[140px] h-[187px]"
-                  }`}
-                />
-              ) : (
-                <div
-                  className={`flex items-center justify-center rounded-xl bg-muted text-sm text-muted-foreground ${
-                    isFirst ? "w-[180px] h-[240px]" : "w-[140px] h-[187px]"
-                  }`}
-                >
-                  No image
-                </div>
-              )}
-              {position != null && (
-                <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium shadow-lg ring-2 ring-background ${badgeColor}`}>
-                  {position}
-                </span>
-              )}
-            </div>
-            <div className="mt-6 min-w-0 w-full px-1">
+      <Card className="border-0 shadow-none bg-transparent gap-0 p-0">
+        <div className={`flex flex-col items-center text-center h-full rounded-xl p-4 ${podiumBg}`}>
+          <Link href={url} className="relative group">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={displayTitle}
+                width={isFirst ? 180 : 140}
+                height={isFirst ? 240 : 187}
+                className={`rounded-xl object-cover shadow-md transition-transform duration-300 group-hover:scale-[1.03] ${
+                  isFirst
+                    ? "w-[180px] h-[240px]"
+                    : "w-[140px] h-[187px]"
+                }`}
+              />
+            ) : (
+              <div
+                className={`flex items-center justify-center rounded-xl bg-muted text-sm text-muted-foreground ${
+                  isFirst ? "w-[180px] h-[240px]" : "w-[140px] h-[187px]"
+                }`}
+              >
+                No image
+              </div>
+            )}
+            {position != null && (
+              <span className={`absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium shadow-lg ring-2 ring-background ${badgeColor}`}>
+                {position}
+              </span>
+            )}
+          </Link>
+          <div className="mt-6 min-w-0 w-full px-1">
+            <Link href={url} className="hover:underline underline-offset-2">
               <p className={`font-medium line-clamp-2 ${isFirst ? "text-lg" : "text-base"}`}>
                 {displayTitle}
               </p>
-              {title && titleOriginal ? (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{titleOriginal}</p>
-              ) : (
-                <p className="text-xs mt-1 invisible">placeholder</p>
-              )}
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{displayAuthor}</p>
-              {genreName && (
-                <Badge variant="secondary" className="mt-2 mx-auto">
-                  {genreName}
-                </Badge>
-              )}
-              {stats && <StatRow stats={stats} className="justify-center mt-2 text-xs" />}
-            </div>
-            {cleanSynopsis && (
-              <div className="mt-4 px-2">
-                <ExpandableSynopsis text={cleanSynopsis} className="text-sm leading-relaxed text-center text-muted-foreground" center />
-              </div>
+            </Link>
+            {title && titleOriginal ? (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{titleOriginal}</p>
+            ) : (
+              <p className="text-xs mt-1 invisible">placeholder</p>
             )}
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{displayAuthor}</p>
+            {genreName && (
+              <Badge variant="secondary" className="mt-2 mx-auto">
+                {genreName}
+              </Badge>
+            )}
+            {stats && <StatRow stats={stats} className="justify-center mt-2 text-xs" />}
           </div>
-        </Card>
-      </Link>
+          {cleanSynopsis && (
+            <div className="mt-4 px-2 w-full">
+              <ExpandableSynopsis text={cleanSynopsis} className="text-sm leading-relaxed text-center text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      </Card>
     );
   }
 
@@ -300,132 +310,134 @@ export function BookCard({
     const combinedReviews = stats ? (stats.commentCount ?? 0) + (stats.reviewCount ?? 0) : 0;
     const hasStats = stats && ((stats.wordCount ?? 0) > 0 || stats.qqScore || combinedReviews > 0 || (stats.readerCount ?? 0) > 0);
 
+    const url = bookUrl(bookId, title);
+
     return (
-      <Link href={bookUrl(bookId, title)} className="block">
-        <div className={`flex flex-col py-4 sm:py-5 px-2 sm:px-4 transition-colors hover:bg-accent/50 rounded-xl ${topBg}`}>
-          <div className="flex items-start gap-3.5 sm:gap-5">
-            {isTop3 && position && (
-              <span className={`hidden sm:flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-sm font-medium shadow-sm ring-1 ring-white/80 ${PODIUM_BADGE_COLORS[position] ?? ""}`}>
+      <div className={`flex flex-col py-4 sm:py-5 px-2 sm:px-4 rounded-xl ${topBg}`}>
+        <div className="flex items-start gap-3.5 sm:gap-5">
+          {isTop3 && position && (
+            <span className={`hidden sm:flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-sm font-medium shadow-sm ring-1 ring-white/80 ${PODIUM_BADGE_COLORS[position] ?? ""}`}>
+              {position}
+            </span>
+          )}
+          <Link href={url} className="relative shrink-0">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={displayTitle}
+                width={80}
+                height={106}
+                className="shrink-0 rounded-lg object-cover w-16 h-[85px] sm:w-[80px] sm:h-[106px] hover:opacity-80 transition-opacity"
+              />
+            ) : (
+              <div className="flex w-16 h-[85px] sm:w-[80px] sm:h-[106px] shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
+                No img
+              </div>
+            )}
+            {position != null && !isTop3 && (
+              <span className="absolute -top-1.5 -left-1.5 flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-md text-[10px] font-medium bg-foreground/80 text-background">
                 {position}
               </span>
             )}
-            <div className="relative shrink-0">
-              {imageUrl ? (
-                <Image
-                  src={imageUrl}
-                  alt={displayTitle}
-                  width={80}
-                  height={106}
-                  className="shrink-0 rounded-lg object-cover w-16 h-[85px] sm:w-[80px] sm:h-[106px]"
-                />
-              ) : (
-                <div className="flex w-16 h-[85px] sm:w-[80px] sm:h-[106px] shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
-                  No img
-                </div>
-              )}
-              {position != null && !isTop3 && (
-                <span className="absolute -top-1.5 -left-1.5 flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-md text-[10px] font-medium bg-foreground/80 text-background">
-                  {position}
-                </span>
-              )}
-              {position != null && isTop3 && (
-                <span className={`sm:hidden absolute -top-1.5 -left-1.5 flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-md text-[10px] font-medium ${
-                  PODIUM_BADGE_COLORS[position] ?? "bg-foreground/80 text-background"
-                }`}>
-                  {position}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
+            {position != null && isTop3 && (
+              <span className={`sm:hidden absolute -top-1.5 -left-1.5 flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-md text-[10px] font-medium ${
+                PODIUM_BADGE_COLORS[position] ?? "bg-foreground/80 text-background"
+              }`}>
+                {position}
+              </span>
+            )}
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <Link href={url} className="hover:underline underline-offset-2">
                 <p className="text-sm sm:text-lg font-medium leading-tight line-clamp-2 sm:truncate sm:line-clamp-none">{displayTitle}</p>
-                {genreName && (
-                  <Badge variant="secondary" className="shrink-0 text-xs sm:hidden mt-0.5">
-                    {genreName}
-                  </Badge>
-                )}
-              </div>
-              {title && titleOriginal && (
-                <p className="hidden sm:block truncate text-sm text-muted-foreground mt-0.5">{titleOriginal}</p>
-              )}
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">{displayAuthor}</p>
-              {hasStats ? (
-                <div className="flex sm:hidden items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                  {(stats.wordCount ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <ScrollText className="size-3 shrink-0" />
-                      <span className="font-medium tabular-nums">{formatWordCount(stats.wordCount!)}</span>
-                    </span>
-                  )}
-                  {stats.qqScore && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <Star className="size-3 shrink-0" />
-                      <span className={`font-medium tabular-nums ${qqScoreColor(stats.qqScore)}`}>{stats.qqScore}</span>
-                    </span>
-                  )}
-                  {combinedReviews > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <MessageSquareText className="size-3 shrink-0" />
-                      <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
-                    </span>
-                  )}
-                  {(stats.readerCount ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <Users className="size-3 shrink-0" />
-                      <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
-                    </span>
-                  )}
-                </div>
-              ) : null}
-              {cleanSynopsis && (
-                <div className="hidden sm:block mt-2">
-                  <ExpandableSynopsis text={cleanSynopsis} className="text-sm leading-relaxed text-muted-foreground" />
-                </div>
-              )}
-            </div>
-            <div className="hidden sm:flex flex-col items-end gap-2 shrink-0 text-right">
+              </Link>
               {genreName && (
-                <Badge variant="secondary">
+                <Badge variant="secondary" className="shrink-0 text-xs sm:hidden mt-0.5">
                   {genreName}
                 </Badge>
               )}
-              {hasStats && (
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  {(stats.wordCount ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <ScrollText className="size-3.5 shrink-0" />
-                      <span className="font-medium tabular-nums">{formatWordCount(stats.wordCount!)}</span>
-                    </span>
-                  )}
-                  {stats.qqScore && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <Star className="size-3.5 shrink-0" />
-                      <span className={`font-medium tabular-nums ${qqScoreColor(stats.qqScore)}`}>{stats.qqScore}</span>
-                    </span>
-                  )}
-                  {combinedReviews > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <MessageSquareText className="size-3.5 shrink-0" />
-                      <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
-                    </span>
-                  )}
-                  {(stats.readerCount ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <Users className="size-3.5 shrink-0" />
-                      <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
+            {title && titleOriginal && (
+              <p className="hidden sm:block truncate text-sm text-muted-foreground mt-0.5">{titleOriginal}</p>
+            )}
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">{displayAuthor}</p>
+            {hasStats ? (
+              <div className="flex sm:hidden items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                {(stats.wordCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <ScrollText className="size-3 shrink-0" />
+                    <span className="font-medium tabular-nums">{formatWordCount(stats.wordCount!)}</span>
+                  </span>
+                )}
+                {stats.qqScore && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Star className="size-3 shrink-0" />
+                    <span className={`font-medium tabular-nums ${qqScoreColor(stats.qqScore)}`}>{stats.qqScore}</span>
+                  </span>
+                )}
+                {combinedReviews > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <MessageSquareText className="size-3 shrink-0" />
+                    <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
+                  </span>
+                )}
+                {(stats.readerCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Users className="size-3 shrink-0" />
+                    <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
+                  </span>
+                )}
+              </div>
+            ) : null}
+            {cleanSynopsis && (
+              <div className="hidden sm:block mt-2">
+                <ExpandableSynopsis text={cleanSynopsis} className="text-sm leading-relaxed text-muted-foreground" />
+              </div>
+            )}
           </div>
-          {cleanSynopsis && (
-            <div className="sm:hidden mt-1.5 px-0.5">
-              <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" />
-            </div>
-          )}
+          <div className="hidden sm:flex flex-col items-end gap-2 shrink-0 text-right">
+            {genreName && (
+              <Badge variant="secondary">
+                {genreName}
+              </Badge>
+            )}
+            {hasStats && (
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                {(stats.wordCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <ScrollText className="size-3.5 shrink-0" />
+                    <span className="font-medium tabular-nums">{formatWordCount(stats.wordCount!)}</span>
+                  </span>
+                )}
+                {stats.qqScore && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Star className="size-3.5 shrink-0" />
+                    <span className={`font-medium tabular-nums ${qqScoreColor(stats.qqScore)}`}>{stats.qqScore}</span>
+                  </span>
+                )}
+                {combinedReviews > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <MessageSquareText className="size-3.5 shrink-0" />
+                    <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
+                  </span>
+                )}
+                {(stats.readerCount ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Users className="size-3.5 shrink-0" />
+                    <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </Link>
+        {cleanSynopsis && (
+          <div className="sm:hidden mt-1.5 px-0.5">
+            <ExpandableSynopsis text={cleanSynopsis} className="text-xs leading-relaxed text-muted-foreground" maxLen={120} />
+          </div>
+        )}
+      </div>
     );
   }
 
