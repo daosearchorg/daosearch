@@ -17,13 +17,16 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const session = await auth();
   if (!session?.user?.dbId) {
-    return NextResponse.json({ chapterId: null, sequenceNumber: null });
+    return NextResponse.json({ chapterId: null, sequenceNumber: null, sourceUrl: null });
   }
 
   const [row] = await db
     .select({
       chapterId: readingProgresses.chapterId,
       sequenceNumber: chapters.sequenceNumber,
+      chapterSeqOverride: readingProgresses.chapterSeqOverride,
+      sourceUrl: readingProgresses.sourceUrl,
+      sourceDomain: readingProgresses.sourceDomain,
     })
     .from(readingProgresses)
     .leftJoin(chapters, eq(readingProgresses.chapterId, chapters.id))
@@ -32,7 +35,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   return NextResponse.json({
     chapterId: row?.chapterId ?? null,
-    sequenceNumber: row?.sequenceNumber ?? null,
+    sequenceNumber: row?.chapterSeqOverride ?? row?.sequenceNumber ?? null,
+    sourceUrl: row?.sourceUrl ?? null,
+    sourceDomain: row?.sourceDomain ?? null,
   });
 }
 
@@ -49,23 +54,48 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 
   const body = await request.json();
-  const chapterId = Number(body.chapterId);
-  if (isNaN(chapterId)) {
-    return NextResponse.json({ error: "Invalid chapter ID" }, { status: 400 });
+  const chapterId = body.chapterId ? Number(body.chapterId) : null;
+  const chapterSeq = body.chapterSeq ? Number(body.chapterSeq) : null;
+  const sourceUrl = body.sourceUrl ? String(body.sourceUrl) : null;
+  const sourceDomain = sourceUrl ? new URL(sourceUrl).hostname : null;
+
+  // Need at least chapterId or chapterSeq
+  if (!chapterId && !chapterSeq) {
+    return NextResponse.json({ error: "chapterId or chapterSeq required" }, { status: 400 });
   }
 
   // Upsert reading progress
+  const values: Record<string, unknown> = {
+    userId: session.user.dbId,
+    bookId,
+    lastReadAt: new Date(),
+  };
+  const updateSet: Record<string, unknown> = {
+    lastReadAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (chapterId) {
+    values.chapterId = chapterId;
+    updateSet.chapterId = chapterId;
+  }
+  if (chapterSeq != null) {
+    values.chapterSeqOverride = chapterSeq;
+    updateSet.chapterSeqOverride = chapterSeq;
+  }
+  if (sourceUrl) {
+    values.sourceUrl = sourceUrl;
+    values.sourceDomain = sourceDomain;
+    updateSet.sourceUrl = sourceUrl;
+    updateSet.sourceDomain = sourceDomain;
+  }
+
   await db
     .insert(readingProgresses)
-    .values({
-      userId: session.user.dbId,
-      bookId,
-      chapterId,
-      lastReadAt: new Date(),
-    })
+    .values(values as typeof readingProgresses.$inferInsert)
     .onConflictDoUpdate({
       target: [readingProgresses.userId, readingProgresses.bookId],
-      set: { chapterId, lastReadAt: new Date(), updatedAt: new Date() },
+      set: updateSet,
     });
 
   // Record history
@@ -74,7 +104,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .values({
       userId: session.user.dbId,
       bookId,
-      chapterId,
+      ...(chapterId ? { chapterId } : {}),
     });
 
   // Refresh reader count
@@ -107,14 +137,19 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .where(eq(bookStats.bookId, bookId));
 
   // Get the sequence number to return
-  const [ch] = await db
-    .select({ sequenceNumber: chapters.sequenceNumber })
-    .from(chapters)
-    .where(eq(chapters.id, chapterId))
-    .limit(1);
+  let sequenceNumber = chapterSeq;
+  if (!sequenceNumber && chapterId) {
+    const [ch] = await db
+      .select({ sequenceNumber: chapters.sequenceNumber })
+      .from(chapters)
+      .where(eq(chapters.id, chapterId))
+      .limit(1);
+    sequenceNumber = ch?.sequenceNumber ?? null;
+  }
 
   return NextResponse.json({
     chapterId,
-    sequenceNumber: ch?.sequenceNumber ?? null,
+    sequenceNumber,
+    sourceUrl,
   });
 }

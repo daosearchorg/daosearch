@@ -258,6 +258,8 @@ class ReadingProgress(Base):
     book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
     chapter_id = Column(Integer, ForeignKey('chapters.id', ondelete='SET NULL'), nullable=True)
     source_domain = Column(String(255), nullable=True)
+    source_url = Column(String(1000), nullable=True)
+    chapter_seq_override = Column(Integer, nullable=True)
     last_read_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
@@ -823,5 +825,53 @@ class UserTranslationSetting(Base):
 
     def __repr__(self):
         return f"<UserTranslationSetting(id={self.id}, user_id={self.user_id}, tier='{self.tier}')>"
+
+
+class TranslatedChapter(Base):
+    """Per-user cache of translated chapter text. Only stores translated output, never original Chinese."""
+    __tablename__ = 'translated_chapters'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
+    chapter_seq = Column(Integer, nullable=False)
+    translated_title = Column(String(500), nullable=True)
+    translated_text = Column(Text, nullable=False)
+    source_domain = Column(String(255), nullable=True)
+    translated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+
+    user = relationship("User")
+    book = relationship("Book")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'book_id', 'chapter_seq', name='uq_translated_chapter'),
+        Index('idx_translated_chapters_user_book', 'user_id', 'book_id'),
+    )
+
+    def __repr__(self):
+        return f"<TranslatedChapter(user_id={self.user_id}, book_id={self.book_id}, seq={self.chapter_seq})>"
+
+
+class UserNovelEntity(Base):
+    """User-scoped entity glossary per novel. Seeded from community consensus, editable per user."""
+    __tablename__ = 'user_novel_entities'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
+    source_term = Column(String(255), nullable=False)
+    translated_term = Column(String(255), nullable=False)
+    gender = Column(String(1), server_default='N')
+    category = Column(String(50), server_default='character')
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+    book = relationship("Book")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'book_id', 'source_term', name='uq_user_novel_entity'),
+        Index('idx_user_novel_entities_user_book', 'user_id', 'book_id'),
+    )
 
 

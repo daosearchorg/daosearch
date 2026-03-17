@@ -26,7 +26,6 @@ import { BookChaptersFab } from "@/components/book-chapters-fab";
 import { BookTags } from "@/components/book-tags";
 import { CopyText } from "@/components/copy-text";
 import { Synopsis } from "@/components/synopsis";
-import { BookFindSources } from "@/components/book-find-sources";
 
 export const revalidate = 60;
 
@@ -210,9 +209,8 @@ export default async function BookDetailPage({ params }: Props) {
           )}
           {/* Actions — desktop, under cover */}
           <div className="hidden sm:flex flex-col w-[220px] gap-2">
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} />
             <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
-            <BookFindSources bookId={bookId} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} currentSeq={progressSeq || undefined} />
           </div>
         </div>
         <div className="flex flex-col min-w-0 flex-1 text-center sm:text-left">
@@ -234,11 +232,8 @@ export default async function BookDetailPage({ params }: Props) {
 
           {/* Actions — mobile only, right after author */}
           <div className="flex sm:hidden flex-col gap-2 mt-3">
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} />
-            <div className="grid grid-cols-2 gap-2">
-              <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
-              <BookFindSources bookId={bookId} bookTitleRaw={book.title || ""} bookUrl={book.url || undefined} currentSeq={progressSeq || undefined} />
-            </div>
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} />
+            <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
           </div>
 
           {/* Tags + Details card */}
@@ -485,8 +480,6 @@ export default async function BookDetailPage({ params }: Props) {
               bookId={bookId}
               initialItems={[]}
               initialCurrentSeq={progressSeq}
-              bookTitleRaw={book.title || ""}
-              bookUrl={book.url || undefined}
             />
           }
         />
@@ -525,8 +518,6 @@ export default async function BookDetailPage({ params }: Props) {
         bookId={bookId}
         chapterCount={stats?.chapterCount ?? chapters.total}
         progressSeq={progressSeq}
-        bookTitleRaw={book.title || ""}
-        bookUrl={book.url || undefined}
       />
     </div>
   );

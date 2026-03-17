@@ -1,17 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookOpen, ExternalLink, Loader2, Lock } from "lucide-react";
 import { LoginDialog } from "@/components/login-dialog";
-import { BookSourcePicker } from "@/components/book-source-picker";
-import {
-  ResponsiveDialog,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-  ResponsiveDialogDescription,
-} from "@/components/responsive-dialog";
 
 interface Chapter {
   id: number;
@@ -31,16 +24,13 @@ interface BookChaptersProps {
   bookUrl?: string;
 }
 
-export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn, bookTitleRaw, bookUrl }: BookChaptersProps) {
+export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn }: BookChaptersProps) {
   const router = useRouter();
   const { status } = useSession();
   const [items, setItems] = useState<Chapter[]>(initialItems ?? []);
   const [loading, setLoading] = useState(!initialItems?.length);
   const [currentSeq, setCurrentSeq] = useState<number | null>(initialCurrentSeq ?? null);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [pendingSeq, setPendingSeq] = useState<number | null>(null);
-  const [pendingChapterId, setPendingChapterId] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialItems?.length) return;
@@ -61,36 +51,12 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
     return () => window.removeEventListener("progress-updated", handler);
   }, []);
 
-  const navigateToChapter = useCallback((seq: number, chapterId: number, sourceUrl: string) => {
-    setCurrentSeq(seq);
-    fetch(`/api/books/${bookId}/progress`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapterId }),
-    }).catch(() => {});
-    router.push(`/book/${bookId}/read?seq=${seq}&source=${encodeURIComponent(sourceUrl)}`);
-  }, [bookId, router]);
-
-  const handleChapterClick = async (ch: Chapter) => {
+  const handleChapterClick = (ch: Chapter) => {
     if (status !== "authenticated") {
       setLoginOpen(true);
       return;
     }
-
-    // Try saved source first
-    try {
-      const res = await fetch(`/api/books/${bookId}/source`);
-      const data = await res.json();
-      if (data.novelUrl) {
-        navigateToChapter(ch.sequenceNumber, ch.id, data.novelUrl);
-        return;
-      }
-    } catch { /* fall through */ }
-
-    // No saved source — open source picker
-    setPendingSeq(ch.sequenceNumber);
-    setPendingChapterId(ch.id);
-    setSourcesOpen(true);
+    router.push(`/reader?book=${bookId}&seq=${ch.sequenceNumber}`);
   };
 
   if (loading) {
@@ -163,25 +129,6 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
       </div>
 
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
-      <ResponsiveDialog open={sourcesOpen} onOpenChange={setSourcesOpen} className="sm:max-w-lg">
-        <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Sources</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>Choose where to read from</ResponsiveDialogDescription>
-        </ResponsiveDialogHeader>
-        <div className="mt-4">
-          <BookSourcePicker
-            bookId={bookId}
-            bookTitleRaw={bookTitleRaw || ""}
-            bookUrl={bookUrl}
-            onSelect={(url) => {
-              setSourcesOpen(false);
-              if (pendingSeq != null && pendingChapterId != null) {
-                navigateToChapter(pendingSeq, pendingChapterId, url);
-              }
-            }}
-          />
-        </div>
-      </ResponsiveDialog>
     </section>
   );
 }

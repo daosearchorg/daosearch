@@ -163,6 +163,8 @@ export const readingProgresses = pgTable("reading_progresses", {
   bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
   chapterId: integer("chapter_id").references(() => chapters.id, { onDelete: "set null" }),
   sourceDomain: varchar("source_domain", { length: 255 }),
+  sourceUrl: varchar("source_url", { length: 1000 }),
+  chapterSeqOverride: integer("chapter_seq_override"),
   lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -517,5 +519,38 @@ export const userTranslationSettings = pgTable("user_translation_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("idx_user_translation_settings_user_id").on(table.userId),
+]);
+
+// ============================================================================
+// Dao Reader Tables
+// ============================================================================
+
+export const translatedChapters = pgTable("translated_chapters", {
+  id: serial().primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  chapterSeq: integer("chapter_seq").notNull(),
+  translatedTitle: varchar("translated_title", { length: 500 }),
+  translatedText: text("translated_text").notNull(),
+  sourceDomain: varchar("source_domain", { length: 255 }),
+  translatedAt: timestamp("translated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("uq_translated_chapter").on(table.userId, table.bookId, table.chapterSeq),
+  index("idx_translated_chapters_user_book").on(table.userId, table.bookId),
+]);
+
+export const userNovelEntities = pgTable("user_novel_entities", {
+  id: serial().primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  sourceTerm: varchar("source_term", { length: 255 }).notNull(),
+  translatedTerm: varchar("translated_term", { length: 255 }).notNull(),
+  gender: varchar({ length: 1 }).default("N"),
+  category: varchar({ length: 50 }).default("character"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("uq_user_novel_entity").on(table.userId, table.bookId, table.sourceTerm),
+  index("idx_user_novel_entities_user_book").on(table.userId, table.bookId),
 ]);
 
