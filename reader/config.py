@@ -2,7 +2,6 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    searxng_url: str
     redis_url: str
     db_host: str
     db_port: int

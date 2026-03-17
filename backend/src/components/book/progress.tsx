@@ -38,11 +38,6 @@ export function BookProgress({ bookId, initialSeq, bookTitleRaw, bookTitle }: Bo
       return;
     }
     router.push(readerUrl(bookId, bookTitle ?? null));
-    // For "Start Reading" (no saved progress), also open Google search in a new tab
-    if (seq == null && bookTitleRaw) {
-      const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(bookTitleRaw + " 阅读")}`;
-      window.open(googleSearchUrl, "_blank");
-    }
   };
 
   return (
