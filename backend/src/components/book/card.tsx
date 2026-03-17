@@ -133,8 +133,8 @@ function BookmarkIndicator({ bookId }: { bookId: number }) {
   const { bookmarkedIds, isLoaded } = useBookmarkedIds();
   if (!isLoaded || !bookmarkedIds.has(bookId)) return null;
   return (
-    <span className="absolute top-1.5 right-1.5 flex items-center justify-center size-6 rounded-full bg-black/50 backdrop-blur-sm">
-      <Bookmark className="size-3.5 fill-white text-white" />
+    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center size-5 rounded-full bg-foreground/80 text-background shadow-sm">
+      <Bookmark className="size-3 fill-current" />
     </span>
   );
 }

@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { bookUrl } from "@/lib/utils";
 import { ReaderView } from "@/components/reader/reader-view";
 import { GoogleIcon } from "@/components/icons/provider-icons";
@@ -120,6 +122,7 @@ export function DaoReaderLanding({
   const [allQidianChapters, setAllQidianChapters] = useState(qidianChapters ?? []);
   const [fetchingUrl, setFetchingUrl] = useState<string | null>(null);
   const [extensionAvailable, setExtensionAvailable] = useState<boolean | null>(null);
+  const isMobile = useIsMobile();
 
   // Prefetch state
   const prefetchRef = useRef<{
@@ -170,15 +173,18 @@ export function DaoReaderLanding({
   }, [chapterData, viewState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    params.set("book", String(bookId));
     if (viewState === "reading" && chapterData) {
+      const params = new URLSearchParams();
       if (chapterData.sourceUrl) params.set("src", chapterData.sourceUrl);
       const seq = extractChapterSeq(chapterData.title);
       if (seq) params.set("ch", String(seq));
+      const qs = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    } else {
+      // Browse mode — clean URL (just the path with slug)
+      window.history.replaceState(null, "", window.location.pathname);
     }
-    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-  }, [chapterData, viewState, bookId]);
+  }, [chapterData, viewState]);
 
   // ─── Actions ─────────────────────────────────────────────
 
@@ -188,6 +194,7 @@ export function DaoReaderLanding({
   const handleManualProgress = async () => {
     const seq = Number(manualSeq);
     if (!seq || isNaN(seq) || seq < 1) return;
+    if (totalChapterCount > 0 && seq > totalChapterCount) return;
     await fetch(`/api/books/${bookId}/progress`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -361,19 +368,19 @@ export function DaoReaderLanding({
               alt={bookTitle}
               width={220}
               height={308}
-              className="rounded-xl object-cover shadow-md w-[180px] sm:w-[180px]"
+              className="rounded-xl object-cover shadow-md w-[140px] sm:w-[160px]"
               priority
             />
           ) : (
-            <div className="w-[180px] h-[252px] rounded-xl bg-muted border flex items-center justify-center">
+            <div className="w-[140px] sm:w-[160px] h-[196px] sm:h-[224px] rounded-xl bg-muted border flex items-center justify-center">
               <BookText className="size-8 text-muted-foreground" />
             </div>
           )}
         </Link>
 
         <div className="flex flex-col min-w-0 flex-1 text-center sm:text-left">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary mb-1.5 justify-center sm:justify-start">
-            <BookText className="size-3" />
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary w-fit mx-auto sm:mx-0 mb-1.5">
+            <Globe className="size-3.5" />
             Dao Reader
           </span>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">
@@ -382,7 +389,7 @@ export function DaoReaderLanding({
           <p className="text-sm text-muted-foreground mt-1">{bookTitleRaw}</p>
 
           {/* Stats */}
-          <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 min-h-[28px]">
             {totalReaders > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border border-border bg-muted/50">
                 <Eye className="size-3 text-muted-foreground" />
@@ -400,6 +407,9 @@ export function DaoReaderLanding({
                 <AlertTriangle className="size-3" />
                 Extension required
               </span>
+            )}
+            {extensionAvailable === null && (
+              <span className="inline-flex items-center rounded-full w-36 h-7 bg-muted/50 animate-pulse" />
             )}
           </div>
 
@@ -439,30 +449,66 @@ export function DaoReaderLanding({
                   Ch. {savedSeq} · {savedDomain}
                 </span>
               )}
-              <Popover open={editingProgress} onOpenChange={setEditingProgress}>
-                <PopoverTrigger asChild>
-                  <button className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+
+              {/* Set progress — Drawer on mobile, Popover on desktop */}
+              {isMobile ? (
+                <>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                    onClick={() => setEditingProgress(true)}
+                  >
                     <Pencil className="size-3" />
                     Set progress
                   </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-3" align="start">
-                  <p className="text-xs text-muted-foreground mb-2">Set reading progress</p>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      value={manualSeq}
-                      onChange={(e) => setManualSeq(e.target.value)}
-                      placeholder="Chapter #"
-                      className="h-8 flex-1"
-                      min={1}
-                      onKeyDown={(e) => e.key === "Enter" && handleManualProgress()}
-                      autoFocus
-                    />
-                    <Button size="sm" className="h-8" onClick={handleManualProgress}>Save</Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                  <Drawer open={editingProgress} onOpenChange={setEditingProgress}>
+                    <DrawerContent>
+                      <DrawerHeader>
+                        <DrawerTitle>Set reading progress</DrawerTitle>
+                      </DrawerHeader>
+                      <div className="flex gap-2 px-4 pb-6">
+                        <Input
+                          type="number"
+                          value={manualSeq}
+                          onChange={(e) => setManualSeq(e.target.value)}
+                          placeholder="Chapter number"
+                          className="h-10 flex-1"
+                          min={1}
+                          max={totalChapterCount > 0 ? totalChapterCount : undefined}
+                          onKeyDown={(e) => e.key === "Enter" && handleManualProgress()}
+                          autoFocus
+                        />
+                        <Button className="h-10" onClick={handleManualProgress}>Save</Button>
+                      </div>
+                    </DrawerContent>
+                  </Drawer>
+                </>
+              ) : (
+                <Popover open={editingProgress} onOpenChange={setEditingProgress}>
+                  <PopoverTrigger asChild>
+                    <button className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                      <Pencil className="size-3" />
+                      Set progress
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3" align="start">
+                    <p className="text-xs text-muted-foreground mb-2">Set reading progress</p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        value={manualSeq}
+                        onChange={(e) => setManualSeq(e.target.value)}
+                        placeholder="Chapter #"
+                        className="h-8 flex-1"
+                        min={1}
+                        max={totalChapterCount > 0 ? totalChapterCount : undefined}
+                        onKeyDown={(e) => e.key === "Enter" && handleManualProgress()}
+                        autoFocus
+                      />
+                      <Button size="sm" className="h-8" onClick={handleManualProgress}>Save</Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
           )}
         </div>
@@ -567,7 +613,7 @@ export function DaoReaderLanding({
         </a>
 
         {/* Paste URL */}
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
             <Input
@@ -581,7 +627,7 @@ export function DaoReaderLanding({
             />
           </div>
           <Button
-            className="h-10 shrink-0"
+            className="h-10 w-full sm:w-auto shrink-0"
             disabled={!pasteUrl.trim() || !!fetchingUrl}
             onClick={() => fetchAndRead(pasteUrl.trim())}
           >

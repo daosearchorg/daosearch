@@ -6,16 +6,18 @@ import { useSession } from "next-auth/react";
 import { Eye, Play } from "lucide-react";
 import { LoginDialog } from "@/components/layout/login-dialog";
 import { Button } from "@/components/ui/button";
+import { readerUrl } from "@/lib/utils";
 
 interface BookProgressProps {
   bookId: number;
   firstChapterId?: number | null;
   initialSeq?: number | null;
   bookTitleRaw?: string;
+  bookTitle?: string;
   bookUrl?: string;
 }
 
-export function BookProgress({ bookId, initialSeq, bookTitleRaw }: BookProgressProps) {
+export function BookProgress({ bookId, initialSeq, bookTitleRaw, bookTitle }: BookProgressProps) {
   const router = useRouter();
   const { status } = useSession();
   const [seq, setSeq] = useState<number | null>(initialSeq ?? null);
@@ -35,7 +37,7 @@ export function BookProgress({ bookId, initialSeq, bookTitleRaw }: BookProgressP
       setLoginOpen(true);
       return;
     }
-    router.push(`/reader?book=${bookId}`);
+    router.push(readerUrl(bookId, bookTitle ?? null));
     // For "Start Reading" (no saved progress), also open Google search in a new tab
     if (seq == null && bookTitleRaw) {
       const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(bookTitleRaw + " 阅读")}`;

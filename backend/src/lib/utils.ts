@@ -18,6 +18,11 @@ export function bookUrl(id: number, title: string | null): string {
   return slug ? `/book/${id}/${slug}` : `/book/${id}`;
 }
 
+export function readerUrl(id: number, title: string | null): string {
+  const slug = title ? slugify(title) : null;
+  return slug ? `/reader/${id}/${slug}` : `/reader/${id}`;
+}
+
 export function booklistUrl(id: number, title: string | null): string {
   const slug = title ? slugify(title) : null;
   return slug ? `/qidian/booklists/${id}/${slug}` : `/qidian/booklists/${id}`;

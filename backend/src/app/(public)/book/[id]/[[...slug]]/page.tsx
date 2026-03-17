@@ -209,7 +209,7 @@ export default async function BookDetailPage({ params }: Props) {
           )}
           {/* Actions — desktop, under cover */}
           <div className="hidden sm:flex flex-col w-[220px] gap-2">
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title ?? undefined} />
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title ?? undefined} bookTitle={displayTitle} />
             <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
           </div>
         </div>
@@ -232,7 +232,7 @@ export default async function BookDetailPage({ params }: Props) {
 
           {/* Actions — mobile only, right after author */}
           <div className="flex sm:hidden flex-col gap-2 mt-3">
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title ?? undefined} />
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title ?? undefined} bookTitle={displayTitle} />
             <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
           </div>
 
