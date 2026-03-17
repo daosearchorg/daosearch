@@ -92,21 +92,16 @@ export async function translateText(
   return text;
 }
 
-export async function translateBatch(
+// Google Translate free API character limit per request (~5000 safe)
+const GT_MAX_CHARS = 4800;
+
+/** Translate a batch of texts in a single GT request. Caller must ensure total size fits. */
+async function translateBatchRaw(
   texts: string[],
-  source = "zh",
-  target = "en",
+  needsTranslation: number[],
+  source: string,
+  target: string,
 ): Promise<string[]> {
-  if (!texts.length) return [];
-
-  const needsTranslation: number[] = [];
-  for (let i = 0; i < texts.length; i++) {
-    if (texts[i] && texts[i].trim() && hasChinese(texts[i])) {
-      needsTranslation.push(i);
-    }
-  }
-  if (!needsTranslation.length) return [...texts];
-
   const toTranslate = needsTranslation.map((i) =>
     texts[i].replace(/\n/g, " ").trim(),
   );
@@ -175,4 +170,110 @@ export async function translateBatch(
     }
   }
   return texts;
+}
+
+/**
+ * Translate a batch of texts via Google Translate.
+ * Automatically chunks by GT_MAX_CHARS so each request stays within the API character limit.
+ */
+export async function translateBatch(
+  texts: string[],
+  source = "zh",
+  target = "en",
+): Promise<string[]> {
+  if (!texts.length) return [];
+
+  const needsTranslation: number[] = [];
+  for (let i = 0; i < texts.length; i++) {
+    if (texts[i] && texts[i].trim() && hasChinese(texts[i])) {
+      needsTranslation.push(i);
+    }
+  }
+  if (!needsTranslation.length) return [...texts];
+
+  // Split needsTranslation into chunks that fit within GT_MAX_CHARS
+  const chunks: number[][] = [];
+  let currentChunk: number[] = [];
+  let currentLen = 0;
+
+  for (const idx of needsTranslation) {
+    const paraLen = texts[idx].length + 1; // +1 for \n separator
+    if (currentLen + paraLen > GT_MAX_CHARS && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentLen = 0;
+    }
+    currentChunk.push(idx);
+    currentLen += paraLen;
+  }
+  if (currentChunk.length > 0) chunks.push(currentChunk);
+
+  // Translate each chunk
+  const result = [...texts];
+  for (const chunk of chunks) {
+    const chunkTexts = texts.map((t, i) => (chunk.includes(i) ? t : ""));
+    const translated = await translateBatchRaw(chunkTexts, chunk, source, target);
+    for (const idx of chunk) {
+      result[idx] = translated[idx];
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Translate all paragraphs progressively, calling onProgress after each chunk.
+ * Replaces manual BATCH=30 logic in callers — batching is now based on character limits.
+ */
+export async function translateAllProgressive(
+  texts: string[],
+  onProgress: (translated: string[]) => void,
+  options?: { source?: string; target?: string; signal?: { aborted: boolean } },
+): Promise<string[]> {
+  if (!texts.length) return [];
+  const source = options?.source ?? "zh";
+  const target = options?.target ?? "en";
+
+  const needsTranslation: number[] = [];
+  for (let i = 0; i < texts.length; i++) {
+    if (texts[i] && texts[i].trim() && hasChinese(texts[i])) {
+      needsTranslation.push(i);
+    }
+  }
+  if (!needsTranslation.length) return [...texts];
+
+  // Split into chunks by character limit
+  const chunks: number[][] = [];
+  let currentChunk: number[] = [];
+  let currentLen = 0;
+
+  for (const idx of needsTranslation) {
+    const paraLen = texts[idx].length + 1;
+    if (currentLen + paraLen > GT_MAX_CHARS && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentLen = 0;
+    }
+    currentChunk.push(idx);
+    currentLen += paraLen;
+  }
+  if (currentChunk.length > 0) chunks.push(currentChunk);
+
+  const result = [...texts];
+
+  for (let c = 0; c < chunks.length; c++) {
+    if (options?.signal?.aborted) break;
+    if (c > 0) await sleep(300);
+
+    const chunk = chunks[c];
+    const chunkTexts = texts.map((t, i) => (chunk.includes(i) ? t : ""));
+    const translated = await translateBatchRaw(chunkTexts, chunk, source, target);
+
+    for (const idx of chunk) {
+      result[idx] = translated[idx];
+    }
+    onProgress([...result]);
+  }
+
+  return result;
 }

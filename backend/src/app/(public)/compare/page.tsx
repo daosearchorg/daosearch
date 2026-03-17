@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getBook, getBookStats, getBookTags, getReaderOverlap, getPopularBooksForCompare } from "@/lib/queries";
-import { CompareView } from "@/components/compare-view";
-import { ComparePicker } from "@/components/compare-picker";
+import { CompareView } from "@/components/compare/view";
+import { ComparePicker } from "@/components/compare/picker";
 
 interface Props {
   searchParams: Promise<Record<string, string | undefined>>;

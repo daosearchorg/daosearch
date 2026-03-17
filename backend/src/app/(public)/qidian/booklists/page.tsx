@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 export const revalidate = 300;
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { getQidianBooklists, type QidianBooklistSort } from "@/lib/queries";
 import { BooklistFilters } from "./filters";
 import { BooklistsList } from "./booklists-list";
-import { BooklistsSwitch } from "@/components/booklists-switch";
+import { BooklistsSwitch } from "@/components/booklist/booklists-switch";
 
 const SORTS: QidianBooklistSort[] = ["popular", "recent", "largest"];
 

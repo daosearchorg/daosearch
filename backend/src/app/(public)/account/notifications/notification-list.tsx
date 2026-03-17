@@ -6,7 +6,7 @@ import { Bell, Heart, MessageSquare, AtSign, UserPlus, BookOpen, Plus, Check, Lo
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatar } from "@/components/layout/user-avatar";
 import { cn, timeAgo } from "@/lib/utils";
 import { NOTIFICATION_TYPES } from "@/lib/notification-types";
 

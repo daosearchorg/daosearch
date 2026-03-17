@@ -3,10 +3,10 @@ import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import NextTopLoader from "nextjs-toploader";
-import { SiteNav } from "@/components/site-nav";
-import { SiteFooter } from "@/components/site-footer";
-import { ThemeColor } from "@/components/theme-color";
-import { BookmarkProvider } from "@/components/bookmark-context";
+import { SiteNav } from "@/components/layout/site-nav";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { ThemeColor } from "@/components/layout/theme-color";
+import { BookmarkProvider } from "@/components/shared/bookmark-context";
 import "./globals.css";
 
 const inter = Inter({

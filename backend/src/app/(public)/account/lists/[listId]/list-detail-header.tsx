@@ -5,8 +5,8 @@ import Link from "next/link";
 import { ExternalLink, Globe, Lock, Pencil, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BookSortSelect } from "@/components/book-sort-select";
-import { BooklistTags } from "@/components/book-tags";
+import { BookSortSelect } from "@/components/book/sort-select";
+import { BooklistTags } from "@/components/book/tags";
 import { communityBooklistUrl } from "@/lib/utils";
 import type { BookSort } from "@/lib/types";
 

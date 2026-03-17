@@ -17,7 +17,7 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
-} from "@/components/responsive-dialog";
+} from "@/components/shared/responsive-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 

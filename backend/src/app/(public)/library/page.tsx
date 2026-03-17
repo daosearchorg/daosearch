@@ -5,8 +5,8 @@ import { LIBRARY_SORT_OPTIONS, POPULARITY_PERIOD_OPTIONS } from "@/lib/constants
 import type { LibrarySort, PopularityPeriod } from "@/lib/constants";
 import { LibraryFilters } from "./filters";
 import { LibraryList } from "./library-list";
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

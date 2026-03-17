@@ -3,9 +3,9 @@ export const revalidate = 300;
 import { getCommunityRankings, getPrimaryGenres, type CommunityPeriod } from "@/lib/queries";
 import { CommunityRankingFilters } from "./filters";
 import { RankingsList } from "../../qidian/rankings/rankings-list";
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
-import { RankingsSwitch } from "@/components/rankings-switch";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
+import { RankingsSwitch } from "@/components/booklist/rankings-switch";
 
 const PERIODS: CommunityPeriod[] = ["daily", "weekly", "monthly", "all-time"];
 

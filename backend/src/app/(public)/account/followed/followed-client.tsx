@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ListChecks, Users, LibraryBig, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatar } from "@/components/layout/user-avatar";
 import { communityBooklistUrl, booklistUrl } from "@/lib/utils";
 
 interface FollowedList {

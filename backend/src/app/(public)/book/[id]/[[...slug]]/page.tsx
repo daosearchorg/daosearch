@@ -13,19 +13,19 @@ import { slugify, bookUrl } from "@/lib/utils";
 
 import { Trophy, ScrollText, BookOpen, Eye, Bookmark, Star, MessageSquareText, Heart, Users, ThumbsUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BookRating } from "@/components/book-rating";
-import { BookBookmark } from "@/components/book-bookmark";
-import { BookProgress } from "@/components/book-progress";
-import { BookReviews } from "@/components/book-reviews";
-import { BookChapters } from "@/components/book-chapters";
-import { BookBooklists } from "@/components/book-booklists";
-import { BookCommunityBooklists } from "@/components/book-community-booklists";
-import { BookRecommendations } from "@/components/book-recommendations";
-import { BookOpinionsTabs } from "@/components/book-opinions-tabs";
-import { BookChaptersFab } from "@/components/book-chapters-fab";
-import { BookTags } from "@/components/book-tags";
-import { CopyText } from "@/components/copy-text";
-import { Synopsis } from "@/components/synopsis";
+import { BookRating } from "@/components/book/rating";
+import { BookBookmark } from "@/components/book/bookmark";
+import { BookProgress } from "@/components/book/progress";
+import { BookReviews } from "@/components/book/reviews";
+import { BookChapters } from "@/components/book/chapters";
+import { BookBooklists } from "@/components/book/booklists";
+import { BookCommunityBooklists } from "@/components/book/community-booklists";
+import { BookRecommendations } from "@/components/book/recommendations";
+import { BookOpinionsTabs } from "@/components/book/opinions-tabs";
+import { BookChaptersFab } from "@/components/book/chapters-fab";
+import { BookTags } from "@/components/book/tags";
+import { CopyText } from "@/components/shared/copy-text";
+import { Synopsis } from "@/components/book/synopsis";
 
 export const revalidate = 60;
 
@@ -209,7 +209,7 @@ export default async function BookDetailPage({ params }: Props) {
           )}
           {/* Actions — desktop, under cover */}
           <div className="hidden sm:flex flex-col w-[220px] gap-2">
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} />
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title ?? undefined} />
             <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
           </div>
         </div>
@@ -232,7 +232,7 @@ export default async function BookDetailPage({ params }: Props) {
 
           {/* Actions — mobile only, right after author */}
           <div className="flex sm:hidden flex-col gap-2 mt-3">
-            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} />
+            <BookProgress bookId={bookId} firstChapterId={chapters.items[0]?.id ?? null} initialSeq={progressSeq} bookTitleRaw={book.title ?? undefined} />
             <BookBookmark bookId={bookId} bookmarkCount={stats?.bookmarkCount ?? 0} initialBookmarked={isBookmarked} initialStatus={userStatus} />
           </div>
 

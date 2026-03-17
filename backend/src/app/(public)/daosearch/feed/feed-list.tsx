@@ -3,7 +3,7 @@ import Link from "next/link";
 import { bookUrl, communityBooklistUrl, booklistUrl, timeAgo } from "@/lib/utils";
 import type { DaoSearchFeedItem } from "@/lib/queries";
 import { Bookmark, Glasses, MessageSquareText, MessageCircle, SmilePlus, Frown, Meh, ListChecks } from "lucide-react";
-import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatar } from "@/components/layout/user-avatar";
 
 function ActivityInfo({ type, ratingValue }: { type: string; ratingValue: number | null }) {
   if (type === "rating") {

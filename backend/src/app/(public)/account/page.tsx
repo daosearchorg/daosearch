@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Camera, Loader2, Pencil } from "lucide-react";
 import { GoogleIcon, DiscordIcon } from "@/components/icons/provider-icons";
-import { AccountNav } from "@/components/account-nav";
+import { AccountNav } from "@/components/layout/account-nav";
 import { Card } from "@/components/ui/card";
-import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatar } from "@/components/layout/user-avatar";
 
 function ProviderIcon({ provider }: { provider: string }) {
   switch (provider) {

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { getDaoSearchFeed } from "@/lib/queries";
 import { DaoSearchFeedList } from "./feed-list";
-import { FeedSwitch } from "@/components/feed-switch";
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { FeedSwitch } from "@/components/booklist/feed-switch";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
 
 export const revalidate = 60;
 

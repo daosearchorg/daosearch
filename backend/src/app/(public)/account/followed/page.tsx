@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getFollowedLists, getFollowedQidianBooklists } from "@/lib/queries";
-import { AccountNav } from "@/components/account-nav";
-import { Pagination } from "@/components/pagination";
+import { AccountNav } from "@/components/layout/account-nav";
+import { Pagination } from "@/components/shared/pagination";
 import { FollowedClient } from "./followed-client";
 
 interface Props {

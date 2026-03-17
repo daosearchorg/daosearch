@@ -6,8 +6,8 @@ import { getUserTags } from "@/lib/queries";
 import { bookUrl, communityBooklistUrl, timeAgo } from "@/lib/utils";
 import { Tag, BookOpen, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Pagination } from "@/components/pagination";
-import { AccountNav } from "@/components/account-nav";
+import { Pagination } from "@/components/shared/pagination";
+import { AccountNav } from "@/components/layout/account-nav";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

@@ -33,13 +33,13 @@ import {
 } from "lucide-react";
 import { getHomepageData } from "@/lib/queries";
 import { DiscordIcon } from "@/components/icons/provider-icons";
-import { UserAvatar } from "@/components/user-avatar";
+import { UserAvatar } from "@/components/layout/user-avatar";
 import { bookUrl, booklistUrl, communityBooklistUrl, timeAgo } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DragScroll } from "@/components/drag-scroll";
-import { HeroSearch } from "@/components/hero-search";
-import { AnimatedCounter } from "@/components/animated-counter";
+import { DragScroll } from "@/components/shared/drag-scroll";
+import { HeroSearch } from "@/components/layout/hero-search";
+import { AnimatedCounter } from "@/components/shared/animated-counter";
 import type { DaoSearchFeedItem } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";

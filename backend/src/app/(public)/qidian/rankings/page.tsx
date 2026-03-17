@@ -4,9 +4,9 @@ import { getRankings, getQidianRankingGenres } from "@/lib/queries";
 import { GENDER_RANK_TYPES, RANK_TYPE_LABELS, RANK_TYPE_CYCLES, PUBLISH_RANK_TYPE_CYCLES, type Gender } from "@/lib/constants";
 import { RankingFilters } from "./filters";
 import { RankingsList } from "./rankings-list";
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
-import { RankingsSwitch } from "@/components/rankings-switch";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
+import { RankingsSwitch } from "@/components/booklist/rankings-switch";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

@@ -5,10 +5,10 @@ import { auth } from "@/auth";
 import { getUserBookmarks } from "@/lib/queries";
 import { bookUrl, timeAgo } from "@/lib/utils";
 import { Bookmark, BookOpen, CheckCircle2, Clock, CircleOff } from "lucide-react";
-import { Pagination } from "@/components/pagination";
-import { AccountNav } from "@/components/account-nav";
-import { BookSortSelect } from "@/components/book-sort-select";
-import { BookStatusFilter } from "@/components/book-status-filter";
+import { Pagination } from "@/components/shared/pagination";
+import { AccountNav } from "@/components/layout/account-nav";
+import { BookSortSelect } from "@/components/book/sort-select";
+import { BookStatusFilter } from "@/components/book/status-filter";
 import { getBookSort, getReadingStatus, type BookSort } from "@/lib/types";
 
 

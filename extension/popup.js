@@ -1,9 +1,11 @@
 /**
  * DaoSearch Reader — Popup
- * Simple: detect page, "Read on DaoSearch" button.
+ * Shows tab status, send-to-reader button, library link.
  */
 
+// Toggle this for dev vs prod
 const DAOSEARCH_URL = "http://localhost:8080";
+// const DAOSEARCH_URL = "https://daosearch.com";
 
 const statusEl = document.getElementById("status");
 const statusText = document.getElementById("status-text");
@@ -28,6 +30,7 @@ async function checkCurrentTab() {
         statusEl.className = "status detected";
         statusText.textContent = "Chinese content detected";
         readBtn.disabled = false;
+        readBtn.querySelector("span").textContent = "Read on DaoSearch";
       } else {
         statusText.textContent = "No Chinese content on this page";
       }
@@ -42,29 +45,39 @@ async function checkCurrentTab() {
 readBtn.addEventListener("click", async () => {
   if (!currentTab?.id) return;
 
-  // Tell the content script to extract and open reader
+  readBtn.disabled = true;
+  readBtn.querySelector("span").textContent = "Extracting...";
+
   try {
     const data = await chrome.tabs.sendMessage(currentTab.id, { type: "extract" });
     if (data?.content) {
-      await chrome.storage.local.set({
-        lastExtracted: {
-          url: data.url,
-          domain: data.domain,
-          title: data.title,
-          content: data.content,
-          nextUrl: data.nextUrl,
-          prevUrl: data.prevUrl,
-          extractedAt: Date.now(),
-        },
-        sourceTabId: currentTab.id,
-      });
+      const payload = {
+        content: data.content,
+        title: data.title,
+        nextUrl: data.nextUrl,
+        prevUrl: data.prevUrl,
+        sourceUrl: data.url,
+        domain: data.domain,
+      };
 
-      const readerUrl = `${DAOSEARCH_URL}/reader?ext=1&url=${encodeURIComponent(data.url)}`;
-      chrome.tabs.create({ url: readerUrl });
-      window.close();
+      // Send via background to reader tab (two-tab flow)
+      chrome.runtime.sendMessage({ type: "send-to-reader", data: payload }, (response) => {
+        if (response?.sent) {
+          readBtn.querySelector("span").textContent = "Sent!";
+        } else {
+          readBtn.querySelector("span").textContent = "Failed to send";
+        }
+        setTimeout(() => window.close(), 800);
+      });
+    } else {
+      statusText.textContent = "Failed to extract content";
+      readBtn.disabled = false;
+      readBtn.querySelector("span").textContent = "Read on DaoSearch";
     }
   } catch {
     statusText.textContent = "Failed to extract content";
+    readBtn.disabled = false;
+    readBtn.querySelector("span").textContent = "Read on DaoSearch";
   }
 });
 

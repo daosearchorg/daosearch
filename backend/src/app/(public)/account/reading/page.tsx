@@ -5,8 +5,8 @@ import { auth } from "@/auth";
 import { getUserReadingHistory } from "@/lib/queries";
 import { bookUrl, timeAgo } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
-import { Pagination } from "@/components/pagination";
-import { AccountNav } from "@/components/account-nav";
+import { Pagination } from "@/components/shared/pagination";
+import { AccountNav } from "@/components/layout/account-nav";
 
 
 interface Props {

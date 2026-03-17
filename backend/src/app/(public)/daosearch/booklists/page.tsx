@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 export const revalidate = 300;
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { getCommunityBooklists, type CommunityBooklistSort } from "@/lib/queries";
 import { CommunityBooklistFilters } from "./filters";
 import { CommunityBooklistsList } from "./booklists-list";
-import { BooklistsSwitch } from "@/components/booklists-switch";
+import { BooklistsSwitch } from "@/components/booklist/booklists-switch";
 
 const SORTS: CommunityBooklistSort[] = ["popular", "recent", "largest"];
 

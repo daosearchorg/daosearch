@@ -3,13 +3,13 @@ export const revalidate = 60;
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Pagination } from "@/components/pagination";
-import { ScrollToTop } from "@/components/scroll-to-top";
+import { Pagination } from "@/components/shared/pagination";
+import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { getQidianBooklistDetail } from "@/lib/queries";
 import { slugify, bookUrl, booklistUrl, timeAgo } from "@/lib/utils";
 import { Users, LibraryBig, Clock3, Heart, ScrollText, Star, MessageSquareText } from "lucide-react";
-import { BookCard } from "@/components/book-card";
-import { QidianBooklistFollow } from "@/components/qidian-booklist-follow";
+import { BookCard } from "@/components/book/card";
+import { QidianBooklistFollow } from "@/components/booklist/qidian-follow";
 import { auth } from "@/auth";
 
 interface Props {

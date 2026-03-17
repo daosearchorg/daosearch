@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://bucket.daosearch.io https://*.qidiantu.com https://cdn.discordapp.com https://lh3.googleusercontent.com http://*.myqcloud.com https://*.myqcloud.com; font-src 'self'; connect-src 'self' https://translate.googleapis.com; frame-ancestors 'none';",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://bucket.daosearch.io https://*.qidiantu.com https://cdn.discordapp.com https://lh3.googleusercontent.com http://*.myqcloud.com https://*.myqcloud.com https://www.google.com https://*.gstatic.com; font-src 'self'; connect-src 'self' https://translate.googleapis.com; frame-ancestors 'none';",
           },
         ],
       },

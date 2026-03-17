@@ -1,4 +1,4 @@
-import { BookCard } from "@/components/book-card";
+import { BookCard } from "@/components/book/card";
 
 interface RankingItem {
   position: number;
