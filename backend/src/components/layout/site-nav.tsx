@@ -29,7 +29,7 @@ const NAV_LINKS = [
 function isLinkActive(pathname: string, href: string, label: string) {
   if (label === "Booklists") return pathname.startsWith("/qidian/booklists") || pathname.startsWith("/daosearch/booklists");
   return pathname.startsWith(href) ||
-    (label === "Rankings" && pathname.startsWith("/daosearch/rankings")) ||
+    (label === "Rankings" && (pathname.startsWith("/qidian/rankings") || pathname.startsWith("/daosearch/rankings"))) ||
     (label === "Feed" && pathname.startsWith("/qidian/feed"));
 }
 
