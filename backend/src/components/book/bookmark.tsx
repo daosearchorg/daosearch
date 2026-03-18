@@ -215,12 +215,13 @@ export function BookBookmark({ bookId, bookmarkCount, initialBookmarked, initial
   return (
     <>
       <Button
-        variant={isSaved ? "default" : "outline"}
+        variant="outline"
+        className={isSaved ? "border-blue-500/40 bg-blue-500/10 text-blue-600 hover:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30 dark:bg-blue-500/10 dark:hover:bg-blue-500/15" : ""}
         onClick={handleButtonClick}
       >
         <Bookmark className={`size-4 ${isSaved ? "fill-current" : ""}`} />
         {buttonLabel}
-        {(isSaved || count > 0) && <span className={`tabular-nums ${isSaved ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{count}</span>}
+        {(isSaved || count > 0) && <span className={`tabular-nums ${isSaved ? "text-blue-500/70" : "text-muted-foreground"}`}>{count}</span>}
       </Button>
 
       <ResponsiveDialog open={dialogOpen} onOpenChange={setDialogOpen} className="sm:max-w-sm">

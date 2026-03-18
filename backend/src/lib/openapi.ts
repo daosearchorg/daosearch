@@ -3,7 +3,7 @@ export const openApiSpec = {
   info: {
     title: "DaoSearch API",
     version: "1.0.0",
-    description: "Public read-only API for DaoSearch — a web novel database with translations, rankings, and community data from Qidian (book.qq.com).",
+    description: "Public read-only API for DaoSearch — a web novel database with translations, rankings, and community data from Qidian (book.qq.com).\n\n**Rate Limits:** 30 requests per minute per IP address. Exceeding this returns HTTP 429.\n\n**Pagination:** All paginated endpoints are capped at page 200 (10,000 results max). This limit was introduced to prevent bot abuse causing excessive database load. If you need bulk data access, please reach out on Discord.",
   },
   servers: [{ url: "/api/v1" }],
   paths: {
@@ -24,7 +24,7 @@ export const openApiSpec = {
           { name: "gender", in: "query", schema: { type: "string", enum: ["male", "female"] }, description: "Filter by target audience" },
           { name: "minWords", in: "query", schema: { type: "integer" }, description: "Minimum word count" },
           { name: "maxWords", in: "query", schema: { type: "integer" }, description: "Maximum word count" },
-          { name: "page", in: "query", schema: { type: "integer", default: 1 }, description: "Page number" },
+          { name: "page", in: "query", schema: { type: "integer", default: 1, maximum: 200 }, description: "Page number (max 200)" },
           { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50 }, description: "Items per page (1-50, default: 50)" },
         ],
         responses: {

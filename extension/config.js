@@ -6,8 +6,8 @@
  */
 
 // ── Toggle this for dev vs prod ──
-const DAOSEARCH_URL = "http://localhost:8080";
-// const DAOSEARCH_URL = "https://daosearch.io";
+// const DAOSEARCH_URL = "http://localhost:8080";
+const DAOSEARCH_URL = "https://daosearch.io";
 
 const DAOSEARCH_HOSTNAMES = ["localhost", "daosearch.io", "www.daosearch.io"];
 

@@ -93,6 +93,48 @@ function DomainFavicon({ domain, className = "size-4" }: { domain: string; class
   );
 }
 
+// ─── Translation History ──────────────────────────────────
+
+function TranslationHistory({ cachedChapters }: { cachedChapters: CachedChapter[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const displayed = showAll ? cachedChapters : cachedChapters.slice(0, 10);
+
+  return (
+    <section>
+      <h2 className="text-base sm:text-lg font-medium mb-3 flex items-center gap-2">
+        <History className="size-4 text-muted-foreground" />
+        Your Translations
+        <span className="text-sm text-muted-foreground font-normal">{cachedChapters.length}</span>
+      </h2>
+      <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
+        {displayed.map((ch) => (
+          <div
+            key={ch.seq}
+            className="flex items-center gap-3 px-3 py-2.5"
+          >
+            <span className="text-xs tabular-nums text-muted-foreground shrink-0 w-8 text-right">
+              {ch.seq}
+            </span>
+            <span className="text-sm truncate flex-1">
+              {ch.title || `Chapter ${ch.seq}`}
+            </span>
+            <span className="text-[11px] text-muted-foreground/60 shrink-0 tabular-nums">
+              {ch.translatedAgo}
+            </span>
+          </div>
+        ))}
+      </div>
+      {cachedChapters.length > 10 && !showAll && (
+        <div className="flex justify-center mt-3">
+          <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+            Show all {cachedChapters.length} translations
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────
 
 export function DaoReaderLanding({
@@ -219,7 +261,7 @@ export function DaoReaderLanding({
   // ─── Actions ─────────────────────────────────────────────
 
   const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(bookTitleRaw + " 阅读")}`;
-  const totalReaders = popularDomains.reduce((sum, d) => sum + d.readers, 0);
+  const totalReaders = popularDomains.reduce((sum, d) => sum + Number(d.readers), 0);
 
   const handleManualProgress = async () => {
     const seq = Number(manualSeq);
@@ -525,7 +567,7 @@ export function DaoReaderLanding({
             {/* Continue Reading */}
             {savedSeq != null && savedSourceUrl && (
               <Button
-                className="gap-2.5 h-11 w-full sm:w-auto max-w-full sm:max-w-xs overflow-hidden"
+                className="gap-2.5 w-full sm:w-auto max-w-full sm:max-w-xs overflow-hidden"
                 disabled={!!fetchingUrl}
                 onClick={() => fetchAndRead(savedSourceUrl)}
               >
@@ -540,7 +582,7 @@ export function DaoReaderLanding({
 
             {/* Book Page */}
             <Link href={bookUrl(bookId, bookTitle)} className="w-full sm:w-auto">
-              <Button variant="outline" className="gap-2 h-11 w-full sm:w-auto">
+              <Button variant="outline" className="gap-2 w-full sm:w-auto">
                 <BookText className="size-4" />
                 Book Page
               </Button>
@@ -816,41 +858,7 @@ export function DaoReaderLanding({
 
       {/* ── Translation History ── */}
       {cachedChapters.length > 0 && (
-        <section>
-          <h2 className="text-base sm:text-lg font-medium mb-3 flex items-center gap-2">
-            <History className="size-4 text-muted-foreground" />
-            Your Translations
-            <span className="text-sm text-muted-foreground font-normal">{cachedChapters.length}</span>
-          </h2>
-          <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
-            {cachedChapters.slice(0, 10).map((ch) => (
-              <button
-                key={ch.seq}
-                className="flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40 transition-colors"
-                onClick={() => {
-                  // TODO: open cached chapter in reading mode
-                }}
-              >
-                <span className="text-xs tabular-nums text-muted-foreground shrink-0 w-8 text-right">
-                  {ch.seq}
-                </span>
-                <span className="text-sm truncate flex-1">
-                  {ch.title || `Chapter ${ch.seq}`}
-                </span>
-                <span className="text-[11px] text-muted-foreground/60 shrink-0 tabular-nums">
-                  {ch.translatedAgo}
-                </span>
-              </button>
-            ))}
-          </div>
-          {cachedChapters.length > 10 && (
-            <div className="flex justify-center mt-3">
-              <Button variant="outline" size="sm">
-                Show all {cachedChapters.length} translations
-              </Button>
-            </div>
-          )}
-        </section>
+        <TranslationHistory cachedChapters={cachedChapters} />
       )}
 
       {/* ── Auth notice ── */}
