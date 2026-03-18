@@ -46,15 +46,11 @@ export function TranslationSettings({ isAuthenticated }: TranslationSettingsProp
 
       if (!isAuthenticated) return;
 
-      // Persist tier change immediately
+      // Persist tier change only — don't overwrite BYOK fields
       fetch("/api/user/translation-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tier: newTier,
-          byokEndpoint: byokEndpoint || null,
-          byokModel: byokModel || null,
-        }),
+        body: JSON.stringify({ tier: newTier }),
       }).catch(() => {});
     },
     [isAuthenticated, byokEndpoint, byokModel],

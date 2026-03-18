@@ -47,11 +47,13 @@ export async function PUT(request: Request) {
   const values: Record<string, unknown> = {
     userId: session.user.dbId,
     tier,
-    byokEndpoint: byokEndpoint || null,
-    byokModel: byokModel || null,
-    customInstructions: customInstructions || null,
     updatedAt: new Date(),
   };
+
+  // Only update BYOK fields if explicitly provided in the request
+  if (byokEndpoint !== undefined) values.byokEndpoint = byokEndpoint || null;
+  if (byokModel !== undefined) values.byokModel = byokModel || null;
+  if (customInstructions !== undefined) values.customInstructions = customInstructions || null;
 
   // Encrypt BYOK key if provided
   if (byokKey) {

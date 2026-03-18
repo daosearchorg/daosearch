@@ -77,8 +77,8 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
       .then((r) => r.json())
       .then((data) => {
         setTier(data.tier || "free");
-        setByokEndpoint(data.byokEndpoint || "https://api.openai.com/v1");
-        setByokModel(data.byokModel || "gpt-4o");
+        if (data.byokEndpoint) setByokEndpoint(data.byokEndpoint);
+        if (data.byokModel) setByokModel(data.byokModel);
         setCustomInstructions(data.customInstructions || "");
         setShowCustomInstructions(!!data.customInstructions);
         setHasByokKey(data.hasByokKey || false);
@@ -108,9 +108,11 @@ export function ReaderSettings({ onSaved, defaultTab = "reader" }: ReaderSetting
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tier,
-          byokEndpoint: tier === "byok" ? byokEndpoint : null,
-          byokModel: tier === "byok" ? byokModel : null,
-          byokKey: tier === "byok" && byokKey ? byokKey : undefined,
+          ...(tier === "byok" ? {
+            byokEndpoint,
+            byokModel,
+            ...(byokKey ? { byokKey } : {}),
+          } : {}),
           customInstructions: showCustomInstructions ? customInstructions : null,
         }),
       });
