@@ -20,7 +20,7 @@ import { ResponsiveDialog, ResponsiveDialogHeader, ResponsiveDialogTitle, Respon
 
 const NAV_LINKS = [
   { href: "/library", label: "Library", icon: Library },
-  { href: "/daosearch/rankings", label: "Rankings", icon: Trophy },
+  { href: "/qidian/rankings", label: "Rankings", icon: Trophy },
   { href: "/qidian/booklists", label: "Booklists", icon: ListOrdered },
   { href: "/daosearch/feed", label: "Feed", icon: Rss },
   { href: "/compare", label: "Compare", icon: ArrowRightLeft },
