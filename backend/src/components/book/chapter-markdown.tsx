@@ -9,7 +9,7 @@ interface DetectedEntity {
   source: string;
 }
 
-const SCENE_BREAK_RE = /^\.{3,}$/;
+const SCENE_BREAK_RE = /^(\.{3,}|-{1,3}|—{1,3}|─{1,}|–{1,3}|\*\s*\*\s*\*|~{3,})$/;
 
 function isSceneBreak(text: string): boolean {
   return SCENE_BREAK_RE.test(text.trim());
@@ -20,10 +20,13 @@ function isSystemBlock(text: string): boolean {
   if (trimmed.startsWith("```") && trimmed.endsWith("```")) return true;
   const lines = trimmed.split("\n");
   const bracketLines = lines.filter((l) => /^\[.+\]$/.test(l.trim()));
-  return bracketLines.length >= 2;
+  if (bracketLines.length >= 2) return true;
+  // Detect "key": value style system/game UI lines (single-line)
+  if (/^"[^"]+"\s*:\s*.+/.test(trimmed)) return true;
+  return false;
 }
 
-/** Highlight entity names in a plain text string — exact whole-word matches only */
+/** Highlight entity names in a plain text string — case-insensitive whole-word matches */
 function highlightEntities(
   text: string,
   entities: DetectedEntity[],
@@ -37,13 +40,13 @@ function highlightEntities(
   const escaped = sorted.map((e) =>
     e.translated.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   );
-  const regex = new RegExp(`\\b(${escaped.join("|")})\\b`, "g");
+  const regex = new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
   const parts = text.split(regex);
   if (parts.length === 1) return [text];
 
-  const map = new Map(sorted.map((e) => [e.translated, e]));
+  const map = new Map(sorted.map((e) => [e.translated.toLowerCase(), e]));
   return parts.map((part, i) => {
-    const ent = map.get(part);
+    const ent = map.get(part.toLowerCase());
     if (!ent) return part;
     return (
       <span
@@ -167,14 +170,41 @@ function SystemBlock({ text }: { text: string }) {
   );
 }
 
+/**
+ * Group consecutive system-block paragraphs into merged blocks.
+ * Returns array of { type: "text" | "system" | "break", lines: string[] }
+ */
+export function groupParagraphs(paragraphs: string[]): { type: "text" | "system" | "break"; lines: string[] }[] {
+  const groups: { type: "text" | "system" | "break"; lines: string[] }[] = [];
+
+  for (const p of paragraphs) {
+    if (isSceneBreak(p)) {
+      groups.push({ type: "break", lines: [p] });
+    } else if (isSystemBlock(p)) {
+      const last = groups[groups.length - 1];
+      if (last && last.type === "system") {
+        last.lines.push(p);
+      } else {
+        groups.push({ type: "system", lines: [p] });
+      }
+    } else {
+      groups.push({ type: "text", lines: [p] });
+    }
+  }
+
+  return groups;
+}
+
 export function ChapterParagraph({
   text,
   className,
+  style,
   entities,
   showEntities,
 }: {
   text: string;
   className?: string;
+  style?: React.CSSProperties;
   entities?: DetectedEntity[];
   showEntities?: boolean;
 }) {
@@ -186,5 +216,10 @@ export function ChapterParagraph({
     return <SystemBlock text={text} />;
   }
 
-  return <p className={className}>{parseInline(text, entities, showEntities)}</p>;
+  return <p className={className} style={style}>{parseInline(text, entities, showEntities)}</p>;
+}
+
+/** Render a merged system block (multiple lines in one panel) */
+export function SystemBlockGroup({ lines }: { lines: string[] }) {
+  return <SystemBlock text={lines.join("\n")} />;
 }

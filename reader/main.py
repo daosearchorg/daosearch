@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import health, entities
+from routers import health, entities, translate
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,4 +25,5 @@ app.add_middleware(
 )
 
 app.include_router(entities.router)
+app.include_router(translate.router)
 app.include_router(health.router)

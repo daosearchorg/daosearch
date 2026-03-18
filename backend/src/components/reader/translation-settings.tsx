@@ -166,6 +166,17 @@ export function TranslationSettings({ isAuthenticated }: TranslationSettingsProp
           </button>
           <button
             className={`px-3 py-1.5 transition-colors ${
+              tier === "premium" ? "bg-muted font-medium" : "hover:bg-muted/50"
+            } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+            onClick={() => {
+              if (isAuthenticated) handleTierChange("premium");
+            }}
+            title={!isAuthenticated ? "Sign in to use Dao AI" : undefined}
+          >
+            Dao AI
+          </button>
+          <button
+            className={`px-3 py-1.5 transition-colors ${
               tier === "byok" ? "bg-muted font-medium" : "hover:bg-muted/50"
             } ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
             onClick={() => {

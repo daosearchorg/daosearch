@@ -31,6 +31,18 @@ export async function fetchPageViaExtension(url: string): Promise<string | null>
   });
 }
 
+/** Fetch via background tab — bypasses Cloudflare by loading in a real browser tab. */
+export async function fetchViaTab(url: string): Promise<ExtractedData | null> {
+  const extId = getExtId();
+  if (!extId || !chromeApi?.runtime?.sendMessage) return null;
+
+  return new Promise((resolve) => {
+    chromeApi.runtime.sendMessage(extId, { type: "fetch-via-tab", url }, (resp: ExtractedData | null) => {
+      resolve(resp || null);
+    });
+  });
+}
+
 /** Navigate source tab to URL, wait for JS to render, then extract via content script. */
 export async function navigateAndExtract(url: string, sourceTabId: number): Promise<ExtractedData | null> {
   const extId = getExtId();

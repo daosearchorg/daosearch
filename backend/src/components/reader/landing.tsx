@@ -27,7 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { bookUrl } from "@/lib/utils";
 import { ReaderView } from "@/components/reader/reader-view";
 import { GoogleIcon } from "@/components/icons/provider-icons";
-import { extractFromHtml, cleanChapterTitle, extractChapterSeq, fetchPageViaExtension } from "@/components/reader/utils";
+import { extractFromHtml, cleanChapterTitle, extractChapterSeq, fetchPageViaExtension, fetchViaTab } from "@/components/reader/utils";
 import { translateAllProgressive, translateText } from "@/lib/google-translate";
 
 // ─── Types ─────────────────────────────────────────────────
@@ -122,6 +122,7 @@ export function DaoReaderLanding({
   const [allQidianChapters, setAllQidianChapters] = useState(qidianChapters ?? []);
   const [fetchingUrl, setFetchingUrl] = useState<string | null>(null);
   const [extensionAvailable, setExtensionAvailable] = useState<boolean | null>(null);
+  const [translationTier, setTranslationTier] = useState<string>("free");
   const isMobile = useIsMobile();
 
   // Prefetch state
@@ -130,11 +131,13 @@ export function DaoReaderLanding({
     data: ChapterData;
     translatedParagraphs?: string[];
     translatedTitle?: string;
+    entities?: { original: string; translated: string; gender: string; source: string }[];
   } | null>(null);
   const prefetchAbortRef = useRef(false);
   const [prefetchedTranslation, setPrefetchedTranslation] = useState<{
     paragraphs: string[];
     title: string;
+    entities?: { original: string; translated: string; gender: string; source: string }[];
   } | null>(null);
   const [prefetchStatus, setPrefetchStatus] = useState<"idle" | "loading" | "ready">("idle");
 
@@ -147,6 +150,28 @@ export function DaoReaderLanding({
       setExtensionAvailable(!!document.documentElement.getAttribute("data-daosearch-ext-id"));
     }, 1500);
   }, []);
+
+  // Load translation tier
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch("/api/user/translation-settings")
+      .then((r) => r.json())
+      .then((data) => { if (data.tier) setTranslationTier(data.tier); })
+      .catch(() => {});
+    const handler = (e: Event) => {
+      const tier = (e as CustomEvent).detail?.tier;
+      if (tier) setTranslationTier(tier);
+    };
+    window.addEventListener("translation-settings-changed", handler);
+    return () => window.removeEventListener("translation-settings-changed", handler);
+  }, [isAuthenticated]);
+
+  // Signal waiting state to extension so FAB only shows when reader is expecting content
+  useEffect(() => {
+    document.dispatchEvent(new CustomEvent("daosearch-reader-waiting", {
+      detail: { waiting: viewState === "waiting" },
+    }));
+  }, [viewState]);
 
   useEffect(() => {
     fetch(`/api/reader/popular-domains?bookId=${bookId}`)
@@ -166,8 +191,13 @@ export function DaoReaderLanding({
 
   useEffect(() => {
     if (viewState === "reading" && chapterData?.nextUrl) {
-      prefetchAbortRef.current = true;
-      setTimeout(() => prefetchNextChapter(chapterData.nextUrl!), 500);
+      // Reset abort before starting prefetch (not before the timeout)
+      const nextUrl = chapterData.nextUrl;
+      const timer = setTimeout(() => {
+        prefetchAbortRef.current = false;
+        prefetchNextChapter(nextUrl);
+      }, 500);
+      return () => { clearTimeout(timer); prefetchAbortRef.current = true; };
     }
     return () => { prefetchAbortRef.current = true; };
   }, [chapterData, viewState]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -219,6 +249,7 @@ export function DaoReaderLanding({
   const fetchAndRead = useCallback(async (url: string) => {
     setFetchingUrl(url);
     try {
+      // Tier 1: static fetch (fast, works for most sites)
       const html = await fetchPageViaExtension(url);
       if (html) {
         const extracted = extractFromHtml(html, url);
@@ -237,10 +268,25 @@ export function DaoReaderLanding({
           return;
         }
       }
+
+      // Tier 2: tab-based fetch (handles Cloudflare, JS-rendered sites)
+      const tabResult = await fetchViaTab(url);
+      if (tabResult?.content) {
+        setFetchingUrl(null);
+        setPrefetchedTranslation(null);
+        setChapterData({
+          content: tabResult.content,
+          title: tabResult.title || "",
+          nextUrl: tabResult.nextUrl || null,
+          prevUrl: tabResult.prevUrl || null,
+          sourceUrl: tabResult.url || url,
+          domain: tabResult.domain || new URL(url).hostname,
+        });
+        setViewState("reading");
+        return;
+      }
     } catch { /* extension unavailable */ }
     setFetchingUrl(null);
-    window.open(url, "_blank");
-    setViewState("waiting");
   }, []);
 
   const prefetchNextChapter = useCallback((nextUrl: string) => {
@@ -252,22 +298,83 @@ export function DaoReaderLanding({
     const extId = document.documentElement.getAttribute("data-daosearch-ext-id");
     if (!extId || !chromeApi?.runtime?.sendMessage) { setPrefetchStatus("idle"); return; }
 
-    chromeApi.runtime.sendMessage(extId, { type: "fetch-page", url: nextUrl },
-      async (response: { ok: boolean; html?: string } | null) => {
-        if (prefetchAbortRef.current || !response?.ok || !response.html) { setPrefetchStatus("idle"); return; }
-        const extracted = extractFromHtml(response.html, nextUrl);
-        if (!extracted || prefetchAbortRef.current) { setPrefetchStatus("idle"); return; }
+    // Fetch the next chapter — try static fetch first, fall back to tab-based
+    (async () => {
+      let extracted: { content: string; title: string; nextUrl: string | null; prevUrl: string | null; url: string; domain: string } | null = null;
 
-        const chData: ChapterData = {
-          content: extracted.content, title: extracted.title,
-          nextUrl: extracted.nextUrl, prevUrl: extracted.prevUrl,
-          sourceUrl: extracted.url, domain: extracted.domain,
-        };
-        prefetchRef.current = { url: nextUrl, data: chData };
+      // Tier 1: static fetch
+      const html = await fetchPageViaExtension(nextUrl);
+      if (!prefetchAbortRef.current && html) {
+        extracted = extractFromHtml(html, nextUrl);
+      }
 
-        try {
-          const paras = extracted.content.split("\n").map((p: string) => p.trim()).filter(Boolean);
-          const cleanedTitle = cleanChapterTitle(extracted.title, bookTitle, bookTitleRaw);
+      // Tier 2: tab-based fetch (Cloudflare etc.)
+      if (!extracted && !prefetchAbortRef.current) {
+        const tabResult = await fetchViaTab(nextUrl);
+        if (tabResult?.content) {
+          extracted = {
+            content: tabResult.content,
+            title: tabResult.title || "",
+            nextUrl: tabResult.nextUrl || null,
+            prevUrl: tabResult.prevUrl || null,
+            url: tabResult.url || nextUrl,
+            domain: tabResult.domain || new URL(nextUrl).hostname,
+          };
+        }
+      }
+
+      if (!extracted || prefetchAbortRef.current) { setPrefetchStatus("idle"); return; }
+
+      const chData: ChapterData = {
+        content: extracted.content, title: extracted.title,
+        nextUrl: extracted.nextUrl, prevUrl: extracted.prevUrl,
+        sourceUrl: extracted.url, domain: extracted.domain,
+      };
+      prefetchRef.current = { url: nextUrl, data: chData };
+
+      try {
+        const paras = extracted.content.split("\n").map((p: string) => p.trim()).filter(Boolean);
+        const cleanedTitle = cleanChapterTitle(extracted.title, bookTitle, bookTitleRaw);
+
+        if (translationTier === "premium" || translationTier === "byok") {
+          // AI prefetch: non-streaming call to /api/reader/translate
+          const res = await fetch("/api/reader/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              paragraphs: paras,
+              bookId: bookId || undefined,
+              sourceDomain: extracted.domain,
+              title: cleanedTitle,
+              tier: translationTier,
+              stream: false,
+            }),
+          });
+          if (prefetchAbortRef.current) return;
+          if (res.ok) {
+            const data = await res.json();
+            if (!prefetchAbortRef.current && prefetchRef.current?.url === nextUrl) {
+              prefetchRef.current.translatedTitle = data.title || "";
+              prefetchRef.current.translatedParagraphs = (data.paragraphs || []).map((p: { text: string }) => p.text);
+              prefetchRef.current.entities = data.entities || [];
+              setPrefetchStatus("ready");
+            }
+          } else {
+            // Fallback to GT on error
+            const [translatedTitle, translatedParagraphs] = await Promise.all([
+              translateText(cleanedTitle),
+              translateAllProgressive(paras, () => {}, {
+                signal: { get aborted() { return prefetchAbortRef.current; } },
+              }),
+            ]);
+            if (!prefetchAbortRef.current && prefetchRef.current?.url === nextUrl) {
+              prefetchRef.current.translatedTitle = translatedTitle;
+              prefetchRef.current.translatedParagraphs = translatedParagraphs;
+              setPrefetchStatus("ready");
+            }
+          }
+        } else {
+          // Free tier: client-side GT
           const [translatedTitle, translatedParagraphs] = await Promise.all([
             translateText(cleanedTitle),
             translateAllProgressive(paras, () => {}, {
@@ -279,12 +386,12 @@ export function DaoReaderLanding({
             prefetchRef.current.translatedParagraphs = translatedParagraphs;
             setPrefetchStatus("ready");
           }
-        } catch {
-          if (prefetchRef.current?.url === nextUrl) setPrefetchStatus("ready");
         }
-      },
-    );
-  }, [bookTitle, bookTitleRaw]);
+      } catch {
+        if (prefetchRef.current?.url === nextUrl) setPrefetchStatus("ready");
+      }
+    })();
+  }, [bookId, bookTitle, bookTitleRaw, translationTier]);
 
   const handleReaderNavigate = useCallback(async (url: string) => {
     if (prefetchRef.current?.url === url) {
@@ -294,7 +401,7 @@ export function DaoReaderLanding({
       setChapterData(cached.data);
       setPrefetchedTranslation(
         cached.translatedParagraphs?.some(Boolean)
-          ? { paragraphs: cached.translatedParagraphs!, title: cached.translatedTitle || "" }
+          ? { paragraphs: cached.translatedParagraphs!, title: cached.translatedTitle || "", entities: cached.entities }
           : null,
       );
       return;

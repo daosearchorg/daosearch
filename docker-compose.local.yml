@@ -166,7 +166,7 @@ services:
       - READER_DB_USER=${DB_USER}
       - READER_DB_PASSWORD=${DB_PASSWORD}
       - READER_DB_NAME=${DB_NAME}
-      - READER_CORS_ORIGINS=["http://localhost:8080","https://daosearch.com","https://daosearch.io"]
+      - READER_CORS_ORIGINS=["http://localhost:8080","https://daosearch.io","https://daosearch.io"]
     ports:
       - "8000:8000"
     depends_on:

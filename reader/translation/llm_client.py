@@ -21,37 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiClient:
-    """Async Gemini SDK wrapper with prompt caching and streaming."""
+    """Async Gemini SDK wrapper with streaming. Uses implicit caching (Gemini handles it automatically)."""
 
     def __init__(self, api_key: str):
         from google import genai
         self._client = genai.Client(api_key=api_key)
-        self._cache_map: dict[str, Any] = {}
-        self._no_cache_models: set[str] = set()
-
-    def _get_or_create_cache(self, model: str, system_prompt: str):
-        from google.genai import types
-
-        if model in self._no_cache_models:
-            return None
-
-        cache_key = f"{model}:{hash(system_prompt)}"
-        if cache_key in self._cache_map:
-            return self._cache_map[cache_key]
-
-        try:
-            cached = self._client.caches.create(
-                model=model,
-                config=types.CreateCachedContentConfig(
-                    system_instruction=system_prompt,
-                    ttl="3600s",
-                ),
-            )
-            self._cache_map[cache_key] = cached
-            return cached
-        except Exception:
-            self._no_cache_models.add(model)
-            return None
 
     async def complete(
         self,
@@ -72,11 +46,7 @@ class GeminiClient:
         )
 
         if system_prompt:
-            cached = self._get_or_create_cache(model, system_prompt)
-            if cached:
-                config.cached_content = cached.name
-            else:
-                config.system_instruction = system_prompt
+            config.system_instruction = system_prompt
 
         if response_schema:
             config.response_mime_type = "application/json"
@@ -117,11 +87,7 @@ class GeminiClient:
         )
 
         if system_prompt:
-            cached = self._get_or_create_cache(model, system_prompt)
-            if cached:
-                config.cached_content = cached.name
-            else:
-                config.system_instruction = system_prompt
+            config.system_instruction = system_prompt
 
         async for chunk in await self._client.aio.models.generate_content_stream(
             model=model, contents=user_prompt, config=config,

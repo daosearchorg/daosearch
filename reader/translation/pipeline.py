@@ -34,21 +34,19 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 TRANSLATION_SYSTEM_PROMPT = """\
-You are a professional Chinese-to-English webnovel translator. Output must read like native English prose, not a translation.
+You are a professional Chinese-to-English webnovel translator. Write natural English prose.
 
 RULES:
-- Restructure sentences for natural English. Avoid translationese and repetitive patterns.
-- Match tone: punchy for action, flowing for emotion, clear for exposition.
-- Translate idioms by meaning, not literally. Keep cultivation terms (dantian, qi) and units (li, liang).
-- Preserve paragraph structure exactly. Do not add notes or commentary. Remove chapter numbers and watermarks.
-- <<Name|G>> are pre-translated entities with gender (M/F/N). Output without markers. Use gender for pronouns (M=he, F=she).
+- Restructure for natural English. Match tone: punchy for action, flowing for emotion, clear for exposition.
+- Translate idioms by meaning. Keep cultivation terms (dantian, qi) and units (li, liang).
+- Preserve paragraph structure. Remove chapter numbers, watermarks, notes.
+- <<Name|G>> are pre-translated entities (M/F/N). Output without markers. Use gender for pronouns.
+- Proper nouns capitalized, common nouns lowercase.
 
-FORMATTING (markdown):
-- *Italics* for internal thoughts, memories. **Bold** for impacts, sound effects, onomatopoeia.
-- "Double quotes" for spoken dialogue. Only format when source text calls for it.
-- Do NOT add scene break dots (...) at the end of the translation.
-
-SYSTEM/GAME UI: Multi-line status panels/screens → ``` code fences. Single-line alerts → [Square brackets]."""
+FORMATTING:
+- *Italics* for thoughts/memories. **Bold** for impacts/sound effects. "Double quotes" for dialogue.
+- Game UI/system messages → ``` code fences (both multi-line and single-line).
+- No trailing scene break dots (...)."""
 
 
 # ---------------------------------------------------------------------------
@@ -70,19 +68,20 @@ class EntityDetectionResponse(BaseModel):
 
 
 ENTITY_DETECTION_PROMPT = """\
-You are analyzing Chinese webnovel text. Extract ALL named entities (characters, locations, organizations, skills, items, cultivation terms, titles/ranks).
+Review and detect named entities in Chinese webnovel text (characters, places, skills, items, terms).
 
-For each entity, provide:
-- original_name: the Chinese name exactly as it appears
-- translated_name: English translation/transliteration
-- gender: M (male character), F (female character), N (neutral/non-person)
+1. FILTER existing entities: only keep ones that actually appear in the text below. Drop irrelevant ones.
+2. Do NOT change translations of kept existing entities.
+3. Detect NEW entities not in the existing list.
+4. Return the filtered + new list (only relevant entities).
 
-SKIP: common nouns, pronouns, numbers, generic phrases, real-world terms.
+Fields: original_name (Chinese as-is), translated_name (English, unchanged for existing), gender (M/F/N).
+SKIP common nouns, pronouns, numbers, generic phrases.
 
 Return JSON: {"entities": [{"original_name": "...", "translated_name": "...", "gender": "N"}, ...]}
-
-TEXT (first 6000 chars):
 """
+
+ENTITY_DETECTION_TEXT_HEADER = "\nTEXT:\n"
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +127,7 @@ async def translate_chapter_stream(
     user_id: int | None = None,
     model: str = "gemini-2.5-flash-lite",
     custom_instructions: str | None = None,
+    title: str | None = None,
 ) -> AsyncIterator[TranslationEvent]:
     """Full translation pipeline with granular streaming.
 
@@ -141,21 +141,13 @@ async def translate_chapter_stream(
 
     yield TranslationEvent("status", f"Preparing translation ({total} paragraphs)...")
 
-    # 1. Load existing entities from DB
+    # 1. Load existing entities from DB (used as context for LLM filtering, not sent to frontend yet)
     entity_map = EntityMap()
     if session and book_id:
         try:
             entity_map = await load_entities(session, book_id, user_id)
             if entity_map.entities:
-                # Send all known entities to frontend
-                for orig, ent in entity_map.entities.items():
-                    yield TranslationEvent("entity", json.dumps({
-                        "original": ent.original_name,
-                        "translated": ent.translated_name,
-                        "gender": ent.gender,
-                        "source": "db",
-                    }))
-                yield TranslationEvent("status", f"Found {len(entity_map.entities)} entities. Detecting new...")
+                yield TranslationEvent("status", f"Loaded {len(entity_map.entities)} known entities...")
         except Exception as e:
             logger.warning(f"Failed to load entities: {e}")
 
@@ -165,14 +157,26 @@ async def translate_chapter_stream(
         try:
             entity_model = _settings.entity_model
             first_chunk = raw_content[:6000]
-            prompt = ENTITY_DETECTION_PROMPT + first_chunk
 
-            yield TranslationEvent("status", "Detecting new entities...")
+            # Build prompt with existing entity context for validation
+            existing_section = ""
+            if entity_map.entities:
+                lines = []
+                for orig, ent in entity_map.entities.items():
+                    g = ent.gender if ent.gender in ("M", "F") else "N"
+                    lines.append(f"  {orig} → {ent.translated_name} ({g})")
+                existing_section = "\nEXISTING ENTITIES (keep relevant ones, drop irrelevant, keep translations unchanged):\n" + "\n".join(lines) + "\n"
 
-            # Stream entity detection — parse entities from partial JSON as LLM generates
+            prompt = ENTITY_DETECTION_PROMPT + existing_section + ENTITY_DETECTION_TEXT_HEADER + first_chunk
+
+            yield TranslationEvent("status", "Detecting entities...")
+
+            # Stream entity detection — LLM returns filtered existing + new entities
             full_response = ""
-            seen_originals: set[str] = set(entity_map.entities.keys())
+            existing_originals = set(entity_map.entities.keys())
+            seen_originals: set[str] = set()
             new_entities_to_save: list[dict] = []
+            filtered_map = EntityMap()
 
             async for token in llm.stream(
                 model=entity_model,
@@ -182,36 +186,70 @@ async def translate_chapter_stream(
             ):
                 full_response += token
 
-                # Try to extract complete entity objects from the partial JSON
                 new_found = _extract_streaming_entities(full_response, seen_originals)
                 for ent_data in new_found:
                     original = ent_data["original_name"]
                     seen_originals.add(original)
-                    entity_map.add(Entity(
-                        original_name=original,
-                        translated_name=ent_data["translated_name"],
-                        gender=ent_data.get("gender", "N"),
-                    ))
-                    new_entities_to_save.append(ent_data)
+
+                    is_existing = original in existing_originals
+                    if is_existing:
+                        # LLM kept this existing entity — use original translation
+                        existing = entity_map.get(original)
+                        if existing:
+                            filtered_map.add(existing)
+                    else:
+                        # New entity detected by LLM
+                        filtered_map.add(Entity(
+                            original_name=original,
+                            translated_name=ent_data["translated_name"],
+                            gender=ent_data.get("gender", "N"),
+                        ))
+                        new_entities_to_save.append(ent_data)
+
                     yield TranslationEvent("entity", json.dumps({
                         "original": original,
-                        "translated": ent_data["translated_name"],
+                        "translated": (entity_map.get(original).translated_name if is_existing and entity_map.get(original) else ent_data["translated_name"]),
                         "gender": ent_data.get("gender", "N"),
-                        "source": "ai",
+                        "source": "db" if is_existing else "ai",
                     }))
-                    yield TranslationEvent("status", f"Found {len(entity_map.entities)} entities...")
                     await asyncio.sleep(0)
+
+            # Replace entity map with filtered version (only relevant entities)
+            entity_map = filtered_map
 
             # Save new entities to DB
             if new_entities_to_save:
-                await save_new_entities(session, book_id, new_entities_to_save)
+                await save_new_entities(session, book_id, new_entities_to_save, user_id)
 
         except Exception as e:
             logger.debug(f"Entity detection failed: {e}")
 
     yield TranslationEvent("status", f"Entities ready ({len(entity_map.entities)} total). Translating...")
 
-    # 3. Pre-inject entities into content and split into chunks
+    # 3. Translate title separately (don't mix with chapter content)
+    has_title = bool(title and title.strip())
+    if has_title:
+        try:
+            title_text = title.strip()
+            if entity_map.entities:
+                title_text = pre_inject(title_text, entity_map)
+            title_prompt = f"Translate this Chinese chapter title to English. Return ONLY the translated title, nothing else.\n\n{title_text}"
+            translated_title = ""
+            async for token in llm.stream(
+                model=model,
+                user_prompt=title_prompt,
+                system_prompt="You are a Chinese-to-English translator. Translate the chapter title naturally. Proper nouns capitalized, common nouns lowercase. Output only the translation.",
+                temperature=0.3,
+                max_tokens=200,
+            ):
+                translated_title += token
+            translated_title = cleanup(translated_title).strip().strip('"').strip("'")
+            if translated_title:
+                yield TranslationEvent("title", translated_title)
+        except Exception as e:
+            logger.debug(f"Title translation failed: {e}")
+
+    # 4. Pre-inject entities into content and split into chunks
     chunk_size = _settings.translation_chunk_size
     chunk_paras = split_into_chunks(paragraphs, chunk_size)
     num_chunks = len(chunk_paras)

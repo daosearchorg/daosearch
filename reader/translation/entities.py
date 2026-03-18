@@ -25,7 +25,7 @@ class Entity:
 
 @dataclass
 class EntityMap:
-    """Merged entity map for a specific user + novel."""
+    """Merged entity map for a specific user + book."""
     entities: dict[str, Entity] = field(default_factory=dict)  # keyed by original_name
 
     def add(self, entity: Entity) -> None:
@@ -41,35 +41,18 @@ async def load_entities(
     book_id: int,
     user_id: int | None = None,
 ) -> EntityMap:
-    """Load merged entity map: novel entities + user general entities + user overrides.
+    """Load merged entity map: user general entities + user book entities.
 
-    Priority: user overrides > user general > novel entities
+    Priority: user book entities > user general entities
     """
     from sqlalchemy import text
 
     entity_map = EntityMap()
 
-    # 1. Load novel entities
-    rows = await session.execute(
-        text("""
-            SELECT original_name, translated_name, gender, is_hidden
-            FROM novel_entities
-            WHERE book_id = :book_id
-        """),
-        {"book_id": book_id},
-    )
-    for row in rows:
-        entity_map.add(Entity(
-            original_name=row.original_name,
-            translated_name=row.translated_name,
-            gender=row.gender or "N",
-            is_hidden=row.is_hidden,
-        ))
-
     if not user_id:
         return entity_map
 
-    # 2. Load user general entities (override/add to map)
+    # 1. Load user general entities (apply across all books)
     rows = await session.execute(
         text("""
             SELECT original_name, translated_name, gender
@@ -85,22 +68,20 @@ async def load_entities(
             gender=row.gender or "N",
         ))
 
-    # 3. Load user overrides for this novel's entities
+    # 2. Load user book entities (per-book, overrides general)
     rows = await session.execute(
         text("""
-            SELECT ne.original_name, ueo.custom_name, ne.gender, ueo.is_hidden
-            FROM user_entity_overrides ueo
-            JOIN novel_entities ne ON ne.id = ueo.novel_entity_id
-            WHERE ueo.user_id = :user_id AND ne.book_id = :book_id
+            SELECT source_term, translated_term, gender
+            FROM user_book_entities
+            WHERE user_id = :user_id AND book_id = :book_id
         """),
         {"user_id": user_id, "book_id": book_id},
     )
     for row in rows:
         entity_map.add(Entity(
-            original_name=row.original_name,
-            translated_name=row.custom_name,
+            original_name=row.source_term,
+            translated_name=row.translated_term,
             gender=row.gender or "N",
-            is_hidden=row.is_hidden,
         ))
 
     return entity_map
@@ -236,9 +217,13 @@ async def save_new_entities(
     session: AsyncSession,
     book_id: int,
     entities: list[dict],
+    user_id: int | None = None,
 ) -> int:
-    """Save AI-detected entities to novel_entities. Returns count of new entities."""
+    """Save AI-detected entities to user_book_entities. Returns count of new entities."""
     from sqlalchemy import text as sql_text
+
+    if not user_id:
+        return 0
 
     count = 0
     for e in entities:
@@ -254,12 +239,13 @@ async def save_new_entities(
 
         result = await session.execute(
             sql_text("""
-                INSERT INTO novel_entities (book_id, original_name, translated_name, gender, created_at, updated_at)
-                VALUES (:book_id, :original, :translated, :gender, NOW(), NOW())
-                ON CONFLICT (book_id, original_name) DO NOTHING
+                INSERT INTO user_book_entities (user_id, book_id, source_term, translated_term, gender, category, created_at, updated_at)
+                VALUES (:user_id, :book_id, :original, :translated, :gender, 'character', NOW(), NOW())
+                ON CONFLICT (user_id, book_id, source_term) DO NOTHING
                 RETURNING id
             """),
             {
+                "user_id": user_id,
                 "book_id": book_id,
                 "original": original,
                 "translated": translated,

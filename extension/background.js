@@ -1,3 +1,6 @@
+/* eslint-disable no-undef */
+importScripts("config.js");
+
 /**
  * DaoSearch Reader — Background Service Worker
  *
@@ -8,6 +11,8 @@
 const chineseTabs = new Map();
 // Track which tab was the source when opening the reader
 let lastSourceTabId = null;
+// Track which reader tab is actively waiting for content
+let waitingReaderTabId = null;
 // Prefetch cache: url -> html
 const prefetchCache = new Map();
 // Max prefetch cache entries
@@ -17,12 +22,7 @@ const MAX_PREFETCH = 10;
 
 async function findReaderTab() {
   const tabs = await chrome.tabs.query({});
-  return tabs.find(t =>
-    t.url && (
-      t.url.match(/localhost:8080\/reader/) ||
-      t.url.match(/daosearch\.com\/reader/)
-    )
-  ) || null;
+  return tabs.find(t => t.url && isReaderUrl(t.url)) || null;
 }
 
 function fetchPageHtml(url) {
@@ -101,6 +101,64 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "fetch-via-tab") {
+    // Open a tab to load page in real browser (bypasses Cloudflare JS challenges)
+    // If captcha/challenge detected, focus the tab for user to solve
+    const url = msg.url;
+    let responded = false;
+
+    chrome.tabs.create({ url, active: false }, (newTab) => {
+      const cleanup = () => {
+        chrome.tabs.onUpdated.removeListener(onTabUpdate);
+      };
+
+      const tryExtract = () => {
+        if (responded) return;
+        chrome.tabs.sendMessage(newTab.id, { type: "extract" }, (response) => {
+          if (responded) return;
+          if (chrome.runtime.lastError) return; // content script not ready
+
+          // Check if we got real Chinese content (not a challenge page)
+          const hasRealContent = response?.detected && response?.content && response.content.length > 200;
+          if (hasRealContent) {
+            responded = true;
+            cleanup();
+            chrome.tabs.remove(newTab.id).catch(() => {});
+            // Focus back to the reader tab
+            findReaderTab().then(readerTab => {
+              if (readerTab?.id) {
+                chrome.tabs.update(readerTab.id, { active: true });
+                if (readerTab.windowId) chrome.windows.update(readerTab.windowId, { focused: true });
+              }
+            });
+            sendResponse(response);
+          } else {
+            // Challenge/captcha page — focus the tab so user can solve it
+            chrome.tabs.update(newTab.id, { active: true });
+          }
+        });
+      };
+
+      const onTabUpdate = (updatedTabId, changeInfo) => {
+        if (updatedTabId !== newTab.id || changeInfo.status !== "complete") return;
+        // Page finished loading — try extracting after a short delay
+        setTimeout(tryExtract, 1200);
+      };
+      chrome.tabs.onUpdated.addListener(onTabUpdate);
+
+      // Timeout after 90s
+      setTimeout(() => {
+        cleanup();
+        if (!responded) {
+          responded = true;
+          chrome.tabs.remove(newTab.id).catch(() => {});
+          sendResponse(null);
+        }
+      }, 90000);
+    });
+    return true;
+  }
+
   if (msg.type === "navigate-and-extract") {
     const tabId = msg.tabId;
     const url = msg.url;
@@ -148,9 +206,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.tabs.create({ url: msg.url });
   }
 
+  if (msg.type === "reader-waiting-changed") {
+    if (msg.waiting && sender.tab?.id) {
+      waitingReaderTabId = sender.tab.id;
+    } else if (!msg.waiting && sender.tab?.id === waitingReaderTabId) {
+      waitingReaderTabId = null;
+    }
+    return;
+  }
+
   if (msg.type === "check-reader-tab") {
     findReaderTab().then(tab => {
-      sendResponse({ hasReaderTab: !!tab });
+      sendResponse({
+        hasReaderTab: !!tab,
+        isWaiting: !!waitingReaderTabId,
+      });
     });
     return true;
   }
@@ -158,11 +228,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "send-to-reader") {
     (async () => {
       try {
-        let readerTab = await findReaderTab();
+        // Only reuse a reader tab if it's actively waiting for content
+        let readerTab = waitingReaderTabId
+          ? (await chrome.tabs.get(waitingReaderTabId).catch(() => null))
+          : null;
 
         if (!readerTab) {
-          // No reader tab open — open one and wait for it to load
-          const DAOSEARCH_URL = "http://localhost:8080";
+          // No waiting reader — always open a new tab
           const newTab = await chrome.tabs.create({
             url: `${DAOSEARCH_URL}/reader?ext=1`,
           });
@@ -219,6 +291,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         sendResponse({ sent });
 
+        // Focus the reader tab and clear waiting state after successful send
+        if (sent && readerTab?.id) {
+          chrome.tabs.update(readerTab.id, { active: true });
+          if (readerTab.windowId) {
+            chrome.windows.update(readerTab.windowId, { focused: true });
+          }
+          if (readerTab.id === waitingReaderTabId) waitingReaderTabId = null;
+        }
+
         // Prefetch next chapter in background
         if (msg.data?.nextUrl) {
           prefetchUrl(msg.data.nextUrl);
@@ -240,6 +321,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   chineseTabs.delete(tabId);
+  if (tabId === waitingReaderTabId) waitingReaderTabId = null;
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {

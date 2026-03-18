@@ -781,9 +781,71 @@ class TranslatedChapter(Base):
         return f"<TranslatedChapter(user_id={self.user_id}, book_id={self.book_id}, seq={self.chapter_seq})>"
 
 
-class UserNovelEntity(Base):
+class NovelEntity(Base):
+    """Community/shared entity glossary per book. Seeded by AI detection, visible to all users."""
+    __tablename__ = 'novel_entities'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    translated_name = Column(String(255), nullable=False)
+    gender = Column(String(1), server_default='N')
+    is_hidden = Column(Boolean, server_default='false', nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    book = relationship("Book")
+
+    __table_args__ = (
+        UniqueConstraint('book_id', 'original_name', name='uq_novel_entity'),
+        Index('idx_novel_entities_book', 'book_id'),
+    )
+
+
+class UserGeneralEntity(Base):
+    """User-wide entity glossary that applies across all books/translations."""
+    __tablename__ = 'user_general_entities'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    translated_name = Column(String(255), nullable=False)
+    gender = Column(String(1), server_default='N')
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'original_name', name='uq_user_general_entity'),
+        Index('idx_user_general_entities_user', 'user_id'),
+    )
+
+
+class UserEntityOverride(Base):
+    """User-specific override for a novel entity — custom translation or hidden."""
+    __tablename__ = 'user_entity_overrides'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    novel_entity_id = Column(Integer, ForeignKey('novel_entities.id', ondelete='CASCADE'), nullable=False)
+    custom_name = Column(String(255), nullable=False)
+    is_hidden = Column(Boolean, server_default='false', nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User")
+    novel_entity = relationship("NovelEntity")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'novel_entity_id', name='uq_user_entity_override'),
+        Index('idx_user_entity_overrides_user', 'user_id'),
+    )
+
+
+class UserBookEntity(Base):
     """User-scoped entity glossary per novel. Seeded from community consensus, editable per user."""
-    __tablename__ = 'user_novel_entities'
+    __tablename__ = 'user_book_entities'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -799,8 +861,8 @@ class UserNovelEntity(Base):
     book = relationship("Book")
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'book_id', 'source_term', name='uq_user_novel_entity'),
-        Index('idx_user_novel_entities_user_book', 'user_id', 'book_id'),
+        UniqueConstraint('user_id', 'book_id', 'source_term', name='uq_user_book_entity'),
+        Index('idx_user_book_entities_user_book', 'user_id', 'book_id'),
     )
 
 

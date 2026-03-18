@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { userNovelEntities } from "@/db/schema";
+import { userBookEntities } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { seedUserEntities } from "@/lib/queries";
@@ -21,11 +21,11 @@ export async function GET(request: NextRequest) {
 
     const entities = await db
       .select()
-      .from(userNovelEntities)
+      .from(userBookEntities)
       .where(
         and(
-          eq(userNovelEntities.userId, userId),
-          eq(userNovelEntities.bookId, bookId),
+          eq(userBookEntities.userId, userId),
+          eq(userBookEntities.bookId, bookId),
         ),
       );
 
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   const communityResult = await db.execute(sql`
     SELECT DISTINCT ON (source_term)
       source_term, translated_term, gender, category
-    FROM user_novel_entities
+    FROM user_book_entities
     WHERE book_id = ${bookId}
     GROUP BY source_term, translated_term, gender, category
     ORDER BY source_term, COUNT(*) DESC
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     if (!entity.sourceTerm || !entity.translatedTerm) continue;
 
     await db
-      .insert(userNovelEntities)
+      .insert(userBookEntities)
       .values({
         userId: session.user.dbId,
         bookId: Number(bookId),
@@ -87,9 +87,9 @@ export async function POST(request: Request) {
       })
       .onConflictDoUpdate({
         target: [
-          userNovelEntities.userId,
-          userNovelEntities.bookId,
-          userNovelEntities.sourceTerm,
+          userBookEntities.userId,
+          userBookEntities.bookId,
+          userBookEntities.sourceTerm,
         ],
         set: {
           translatedTerm: entity.translatedTerm,
@@ -121,7 +121,7 @@ export async function PUT(request: Request) {
   }
 
   const updated = await db
-    .update(userNovelEntities)
+    .update(userBookEntities)
     .set({
       translatedTerm,
       gender: gender || "N",
@@ -130,11 +130,11 @@ export async function PUT(request: Request) {
     })
     .where(
       and(
-        eq(userNovelEntities.id, Number(id)),
-        eq(userNovelEntities.userId, session.user.dbId),
+        eq(userBookEntities.id, Number(id)),
+        eq(userBookEntities.userId, session.user.dbId),
       ),
     )
-    .returning({ id: userNovelEntities.id });
+    .returning({ id: userBookEntities.id });
 
   if (updated.length === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -156,14 +156,14 @@ export async function DELETE(request: NextRequest) {
   }
 
   const deleted = await db
-    .delete(userNovelEntities)
+    .delete(userBookEntities)
     .where(
       and(
-        eq(userNovelEntities.id, id),
-        eq(userNovelEntities.userId, session.user.dbId),
+        eq(userBookEntities.id, id),
+        eq(userBookEntities.userId, session.user.dbId),
       ),
     )
-    .returning({ id: userNovelEntities.id });
+    .returning({ id: userBookEntities.id });
 
   if (deleted.length === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

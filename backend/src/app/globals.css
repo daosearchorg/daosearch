@@ -248,43 +248,54 @@
   }
 }
 
-/* LitRPG system panels — code blocks and bracket clusters */
+/* LitRPG system panels — game UI, status screens, item descriptions */
 .litrpg-panel {
   position: relative;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--muted);
-  padding: 0.75rem 1rem;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.875em;
-  line-height: 1.6;
-  overflow-x: auto;
+  border: 1px solid rgba(100, 140, 200, 0.15);
+  border-radius: 10px;
+  background: linear-gradient(150deg, rgba(100, 148, 220, 0.08) 0%, rgba(120, 158, 220, 0.05) 40%, rgba(100, 140, 210, 0.07) 100%);
+  backdrop-filter: blur(1px);
+  padding: 1rem 1.25rem;
+  font-size: inherit;
+  line-height: inherit;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(100, 150, 220, 0.06);
+}
+
+.litrpg-panel::before,
+.litrpg-panel::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: rgba(100, 150, 220, 0.25);
+  border-style: solid;
 }
 
 .litrpg-panel::before {
-  content: "SYSTEM";
-  position: absolute;
-  top: -0.6em;
-  left: 0.75rem;
-  padding: 0 0.375rem;
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  background: var(--muted);
-  border-radius: 2px;
+  top: -1px;
+  left: -1px;
+  border-width: 1.5px 0 0 1.5px;
+  border-radius: 8px 0 0 0;
+}
+
+.litrpg-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1.5px 1.5px 0;
+  border-radius: 0 0 8px 0;
 }
 
 .litrpg-line {
   padding: 0.125rem 0;
-  color: var(--foreground);
+  color: rgba(30, 60, 120, 0.95);
+  font-size: 0.92em;
 }
 
 .litrpg-inline {
   padding: 0.125rem 0.375rem;
   border-radius: 3px;
-  background: var(--muted);
+  background: rgba(100, 150, 220, 0.08);
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.875em;
   color: var(--foreground);
@@ -294,6 +305,48 @@
   font-weight: 600;
   color: var(--foreground);
 }
+
+/* Paper theme — warm amber tones */
+.paper .litrpg-panel {
+  border-color: rgba(140, 110, 60, 0.15);
+  background: linear-gradient(150deg, rgba(160, 130, 70, 0.08) 0%, rgba(150, 120, 65, 0.04) 40%, rgba(155, 125, 68, 0.06) 100%);
+  box-shadow: 0 1px 4px rgba(140, 110, 60, 0.06);
+}
+.paper .litrpg-panel::before,
+.paper .litrpg-panel::after { border-color: rgba(140, 110, 60, 0.22); }
+.paper .litrpg-line { color: rgba(70, 50, 15, 0.95); }
+
+/* Calm theme — deeper warm sepia */
+.calm .litrpg-panel {
+  border-color: rgba(130, 100, 50, 0.15);
+  background: linear-gradient(150deg, rgba(150, 115, 55, 0.09) 0%, rgba(140, 108, 50, 0.05) 40%, rgba(145, 112, 52, 0.07) 100%);
+  box-shadow: 0 1px 4px rgba(130, 100, 50, 0.06);
+}
+.calm .litrpg-panel::before,
+.calm .litrpg-panel::after { border-color: rgba(130, 100, 50, 0.22); }
+.calm .litrpg-line { color: rgba(60, 40, 8, 0.95); }
+
+/* Dark theme — cool blue glow */
+.dark .litrpg-panel {
+  border-color: rgba(120, 160, 220, 0.12);
+  background: linear-gradient(150deg, rgba(100, 150, 220, 0.1) 0%, rgba(120, 158, 220, 0.06) 40%, rgba(100, 140, 210, 0.08) 100%);
+  box-shadow: 0 1px 6px rgba(100, 150, 220, 0.08);
+}
+.dark .litrpg-panel::before,
+.dark .litrpg-panel::after { border-color: rgba(120, 160, 220, 0.2); }
+.dark .litrpg-line { color: rgba(170, 200, 240, 0.95); }
+.dark .litrpg-inline { background: rgba(120, 160, 220, 0.1); }
+
+/* Quiet theme — muted neutral with faint blue */
+.quiet .litrpg-panel {
+  border-color: rgba(160, 170, 185, 0.12);
+  background: linear-gradient(150deg, rgba(140, 155, 180, 0.09) 0%, rgba(150, 160, 180, 0.05) 40%, rgba(145, 158, 178, 0.07) 100%);
+  box-shadow: 0 1px 6px rgba(140, 155, 180, 0.06);
+}
+.quiet .litrpg-panel::before,
+.quiet .litrpg-panel::after { border-color: rgba(160, 170, 185, 0.18); }
+.quiet .litrpg-line { color: rgba(195, 205, 220, 0.95); }
+.quiet .litrpg-inline { background: rgba(160, 170, 185, 0.08); }
 
 /* Hide scrollbar on specific elements */
 .no-scrollbar {

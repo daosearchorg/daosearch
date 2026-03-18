@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     translation_model: str = "gemini-2.5-flash-lite"
     entity_model: str = "gemini-2.5-flash-lite"
-    translation_chunk_size: int = 20
+    translation_chunk_size: int = 25
     byok_encryption_key: str = ""
 
     @property

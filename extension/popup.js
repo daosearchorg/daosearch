@@ -3,9 +3,7 @@
  * Shows tab status, send-to-reader button, library link.
  */
 
-// Toggle this for dev vs prod
-const DAOSEARCH_URL = "http://localhost:8080";
-// const DAOSEARCH_URL = "https://daosearch.com";
+// DAOSEARCH_URL, isDaosearchPage loaded from config.js
 
 const statusEl = document.getElementById("status");
 const statusText = document.getElementById("status-text");
@@ -19,7 +17,7 @@ async function checkCurrentTab() {
     if (!tab?.id) { statusText.textContent = "No active tab"; return; }
     currentTab = tab;
 
-    if (tab.url?.includes("daosearch.com") || tab.url?.includes("localhost:8080")) {
+    if (tab.url && (isDaosearchPage(new URL(tab.url).hostname))) {
       statusText.textContent = "You're on DaoSearch";
       return;
     }
@@ -85,5 +83,8 @@ document.getElementById("browse-btn").addEventListener("click", () => {
   chrome.tabs.create({ url: `${DAOSEARCH_URL}/library` });
   window.close();
 });
+
+// Set site link to match current environment
+document.getElementById("site-link").href = DAOSEARCH_URL;
 
 checkCurrentTab();

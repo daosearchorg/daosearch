@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,14 +8,27 @@ import {
   ExternalLink,
   ArrowLeft,
   RefreshCw,
+  BookType,
+  Clock,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { translateAllProgressive, translateText, onRateLimitChange } from "@/lib/google-translate";
-import { ChapterParagraph } from "@/components/book/chapter-markdown";
+import { ChapterParagraph, SystemBlockGroup, groupParagraphs } from "@/components/book/chapter-markdown";
 import { cleanChapterTitle, extractChapterSeq } from "@/components/reader/utils";
 
+// ─── Types ───────────────────────────────────────────────────
+
+interface DetectedEntity {
+  original: string;
+  translated: string;
+  gender: string;
+  source: string;
+}
+
 interface ReaderViewProps {
-  bookId: number;
+  bookId: number | null;
   bookTitle: string;
   bookTitleRaw?: string;
   rawTitle: string;
@@ -27,9 +40,11 @@ interface ReaderViewProps {
   isAuthenticated: boolean;
   onNavigate: (url: string) => void;
   onBack: () => void;
-  prefetchedTranslation?: { paragraphs: string[]; title: string } | null;
+  prefetchedTranslation?: { paragraphs: string[]; title: string; entities?: { original: string; translated: string; gender: string; source: string }[] } | null;
   prefetchStatus?: "idle" | "loading" | "ready";
 }
+
+// ─── Helpers ─────────────────────────────────────────────────
 
 const TITLE_LOWER = new Set([
   "a","an","the","and","but","or","nor","for","yet","so",
@@ -60,7 +75,91 @@ function parseSSE(block: string): { event: string; data: string } {
   return { event, data: dataLines.join("\n") };
 }
 
-// cleanChapterTitle and extractChapterSeq imported from utils
+function estimateReadingTime(text: string, isTranslated: boolean): number {
+  if (isTranslated) {
+    const words = text.split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.round(words / 250));
+  }
+  return Math.max(1, Math.round(text.length / 500));
+}
+
+function highlightOriginalEntities(text: string, entities: DetectedEntity[]): React.ReactNode {
+  if (!entities.length) return text;
+  const sorted = [...entities].sort((a, b) => b.original.length - a.original.length);
+  const escaped = sorted.map((e) => e.original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`(${escaped.join("|")})`, "g");
+  const parts = text.split(regex);
+  if (parts.length === 1) return text;
+  const map = new Map(entities.map((e) => [e.original, e.translated]));
+  return parts.map((part, i) => {
+    const t = map.get(part);
+    if (!t) return part;
+    const ent = entities.find((e) => e.original === part);
+    return (
+      <span key={i} className="bg-foreground/8 rounded-sm px-0.5 cursor-help relative group">
+        {part}
+        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2.5 py-1.5 rounded-md bg-popover border border-border shadow-md text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+          <span className="font-medium">{t}</span>
+          {ent?.gender && ent.gender !== "N" && (
+            <span className="ml-1.5 text-muted-foreground">{ent.gender === "M" ? "Male" : "Female"}</span>
+          )}
+        </span>
+      </span>
+    );
+  });
+}
+
+// ─── Selection Copy ──────────────────────────────────────────
+
+function useSelectionCopy(bookTitle: string) {
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const handleUp = () => {
+      // Small delay to let selection finalize
+      setTimeout(() => {
+        const sel = window.getSelection();
+        const text = sel?.toString().trim();
+        if (!text || text.length < 3) { setTooltip(null); return; }
+        try {
+          const range = sel?.getRangeAt(0);
+          if (!range) return;
+          const rect = range.getBoundingClientRect();
+          setTooltip({ x: rect.left + rect.width / 2, y: rect.top - 8, text });
+          setCopied(false);
+        } catch {
+          setTooltip(null);
+        }
+      }, 10);
+    };
+    const handleDown = (e: MouseEvent) => {
+      // Don't dismiss if clicking inside the copy tooltip
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-sel-tooltip]")) return;
+      setTooltip(null);
+    };
+    document.addEventListener("mouseup", handleUp);
+    document.addEventListener("mousedown", handleDown);
+    return () => {
+      document.removeEventListener("mouseup", handleUp);
+      document.removeEventListener("mousedown", handleDown);
+    };
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    if (!tooltip) return;
+    const attribution = `\n— ${bookTitle} (via DaoSearch)`;
+    navigator.clipboard.writeText(`"${tooltip.text}"${attribution}`).then(() => {
+      setCopied(true);
+      setTimeout(() => { setTooltip(null); setCopied(false); }, 1200);
+    });
+  }, [tooltip, bookTitle]);
+
+  return { tooltip, copied, handleCopy };
+}
+
+// ─── Component ───────────────────────────────────────────────
 
 export function ReaderView({
   bookId,
@@ -80,7 +179,13 @@ export function ReaderView({
 }: ReaderViewProps) {
   const chapterTitle = cleanChapterTitle(rawTitle, bookTitle, bookTitleRaw);
   const chapterSeq = extractChapterSeq(rawTitle);
-  const [lang, setLang] = useState<"en" | "zh">("en");
+  const [lang, setLang] = useState<"en" | "zh">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("reader-lang");
+      if (saved === "en" || saved === "zh") return saved;
+    }
+    return "en";
+  });
   const [translatedTitle, setTranslatedTitle] = useState("");
   const [translatedParagraphs, setTranslatedParagraphs] = useState<string[]>([]);
   const [translating, setTranslating] = useState(false);
@@ -91,14 +196,75 @@ export function ReaderView({
   const [readerFontSize, setReaderFontSize] = useState(16);
   const [readerLineSpacing, setReaderLineSpacing] = useState(1.75);
   const [translationTier, setTranslationTier] = useState<string>("free");
+  const [tierLoaded, setTierLoaded] = useState(!isAuthenticated); // if not authenticated, tier is always "free" — loaded immediately
+  const [detectedEntities, setDetectedEntities] = useState<DetectedEntity[]>([]);
+  const [showEntities, setShowEntities] = useState(false);
+  const [translationStatus, setTranslationStatus] = useState("");
+  const [translationProgress, setTranslationProgress] = useState(0); // 0-1
   const translationAbortRef = useRef(false);
+  const tokenUpdateRef = useRef<number | null>(null);
+  const translatedContentRef = useRef<{ content: string; tier: string } | null>(null); // tracks what was already translated
+  const articleRef = useRef<HTMLElement>(null);
+  const lastTapRef = useRef(0);
 
   const paragraphs = rawContent
     .split("\n")
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 
-  // Load reader settings from localStorage
+  // Reading time
+  const displayedContent = lang === "en" && translationDone
+    ? translatedParagraphs.filter(Boolean).join(" ")
+    : rawContent;
+  const readingMinutes = estimateReadingTime(displayedContent, lang === "en" && translationDone);
+
+  // Persist language preference
+  useEffect(() => {
+    localStorage.setItem("reader-lang", lang);
+  }, [lang]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowLeft" && prevUrl && !navigating) {
+        e.preventDefault();
+        handleNavigate(prevUrl);
+      } else if (e.key === "ArrowRight" && nextUrl && !navigating) {
+        e.preventDefault();
+        handleNavigate(nextUrl);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [prevUrl, nextUrl, navigating]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Double-tap to toggle language (mobile) — passive listener, no preventDefault
+  useEffect(() => {
+    const el = articleRef.current;
+    if (!el) return;
+    const handleTap = () => {
+      const now = Date.now();
+      if (now - lastTapRef.current < 350) {
+        setLang((l) => l === "en" ? "zh" : "en");
+      }
+      lastTapRef.current = now;
+    };
+    el.addEventListener("touchend", handleTap, { passive: true });
+    return () => el.removeEventListener("touchend", handleTap);
+  }, []);
+
+  // Update browser tab title
+  useEffect(() => {
+    const displayTitle = lang === "en" && translatedTitle ? translatedTitle : chapterTitle;
+    if (displayTitle) document.title = `${displayTitle} — ${bookTitle}`;
+    return () => { document.title = "DaoSearch"; };
+  }, [chapterTitle, translatedTitle, bookTitle, lang]);
+
+  // Selection copy
+  const { tooltip: selTooltip, copied: selCopied, handleCopy: handleSelCopy } = useSelectionCopy(bookTitle);
+
+  // Load reader settings
   useEffect(() => {
     const loadSettings = () => {
       setReaderFontSize(Number(localStorage.getItem("reader-font-size")) || 16);
@@ -109,13 +275,14 @@ export function ReaderView({
     return () => window.removeEventListener("reader-settings-changed", loadSettings);
   }, []);
 
-  // Load translation tier + listen for changes
+  // Load translation tier
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) { setTierLoaded(true); return; }
     fetch("/api/user/translation-settings")
       .then((r) => r.json())
       .then((data) => { if (data.tier) setTranslationTier(data.tier); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setTierLoaded(true));
     const handler = (e: Event) => {
       const tier = (e as CustomEvent).detail?.tier;
       if (tier) setTranslationTier(tier);
@@ -124,16 +291,14 @@ export function ReaderView({
     return () => window.removeEventListener("translation-settings-changed", handler);
   }, [isAuthenticated]);
 
-  // Listen for rate limit changes
   useEffect(() => {
     const unsub = onRateLimitChange(setRateLimited);
     return () => { unsub(); };
   }, []);
 
-  // Sync progress whenever content changes (mount + navigation)
-  // rawContent is included to guarantee this fires on every chapter load
+  // Sync progress
   useEffect(() => {
-    if (!isAuthenticated || !sourceUrl) return;
+    if (!bookId || !isAuthenticated || !sourceUrl) return;
     fetch(`/api/books/${bookId}/progress`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -145,19 +310,22 @@ export function ReaderView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, sourceUrl, isAuthenticated, chapterSeq, rawContent]);
 
-  // Scroll to top and reset navigating state when content changes
   useEffect(() => {
     window.scrollTo({ top: 0 });
     setNavigating(false);
   }, [rawContent]);
 
-  // Auto-translate (supports free GT + BYOK AI + prefetched)
+  // Auto-translate — wait for tier to load before starting
   useEffect(() => {
-    if (!rawContent || paragraphs.length === 0) return;
+    if (!rawContent || paragraphs.length === 0 || !tierLoaded) return;
 
-    // Use prefetched translation if available
+    // Use prefetched/cached translation if available
     if (prefetchedTranslation?.paragraphs?.some(Boolean)) {
+      translatedContentRef.current = { content: rawContent, tier: translationTier };
       setTranslatedParagraphs(prefetchedTranslation.paragraphs);
+      setDetectedEntities(prefetchedTranslation.entities || []);
+      setTranslationStatus("");
+      setTranslationProgress(0);
       if (prefetchedTranslation.title) {
         setTranslatedTitle(prefetchedTranslation.title);
         saveTranslatedTitle(prefetchedTranslation.title);
@@ -167,38 +335,57 @@ export function ReaderView({
       return;
     }
 
+    // Don't re-translate if this content was already translated with the same tier
+    if (translatedContentRef.current?.content === rawContent && translatedContentRef.current?.tier === translationTier) return;
+
     translationAbortRef.current = false;
     setTranslatedParagraphs([]);
     setTranslationDone(false);
     setTranslatedTitle("");
+    setDetectedEntities([]);
+    setTranslationStatus("");
+    setTranslationProgress(0);
     setTranslating(true);
 
-    if (translationTier === "byok" && isAuthenticated) {
-      // ── BYOK AI translation via server SSE ──
+    if (translationTier === "premium" || (translationTier === "byok" && isAuthenticated)) {
+      const chunkTexts: Record<number, string> = {};
+      // Track chunk start offsets from chunk_done events (not hardcoded)
+      const chunkOffsets: Record<number, number> = {};
+      let entityCount = 0;
+      let tokenDirty = false;
       (async () => {
         try {
           const res = await fetch("/api/reader/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              bookId,
               paragraphs,
+              bookId: bookId || undefined,
               sourceDomain: domain,
               title: chapterTitle,
+              tier: translationTier,
             }),
           });
-          if (!res.ok) {
-            // Fallback to GT on error
-            console.log("[DaoReader] BYOK failed, falling back to GT");
-            translateFreeGT(paragraphs, chapterTitle);
-            return;
-          }
+          if (!res.ok) throw new Error("Failed");
           const reader = res.body?.getReader();
-          if (!reader) { translateFreeGT(paragraphs, chapterTitle); return; }
-
+          if (!reader) throw new Error("No stream");
           const decoder = new TextDecoder();
           let buffer = "";
           const translated: string[] = new Array(paragraphs.length).fill("");
+
+          // Throttled token render — batch updates via rAF
+          const flushTokens = () => {
+            if (tokenDirty && !translationAbortRef.current) {
+              setTranslatedParagraphs([...translated]);
+              tokenDirty = false;
+            }
+            tokenUpdateRef.current = null;
+          };
+          const scheduleTokenFlush = () => {
+            if (tokenUpdateRef.current === null) {
+              tokenUpdateRef.current = requestAnimationFrame(flushTokens);
+            }
+          };
 
           while (true) {
             const { done, value } = await reader.read();
@@ -208,59 +395,88 @@ export function ReaderView({
             buffer = events.pop() || "";
             for (const block of events) {
               const { event, data } = parseSSE(block);
-              if (event === "entity") {
-                // Entity detected by AI — could display in glossary
+              if (event === "status") {
+                if (!data.toLowerCase().includes("entit")) {
+                  setTranslationStatus(data);
+                }
+              } else if (event === "entity") {
+                const ent = JSON.parse(data);
+                entityCount++;
+                setDetectedEntities((prev) => [...prev, ent]);
+                setTranslationStatus(`Detecting entities... ${entityCount} found`);
               } else if (event === "token") {
                 const { chunk_idx, token } = JSON.parse(data);
-                // Accumulate tokens for streaming display
-                const paraOffset = chunk_idx * 20;
-                // We don't have per-chunk text accumulator here, just wait for chunk_done
-                void token; void paraOffset;
+                chunkTexts[chunk_idx] = (chunkTexts[chunk_idx] || "") + token;
+                // Use known offset from previous chunk_done, or estimate from chunk_idx * 25
+                const paraOffset = chunkOffsets[chunk_idx] ?? chunk_idx * 25;
+                const streamParas = chunkTexts[chunk_idx].split("\n").filter((s: string) => s.trim());
+                for (let j = 0; j < streamParas.length; j++) {
+                  const gi = paraOffset + j;
+                  if (gi < translated.length) translated[gi] = streamParas[j].trim();
+                }
+                tokenDirty = true;
+                scheduleTokenFlush();
               } else if (event === "chunk_done") {
                 const chunk = JSON.parse(data);
                 if (chunk.paragraphs) {
+                  // Record the actual offset for this chunk (and derive next chunk's offset)
+                  if (chunk.start != null) chunkOffsets[chunk.chunk_idx] = chunk.start;
+                  if (chunk.end != null) chunkOffsets[chunk.chunk_idx + 1] = chunk.end + 1;
                   for (const p of chunk.paragraphs) {
                     if (p.index < translated.length) translated[p.index] = p.text;
                   }
+                  delete chunkTexts[chunk.chunk_idx];
                   if (!translationAbortRef.current) {
                     setTranslatedParagraphs([...translated]);
+                    const doneCount = translated.filter(Boolean).length;
+                    const pct = doneCount / paragraphs.length;
+                    setTranslationProgress(pct);
+                    const statusPrefix = entityCount > 0 ? `${entityCount} entities · ` : "";
+                    setTranslationStatus(`${statusPrefix}Translating... ${doneCount}/${paragraphs.length}`);
                   }
                 }
-                // Extract title from first chunk
-                if (chunk.chunk_idx === 0 && chunk.paragraphs?.[0]) {
-                  // Title comes from the API's entity parsing
-                }
-              } else if (event === "done") {
-                // Translation complete
+              } else if (event === "title") {
+                const cleaned = titleCase(data);
+                setTranslatedTitle(cleaned);
+                saveTranslatedTitle(cleaned);
               } else if (event === "error") {
-                console.log("[DaoReader] BYOK SSE error:", data);
-                break;
+                console.log("[DaoReader] SSE error:", data);
+                setTranslating(false);
+                return;
               }
             }
           }
+          // Final flush
+          if (tokenUpdateRef.current !== null) {
+            cancelAnimationFrame(tokenUpdateRef.current);
+            flushTokens();
+          }
           if (!translationAbortRef.current) {
+            translatedContentRef.current = { content: rawContent, tier: translationTier };
+            setTranslationProgress(1);
             setTranslationDone(true);
             setTranslating(false);
           }
         } catch {
-          // Fallback to GT
-          translateFreeGT(paragraphs, chapterTitle);
+          translateFreeGT(paragraphs, chapterTitle, rawContent);
         }
       })();
     } else {
-      // ── Free GT translation ──
-      translateFreeGT(paragraphs, chapterTitle);
+      translateFreeGT(paragraphs, chapterTitle, rawContent);
     }
 
     return () => {
       translationAbortRef.current = true;
+      if (tokenUpdateRef.current !== null) {
+        cancelAnimationFrame(tokenUpdateRef.current);
+        tokenUpdateRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawContent, retranslateKey, translationTier]);
+  }, [rawContent, retranslateKey, translationTier, tierLoaded]);
 
-  // Save translated title to DB (so "Continue reading" can show it)
   const saveTranslatedTitle = useCallback((translatedTitleText: string) => {
-    if (!isAuthenticated || !translatedTitleText) return;
+    if (!bookId || !isAuthenticated || !translatedTitleText) return;
     fetch("/api/reader/save-translation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -274,9 +490,7 @@ export function ReaderView({
     }).catch(() => {});
   }, [bookId, domain, isAuthenticated, chapterSeq]);
 
-  // Free GT translation helper
-  const translateFreeGT = useCallback((paras: string[], title: string) => {
-    // Translate title
+  const translateFreeGT = useCallback((paras: string[], title: string, content: string) => {
     if (title) {
       translateText(title).then((t) => {
         if (!translationAbortRef.current && t !== title) {
@@ -286,7 +500,6 @@ export function ReaderView({
         }
       });
     }
-    // Progressive translation — auto-chunked by character limit
     (async () => {
       await translateAllProgressive(
         paras,
@@ -298,6 +511,7 @@ export function ReaderView({
         { signal: translationAbortRef.current ? { aborted: true } : { get aborted() { return translationAbortRef.current; } } },
       );
       if (!translationAbortRef.current) {
+        translatedContentRef.current = { content, tier: "free" };
         setTranslationDone(true);
         setTranslating(false);
       }
@@ -306,6 +520,7 @@ export function ReaderView({
 
   const retranslate = useCallback(() => {
     translationAbortRef.current = true;
+    translatedContentRef.current = null; // allow re-translation of same content
     setTimeout(() => setRetranslateKey((k) => k + 1), 50);
   }, []);
 
@@ -314,30 +529,40 @@ export function ReaderView({
       setNavigating(true);
       translationAbortRef.current = true;
       onNavigate(url);
-      // Safety timeout — if parent doesn't update content within 15s, reset
       setTimeout(() => setNavigating(false), 15000);
     },
     [onNavigate],
   );
 
+  const entityPhase = translating && !translatedParagraphs.some(Boolean) && detectedEntities.length > 0;
+
   return (
-    <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full pb-20">
-      {/* Back button + book title */}
+    <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full">
+      {/* Back button + book title + source */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="shrink-0 size-8" onClick={onBack}>
           <ArrowLeft className="size-4" />
         </Button>
-        <span className="text-sm text-muted-foreground truncate">{bookTitle}</span>
+        <span className="text-sm text-muted-foreground truncate flex-1">{bookTitle}</span>
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0"
+        >
+          {domain}
+          <ExternalLink className="size-3" />
+        </a>
       </div>
 
       {/* Chapter title */}
-      <h1 className="text-base sm:text-lg font-medium text-center leading-tight">
+      <h1 className="text-lg sm:text-xl font-medium text-center leading-snug">
         {lang === "en" && translatedTitle ? translatedTitle : chapterTitle}
       </h1>
 
-      {/* Language toggle */}
-      <div className="flex justify-center">
-        <div className="flex rounded-md border border-border text-xs overflow-hidden">
+      {/* Language toggle + reading time */}
+      <div className="flex items-center justify-center gap-2.5">
+        <div className="flex rounded-full border border-border text-xs overflow-hidden">
           <button
             className={`px-3 py-1 transition-colors ${lang === "en" ? "bg-foreground text-background font-medium" : "hover:bg-muted/50"}`}
             onClick={() => setLang("en")}
@@ -351,35 +576,95 @@ export function ReaderView({
             中文
           </button>
         </div>
+        <span className="text-[11px] text-muted-foreground/40 flex items-center gap-1">
+          <Clock className="size-3" />
+          {readingMinutes} min
+        </span>
       </div>
 
-      {/* Retranslate + translation progress */}
-      <div className="flex items-center justify-center gap-3">
-        <Button variant="ghost" size="sm" onClick={retranslate}>
-          <RefreshCw className={`size-3.5 ${translating ? "animate-spin" : ""}`} />
-          <span className="hidden sm:inline">Retranslate</span>
+      {/* Chapter nav bar */}
+      <div className="flex items-center gap-2 w-full">
+        <Button variant="outline" size="sm" className="shrink-0" disabled={!prevUrl || navigating} onClick={() => prevUrl && handleNavigate(prevUrl)}>
+          <ChevronLeft className="size-4" />
+          <span className="hidden sm:inline">Prev</span>
         </Button>
-        {translating && (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 className="size-3 animate-spin shrink-0" />
-            {rateLimited
-              ? "Rate limited — waiting to retry..."
-              : `Translating... ${translatedParagraphs.filter(Boolean).length}/${paragraphs.length}`}
-          </span>
+
+        <div className="flex-1 flex items-center justify-center gap-1">
+          <Button
+            variant={showEntities ? "secondary" : "ghost"}
+            size="sm"
+            disabled={detectedEntities.length === 0}
+            onClick={() => setShowEntities(!showEntities)}
+          >
+            <BookType className="size-3.5" />
+            <span className="hidden sm:inline">Glossary</span>
+            {detectedEntities.length > 0 && (
+              <span className="text-[10px] tabular-nums text-muted-foreground">{detectedEntities.length}</span>
+            )}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={retranslate}>
+            <RefreshCw className={`size-3.5 ${translating ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Retranslate</span>
+          </Button>
+        </div>
+
+        <Button variant="outline" size="sm" className="shrink-0 relative" disabled={!nextUrl || navigating} onClick={() => nextUrl && handleNavigate(nextUrl)}>
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight className="size-4" />
+          {prefetchStatus === "ready" && nextUrl && !navigating && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-green-500" title="Next chapter ready" />
+          )}
+          {prefetchStatus === "loading" && nextUrl && !navigating && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 animate-pulse" title="Prefetching..." />
+          )}
+        </Button>
+      </div>
+
+      {/* Translation status + progress bar */}
+      <div className="flex flex-col gap-1.5">
+        <div className="h-5 flex items-center justify-center">
+          {translating && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground animate-in fade-in duration-150">
+              <Loader2 className="size-3 animate-spin shrink-0" />
+              <span className="truncate">
+                {rateLimited
+                  ? "Rate limited — waiting to retry..."
+                  : translationStatus || `Translating... ${translatedParagraphs.filter(Boolean).length}/${paragraphs.length}`}
+              </span>
+            </span>
+          )}
+        </div>
+        {translating && translationProgress > 0 && (
+          <div className="h-1 w-full max-w-xs mx-auto rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full bg-primary/40 rounded-full transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.round(translationProgress * 100)}%` }}
+            />
+          </div>
         )}
       </div>
 
       {/* Content */}
       <article
+        ref={articleRef}
         className="w-full"
         style={{ fontSize: `${readerFontSize}px`, lineHeight: readerLineSpacing }}
       >
         {lang === "en" && translationDone ? (
-          translatedParagraphs
-            .filter(Boolean)
-            .map((text, i) => (
-              <ChapterParagraph key={i} text={text} className="text-foreground/90 mb-3 sm:mb-4" />
-            ))
+          groupParagraphs(translatedParagraphs.filter(Boolean)).map((group, gi) => {
+            if (group.type === "break") return <React.Fragment key={gi}><ChapterParagraph text={group.lines[0]} className="text-foreground/90 mb-3 sm:mb-4" /></React.Fragment>;
+            if (group.type === "system") return <SystemBlockGroup key={gi} lines={group.lines} />;
+            return group.lines.map((text, li) => (
+              <ChapterParagraph
+                key={`${gi}-${li}`}
+                text={text}
+                className="text-foreground/90 mb-3 sm:mb-4 animate-in fade-in duration-300"
+                style={{ animationDelay: `${Math.min(gi * 20, 400)}ms` }}
+                entities={detectedEntities}
+                showEntities={showEntities}
+              />
+            ));
+          })
         ) : lang === "en" && translating ? (
           paragraphs.map((p, i) => {
             const translated = translatedParagraphs[i];
@@ -389,73 +674,67 @@ export function ReaderView({
                   key={i}
                   text={translated}
                   className="text-foreground/90 mb-3 sm:mb-4 animate-in fade-in duration-200"
+                  entities={detectedEntities}
+                  showEntities={showEntities}
                 />
               );
             }
             return (
               <p key={i} className="text-muted-foreground/50 mb-3 sm:mb-4 transition-colors duration-200">
-                {p}
+                {entityPhase ? highlightOriginalEntities(p, detectedEntities) : p}
               </p>
             );
           })
         ) : (
-          paragraphs.map((p, i) => (
-            <p key={i} className="text-foreground/90 mb-3 sm:mb-4">
-              {p}
-            </p>
-          ))
+          groupParagraphs(paragraphs).map((group, gi) => {
+            if (group.type === "break") return <React.Fragment key={gi}><ChapterParagraph text={group.lines[0]} className="text-foreground/90 mb-3 sm:mb-4" /></React.Fragment>;
+            if (group.type === "system") return <SystemBlockGroup key={gi} lines={group.lines} />;
+            return group.lines.map((text, li) => (
+              <p key={`${gi}-${li}`} className="text-foreground/90 mb-3 sm:mb-4">
+                {showEntities && detectedEntities.length > 0 ? highlightOriginalEntities(text, detectedEntities) : text}
+              </p>
+            ));
+          })
         )}
       </article>
 
-      {/* Sticky bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t z-50">
-        <div className="flex items-center justify-between max-w-3xl mx-auto px-4 py-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!prevUrl || navigating}
-            onClick={() => prevUrl && handleNavigate(prevUrl)}
-          >
-            {navigating ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <ChevronLeft className="size-4" />
-            )}
-            Previous
-          </Button>
-
-          <a
-            href={sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {domain}
-            <ExternalLink className="size-3" />
-          </a>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="relative"
-            disabled={!nextUrl || navigating}
-            onClick={() => nextUrl && handleNavigate(nextUrl)}
-          >
-            Next
-            {navigating ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <ChevronRight className="size-4" />
-            )}
-            {prefetchStatus === "ready" && nextUrl && !navigating && (
-              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-green-500" title="Next chapter ready" />
-            )}
-            {prefetchStatus === "loading" && nextUrl && !navigating && (
-              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 animate-pulse" title="Prefetching..." />
-            )}
-          </Button>
-        </div>
+      {/* Bottom nav */}
+      <nav className="flex items-center justify-between w-full border-t pt-4">
+        <Button variant="outline" size="sm" disabled={!prevUrl || navigating} onClick={() => prevUrl && handleNavigate(prevUrl)}>
+          <ChevronLeft className="size-4" />
+          Prev
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {domain}
+        </span>
+        <Button variant="outline" size="sm" className="relative" disabled={!nextUrl || navigating} onClick={() => nextUrl && handleNavigate(nextUrl)}>
+          Next
+          <ChevronRight className="size-4" />
+          {prefetchStatus === "ready" && nextUrl && !navigating && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-green-500" title="Next chapter ready" />
+          )}
+          {prefetchStatus === "loading" && nextUrl && !navigating && (
+            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 animate-pulse" title="Prefetching..." />
+          )}
+        </Button>
       </nav>
+
+      {/* Selection copy tooltip */}
+      {selTooltip && (
+        <div
+          data-sel-tooltip
+          className="fixed z-50 animate-in fade-in duration-100"
+          style={{ left: selTooltip.x, top: selTooltip.y, transform: "translate(-50%, -100%)" }}
+        >
+          <button
+            onClick={handleSelCopy}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-foreground text-background text-xs font-medium shadow-lg hover:opacity-90 transition-opacity"
+          >
+            {selCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
+            {selCopied ? "Copied!" : "Copy with attribution"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

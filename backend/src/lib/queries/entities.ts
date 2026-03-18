@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { userNovelEntities } from "@/db/schema";
+import { userBookEntities } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getRawQueryRows } from "./feeds";
 
@@ -10,9 +10,9 @@ import { getRawQueryRows } from "./feeds";
 export async function seedUserEntities(userId: number, bookId: number): Promise<void> {
   // Check if user already has entities for this book
   const existing = await db
-    .select({ id: userNovelEntities.id })
-    .from(userNovelEntities)
-    .where(and(eq(userNovelEntities.userId, userId), eq(userNovelEntities.bookId, bookId)))
+    .select({ id: userBookEntities.id })
+    .from(userBookEntities)
+    .where(and(eq(userBookEntities.userId, userId), eq(userBookEntities.bookId, bookId)))
     .limit(1);
 
   if (existing.length > 0) return; // Already has entities
@@ -21,7 +21,7 @@ export async function seedUserEntities(userId: number, bookId: number): Promise<
   const communityResult = await db.execute(sql`
     SELECT DISTINCT ON (source_term)
       source_term, translated_term, gender, category
-    FROM user_novel_entities
+    FROM user_book_entities
     WHERE book_id = ${bookId} AND user_id != ${userId}
     GROUP BY source_term, translated_term, gender, category
     ORDER BY source_term, COUNT(*) DESC
@@ -30,7 +30,7 @@ export async function seedUserEntities(userId: number, bookId: number): Promise<
   const communityRows = getRawQueryRows(communityResult);
   if (communityRows.length > 0) {
     // Copy community entities to user's glossary
-    await db.insert(userNovelEntities).values(
+    await db.insert(userBookEntities).values(
       communityRows.map((e) => ({
         userId,
         bookId,

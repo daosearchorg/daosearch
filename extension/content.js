@@ -4,7 +4,7 @@
  */
 
 const CHINESE_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
-const DAOSEARCH_URL = "http://localhost:8080";
+// DAOSEARCH_URL, isDaosearchPage, isReaderUrl loaded from config.js
 const MIN_CHINESE_RATIO = 0.3;
 const MIN_CHINESE_CHARS = 200;
 const LOGO_SRC = chrome.runtime.getURL("icons/icon48.png");
@@ -62,13 +62,41 @@ function cleanTitle(title) {
   return title.trim();
 }
 
+/** Try to extract chapter title from DOM before falling back to Readability */
+function extractChapterTitle() {
+  // 1. Look for heading elements with chapter patterns
+  const headings = document.querySelectorAll("h1, h2, h3, .chapter-title, .title, .booktitle");
+  const chapterRe = /第[\d一二三四五六七八九十百千万]+[章节回话篇卷集]|chapter\s*\d+/i;
+  for (const h of headings) {
+    const text = (h.textContent || "").trim();
+    if (text && chapterRe.test(text) && text.length < 100) {
+      return cleanTitle(text);
+    }
+  }
+  // 2. Check any heading that's short enough to be a title
+  for (const h of headings) {
+    const text = (h.textContent || "").trim();
+    if (text && text.length > 2 && text.length < 80) {
+      return cleanTitle(text);
+    }
+  }
+  return null;
+}
+
 function extractContent() {
   try {
+    // Try DOM title extraction first (more reliable than Readability for Chinese sites)
+    const domTitle = extractChapterTitle();
+
     const clone = document.cloneNode(true);
     const reader = new Readability(clone);
     const article = reader.parse();
     if (article && article.content) {
-      return { text: htmlToText(article.content), title: cleanTitle(article.title) };
+      // Use DOM title if available and looks like a chapter title, otherwise Readability's
+      let title = domTitle || cleanTitle(article.title);
+      // Validate: if title is too long (>100 chars), it's probably body text not a title
+      if (title.length > 100) title = cleanTitle(document.title) || title.slice(0, 60);
+      return { text: htmlToText(article.content), title };
     }
   } catch (e) {
     console.log("[DaoSearch] Readability failed:", e);
@@ -128,7 +156,7 @@ async function detectNavLinks() {
   for (const link of document.querySelectorAll("a")) {
     const text = (link.innerText || "").trim().toLowerCase();
     const href = link.href;
-    if (!href || href === "#" || href === location.href) continue;
+    if (!href || href === "#" || href === location.href || href.startsWith("javascript:")) continue;
     if (!nextUrl && navKeywords.next.some(k => text.includes(k))) nextUrl = href;
     if (!prevUrl && navKeywords.prev.some(k => text.includes(k))) prevUrl = href;
     if (nextUrl && prevUrl) break;
@@ -334,13 +362,10 @@ function showFab() {
   fabEl.id = "daosearch-fab";
   fabEl.attachShadow({ mode: "open" });
 
-  updateFabContent("Read on DaoSearch");
+  updateFabContent("Send to Reader");
 
   fabEl.shadowRoot.querySelector(".fab").addEventListener("click", handleRead);
   document.body.appendChild(fabEl);
-
-  // Check if a reader tab exists and update FAB text
-  checkReaderTab();
 }
 
 function updateFabContent(label) {
@@ -431,6 +456,12 @@ function initDaoSearchListener() {
   // On DaoSearch pages: inject extension ID and listen for chapter deliveries
   document.documentElement.setAttribute("data-daosearch-ext-id", chrome.runtime.id);
 
+  // Listen for reader waiting state changes and relay to background
+  document.addEventListener("daosearch-reader-waiting", (e) => {
+    const waiting = e.detail?.waiting ?? false;
+    chrome.runtime.sendMessage({ type: "reader-waiting-changed", waiting });
+  });
+
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "deliver-chapter" && msg.data) {
       // Bridge from extension to web app via CustomEvent
@@ -454,22 +485,21 @@ function initDaoSearchListener() {
 
 function init() {
   // On DaoSearch pages: set up listener for chapter delivery
-  if (
-    location.hostname === "daosearch.com" ||
-    location.hostname === "www.daosearch.com" ||
-    location.hostname === "localhost"
-  ) {
+  if (isDaosearchPage(location.hostname)) {
     initDaoSearchListener();
     return;
   }
 
   if (detectChineseContent()) {
     detected = true;
-    showFab();
     chrome.runtime.sendMessage({
       type: "chinese-detected",
       url: location.href,
       title: document.title,
+    });
+    // Only show FAB if a reader tab is actively waiting for content
+    chrome.runtime.sendMessage({ type: "check-reader-tab" }, (response) => {
+      if (response?.isWaiting) showFab();
     });
   }
 }
@@ -504,11 +534,7 @@ function tryInit() {
   if (detected) return;
   init();
   // If not detected yet, retry after JS frameworks render (SPA pages)
-  if (!detected && !(
-    location.hostname === "daosearch.com" ||
-    location.hostname === "www.daosearch.com" ||
-    location.hostname === "localhost"
-  )) {
+  if (!detected && !isDaosearchPage(location.hostname)) {
     let retries = 0;
     const observer = new MutationObserver(() => {
       retries++;

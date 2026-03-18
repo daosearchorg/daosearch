@@ -59,9 +59,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const sourceUrl = body.sourceUrl ? String(body.sourceUrl) : null;
   const sourceDomain = sourceUrl ? new URL(sourceUrl).hostname : null;
 
-  // Need at least chapterId or chapterSeq
-  if (!chapterId && !chapterSeq) {
-    return NextResponse.json({ error: "chapterId or chapterSeq required" }, { status: 400 });
+  // Need at least chapterId, chapterSeq, or sourceUrl
+  if (!chapterId && !chapterSeq && !sourceUrl) {
+    return NextResponse.json({ error: "chapterId, chapterSeq, or sourceUrl required" }, { status: 400 });
   }
 
   // Upsert reading progress
