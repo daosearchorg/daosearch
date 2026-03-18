@@ -351,7 +351,7 @@ export function ReaderView({
       const chunkTexts: Record<number, string> = {};
       // Track chunk start offsets from chunk_done events (not hardcoded)
       const chunkOffsets: Record<number, number> = {};
-      let entityCount = 0;
+      const seenEntityOriginals = new Set<string>();
       let tokenDirty = false;
       (async () => {
         try {
@@ -399,9 +399,13 @@ export function ReaderView({
                 setTranslationStatus(data);
               } else if (event === "entity") {
                 const ent = JSON.parse(data);
-                entityCount++;
-                setDetectedEntities((prev) => [...prev, ent]);
-                setTranslationStatus(`Detecting entities... ${entityCount} found`);
+                seenEntityOriginals.add(ent.original);
+                setDetectedEntities((prev) => {
+                  // Only add if not already in state (dedup)
+                  if (prev.some((e) => e.original === ent.original)) return prev;
+                  return [...prev, ent];
+                });
+                setTranslationStatus(`Detecting entities... ${seenEntityOriginals.size} found`);
               } else if (event === "token") {
                 const { chunk_idx, token } = JSON.parse(data);
                 chunkTexts[chunk_idx] = (chunkTexts[chunk_idx] || "") + token;
@@ -429,7 +433,7 @@ export function ReaderView({
                     const doneCount = translated.filter(Boolean).length;
                     const pct = doneCount / paragraphs.length;
                     setTranslationProgress(pct);
-                    const statusPrefix = entityCount > 0 ? `${entityCount} entities · ` : "";
+                    const statusPrefix = seenEntityOriginals.size > 0 ? `${seenEntityOriginals.size} entities · ` : "";
                     setTranslationStatus(`${statusPrefix}Translating... ${doneCount}/${paragraphs.length}`);
                   }
                 }
