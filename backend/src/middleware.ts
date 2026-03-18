@@ -4,7 +4,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 
 const RATE_LIMITS: { pattern: string; maxRequests: number; windowMs: number }[] = [
   { pattern: "/api/v1/", maxRequests: 30, windowMs: 60_000 },
-  { pattern: "/api/books/search", maxRequests: 60, windowMs: 60_000 },
+  { pattern: "/api/books/search", maxRequests: 30, windowMs: 60_000 },
   { pattern: "/api/account/avatar", maxRequests: 10, windowMs: 300_000 },
   { pattern: "/api/", maxRequests: 120, windowMs: 60_000 },
 ];

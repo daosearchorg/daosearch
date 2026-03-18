@@ -59,7 +59,9 @@ export async function getLibraryBooks(params: LibraryParams) {
     sort = "updated", popularityPeriod = "weekly", order = "desc", page,
   } = params;
 
-  const offset = (page - 1) * LIBRARY_PAGE_SIZE;
+  const maxPage = 200; // Cap at 10,000 results to prevent deep pagination abuse
+  const safePage = Math.min(page, maxPage);
+  const offset = (safePage - 1) * LIBRARY_PAGE_SIZE;
   // Build WHERE conditions
   const conditions: SQL[] = [
     isNotNull(books.title),

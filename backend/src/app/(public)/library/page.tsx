@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 export const revalidate = 60;
 import { getLibraryBooks, getPrimaryGenres, getSubgenres, getGenreSubgenrePairs, getPopularTags } from "@/lib/queries";
 import { LIBRARY_SORT_OPTIONS, POPULARITY_PERIOD_OPTIONS } from "@/lib/constants";
@@ -51,7 +52,9 @@ export default async function LibraryPage({ searchParams }: Props) {
   const periodRaw = str(params.popularityPeriod);
   const popularityPeriod = (periodRaw && validPeriods.has(periodRaw as PopularityPeriod) ? periodRaw : "weekly") as PopularityPeriod;
   const order = str(params.order) === "asc" ? "asc" as const : "desc" as const;
-  const page = Math.max(1, Number(str(params.page)) || 1);
+  const rawPage = Math.max(1, Number(str(params.page)) || 1);
+  if (rawPage > 200) notFound();
+  const page = rawPage;
 
   // Parse book IDs
   const idsRaw = str(params.ids);

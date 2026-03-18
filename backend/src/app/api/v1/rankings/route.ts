@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const gender = sp.get("gender") || "male";
   const rankType = sp.get("type") || "popular";
   const cycle = sp.get("cycle") || "cycle-1";
-  const page = Math.max(1, Number(sp.get("page")) || 1);
+  const page = Math.min(200, Math.max(1, Number(sp.get("page")) || 1));
   const limit = sp.get("limit") ? Math.min(50, Math.max(1, Number(sp.get("limit")))) : undefined;
   const genreId = sp.get("genre") ? Number(sp.get("genre")) : undefined;
 

@@ -7,7 +7,7 @@ const VALID_SORTS = ["popular", "recent", "largest"] as const;
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  const page = Math.max(1, Number(sp.get("page")) || 1);
+  const page = Math.min(200, Math.max(1, Number(sp.get("page")) || 1));
   const limit = sp.get("limit") ? Math.min(50, Math.max(1, Number(sp.get("limit")))) : undefined;
   const sortParam = sp.get("sort") || "popular";
   const sort = (VALID_SORTS.includes(sortParam as QidianBooklistSort) ? sortParam : "popular") as QidianBooklistSort;

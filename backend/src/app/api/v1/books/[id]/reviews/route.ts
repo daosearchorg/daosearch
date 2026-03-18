@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return apiError("INVALID_ID", "Book ID must be a number", 400);
   }
 
-  const page = Math.max(1, Number(req.nextUrl.searchParams.get("page")) || 1);
+  const page = Math.min(200, Math.max(1, Number(req.nextUrl.searchParams.get("page")) || 1));
 
   try {
     const result = await getBookReviews(bookId, page);

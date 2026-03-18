@@ -5,7 +5,7 @@ import { paginatedQuery } from "@/lib/api-paginate";
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  const page = Math.max(1, Number(sp.get("page")) || 1);
+  const page = Math.min(200, Math.max(1, Number(sp.get("page")) || 1));
   const limit = sp.get("limit") ? Math.min(50, Math.max(1, Number(sp.get("limit")))) : undefined;
   const name = sp.get("q") || undefined;
   const author = sp.get("author") || undefined;
