@@ -25,8 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { bookUrl, slugify } from "@/lib/utils";
 import { ReaderView } from "@/components/reader/reader-view";
@@ -54,6 +52,7 @@ interface CachedChapter {
   seq: number | null;
   title: string | null;
   sourceDomain: string | null;
+  sourceUrl: string | null;
   translatedAgo: string;
 }
 
@@ -62,6 +61,11 @@ interface DaoReaderLandingProps {
   bookTitle: string;
   bookTitleRaw: string;
   bookImageUrl: string | null;
+  bookAuthor: string | null;
+  bookStatus: string | null;
+  bookWordCount: number | null;
+  bookUpdateTime: string | null;
+  bookSynopsis: string | null;
   savedSourceUrl: string | null;
   savedSeq: number | null;
   savedDomain: string | null;
@@ -70,6 +74,7 @@ interface DaoReaderLandingProps {
   qidianChapters: QidianChapter[] | null;
   qidianTotalPages: number;
   totalChapterCount: number;
+  latestChapter: number | null;
   isAuthenticated: boolean;
   initialSourceUrl?: string | null;
   otherSources?: { sourceDomain: string | null; sourceUrl: string | null; seq: number | null }[];
@@ -114,10 +119,12 @@ function TranslationHistory({
   cachedChapters,
   page,
   onPageChange,
+  onChapterClick,
 }: {
   cachedChapters: CachedChapter[];
   page: number;
   onPageChange: (page: number) => void;
+  onChapterClick: (ch: CachedChapter) => void;
 }) {
   const totalPages = Math.ceil(cachedChapters.length / HISTORY_PAGE_SIZE);
   const start = (page - 1) * HISTORY_PAGE_SIZE;
@@ -130,9 +137,10 @@ function TranslationHistory({
       </p>
       <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
         {displayed.map((ch, i) => (
-          <div
+          <button
             key={`${ch.seq}-${i}`}
-            className="flex items-center gap-3 px-3 py-2.5"
+            className="flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40 transition-colors w-full"
+            onClick={() => onChapterClick(ch)}
           >
             <span className="text-xs tabular-nums text-muted-foreground shrink-0 w-8 text-right">
               {ch.seq ?? "—"}
@@ -158,7 +166,8 @@ function TranslationHistory({
             <span className="hidden sm:block text-[11px] text-muted-foreground/60 shrink-0 tabular-nums">
               {ch.translatedAgo}
             </span>
-          </div>
+            <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+          </button>
         ))}
       </div>
       {totalPages > 1 && (
@@ -197,6 +206,11 @@ export function DaoReaderLanding({
   bookTitle,
   bookTitleRaw,
   bookImageUrl,
+  bookAuthor,
+  bookStatus,
+  bookWordCount,
+  bookUpdateTime,
+  bookSynopsis,
   savedSourceUrl,
   savedSeq,
   savedDomain,
@@ -205,6 +219,7 @@ export function DaoReaderLanding({
   qidianChapters,
   qidianTotalPages,
   totalChapterCount,
+  latestChapter,
   isAuthenticated,
   initialSourceUrl,
   otherSources = [],
@@ -228,6 +243,10 @@ export function DaoReaderLanding({
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalReaders, setTotalReaders] = useState(0);
+  const [chaptersLoading, setChaptersLoading] = useState(false);
+  const [chapterSearch, setChapterSearch] = useState("");
+  const chapterSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   // Prefetch state
@@ -256,7 +275,7 @@ export function DaoReaderLanding({
     }, 1500);
   }, []);
 
-  // Restore tab + pagination from URL on mount
+  // Restore tab + pagination from URL on mount, or auto-navigate to progress page
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
@@ -268,6 +287,16 @@ export function DaoReaderLanding({
         .then((r) => r.json())
         .then((data) => { if (data.items) setAllQidianChapters(data.items); })
         .catch(() => {});
+    } else if (savedSeq && totalChapterCount > 0 && qidianTotalPages > 1) {
+      // Auto-navigate to the page containing the current reading progress
+      const progressPage = Math.ceil(savedSeq / 50); // PAGINATION_SIZE = 50
+      if (progressPage > 1) {
+        setChaptersPage(progressPage);
+        fetch(`/api/books/${bookId}/chapters?page=${progressPage}`)
+          .then((r) => r.json())
+          .then((data) => { if (data.items) setAllQidianChapters(data.items); })
+          .catch(() => {});
+      }
     }
     const hp = Number(params.get("hp"));
     if (hp > 1) setHistoryPage(hp);
@@ -365,6 +394,28 @@ export function DaoReaderLanding({
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
   }, [activeTab, chaptersPage, historyPage, viewState, isQidian]);
 
+  // Keyboard shortcuts for landing page
+  useEffect(() => {
+    if (viewState !== "browse") return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "Enter" && savedSourceUrl) {
+        e.preventDefault();
+        fetchAndRead(savedSourceUrl);
+      } else if (e.key === "1" && isQidian) {
+        setActiveTab("chapters");
+      } else if (e.key === "2") {
+        setActiveTab("sources");
+      } else if (e.key === "3" && cachedChapters.length > 0) {
+        setActiveTab("history");
+      } else if (e.key === "Escape") {
+        setViewState("browse");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewState, savedSourceUrl, isQidian, cachedChapters.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── Actions ─────────────────────────────────────────────
 
   const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(bookTitleRaw + " 阅读")}`;
@@ -393,19 +444,27 @@ export function DaoReaderLanding({
     router.refresh();
   };
 
-  const loadChaptersPage = async (page: number) => {
-    const res = await fetch(`/api/books/${bookId}/chapters?page=${page}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.items) {
-        setAllQidianChapters(data.items);
-        setChaptersPage(page);
+  const loadChaptersPage = async (page: number, search?: string) => {
+    setChaptersLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page) });
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/books/${bookId}/chapters?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items) {
+          setAllQidianChapters(data.items);
+          setChaptersPage(page);
+        }
       }
+    } finally {
+      setChaptersLoading(false);
     }
   };
 
   const fetchAndRead = useCallback(async (url: string) => {
     setFetchingUrl(url);
+    setFetchError(null);
     try {
       // Tier 1: static fetch (fast, works for most sites)
       const html = await fetchPageViaExtension(url);
@@ -445,6 +504,7 @@ export function DaoReaderLanding({
       }
     } catch { /* extension unavailable */ }
     setFetchingUrl(null);
+    setFetchError("Could not fetch this page. Make sure the DaoSearch extension is installed and try again.");
   }, []);
 
   const prefetchNextChapter = useCallback((nextUrl: string) => {
@@ -626,150 +686,200 @@ export function DaoReaderLanding({
   const firstChapterUrl = allQidianChapters.length > 0 ? allQidianChapters[0].url : null;
 
   return (
-    <div className="flex flex-col gap-5 min-w-0">
+    <div className="flex flex-col gap-6 min-w-0">
+      {/* ── Breadcrumb ── */}
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/reader" className="hover:text-foreground transition-colors">Reader</Link>
+        <span className="text-muted-foreground/40">/</span>
+        <span className="truncate text-foreground/70">{bookTitle}</span>
+      </nav>
+
       {/* ── Header ── */}
-      <div className="flex gap-5 sm:gap-6">
-        <Link href={bookUrl(bookId, bookTitle)} className="shrink-0 self-start">
-          {bookImageUrl ? (
-            <Image
-              src={bookImageUrl}
-              alt={bookTitle}
-              width={140}
-              height={196}
-              className="rounded-xl object-cover shadow-md w-[110px] sm:w-[140px]"
-              priority
-            />
-          ) : (
-            <div className="w-[110px] sm:w-[140px] aspect-[5/7] rounded-xl bg-muted border flex items-center justify-center">
-              <BookText className="size-6 text-muted-foreground" />
-            </div>
-          )}
-        </Link>
+      <div className="flex flex-col gap-4">
+        {/* Cover + Title row */}
+        <div className="flex gap-5 sm:gap-6">
+          <Link href={bookUrl(bookId, bookTitle)} className="shrink-0 self-start">
+            {bookImageUrl ? (
+              <Image
+                src={bookImageUrl}
+                alt={bookTitle}
+                width={140}
+                height={196}
+                className="rounded-xl object-cover shadow-md w-[90px] sm:w-[140px]"
+                priority
+              />
+            ) : (
+              <div className="w-[90px] sm:w-[140px] aspect-[5/7] rounded-xl bg-muted border flex items-center justify-center">
+                <BookText className="size-6 text-muted-foreground" />
+              </div>
+            )}
+          </Link>
 
-        <div className="flex flex-col min-w-0 flex-1 pt-0.5">
-          {/* Title */}
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight line-clamp-2">
-            {bookTitle}
-          </h1>
-          <p className="text-sm text-muted-foreground/70 truncate mt-0.5">{bookTitleRaw}</p>
+          <div className="flex flex-col min-w-0 flex-1 pt-0.5">
+            <h1 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight line-clamp-2">
+              {bookTitle}
+            </h1>
+            <p className="text-sm text-muted-foreground/70 truncate mt-0.5">{bookTitleRaw}</p>
+            {bookAuthor && (
+              <p className="text-sm text-muted-foreground mt-1">by <span className="text-foreground/80">{bookAuthor}</span></p>
+            )}
 
-          {/* Reading progress */}
-          {savedSeq != null && savedDomain && (
-            <div className="flex items-center gap-2 mt-3 text-sm">
-              <DomainFavicon domain={savedDomain} className="size-4" />
-              <span className="font-medium">Ch. {savedSeq}</span>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-muted-foreground truncate">{savedDomain}</span>
-              {isMobile ? (
-                <>
-                  <button
-                    className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0"
-                    onClick={() => setEditingProgress(true)}
-                  >
-                    <Pencil className="size-2.5" />
-                  </button>
-                  <Drawer open={editingProgress} onOpenChange={setEditingProgress}>
-                    <DrawerContent>
-                      <DrawerHeader>
-                        <DrawerTitle>Set reading progress</DrawerTitle>
-                      </DrawerHeader>
-                      <div className="flex gap-2 px-4 pb-6">
-                        <Input
-                          type="number"
-                          value={manualSeq}
-                          onChange={(e) => setManualSeq(e.target.value)}
-                          placeholder="Chapter number"
-                          className="h-10 flex-1"
-                          min={1}
-                          max={totalChapterCount > 0 ? totalChapterCount : undefined}
-                          onKeyDown={(e) => e.key === "Enter" && handleManualProgress()}
-                          autoFocus
-                        />
-                        <Button className="h-10" onClick={handleManualProgress}>Save</Button>
-                      </div>
-                    </DrawerContent>
-                  </Drawer>
-                </>
-              ) : (
-                <Popover open={editingProgress} onOpenChange={setEditingProgress}>
-                  <PopoverTrigger asChild>
-                    <button className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0">
-                      <Pencil className="size-2.5" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3" align="start">
-                    <p className="text-xs text-muted-foreground mb-2">Set reading progress</p>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        value={manualSeq}
-                        onChange={(e) => setManualSeq(e.target.value)}
-                        placeholder="Chapter #"
-                        className="h-8 flex-1"
-                        min={1}
-                        max={totalChapterCount > 0 ? totalChapterCount : undefined}
-                        onKeyDown={(e) => e.key === "Enter" && handleManualProgress()}
-                        autoFocus
-                      />
-                      <Button size="sm" className="h-8" onClick={handleManualProgress}>Save</Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+            {/* Tags / badges — desktop only shows connected */}
+            <div className="hidden sm:flex flex-wrap items-center gap-1.5 mt-2.5">
+              {bookStatus && (
+                <Badge variant="outline" className={`text-xs font-medium capitalize ${bookStatus === "ongoing" ? "border-green-500/30 bg-green-500/10" : bookStatus === "completed" ? "border-blue-500/30 bg-blue-500/10" : ""}`}>
+                  {bookStatus}
+                </Badge>
+              )}
+              {(bookWordCount ?? 0) > 0 && (
+                <Badge variant="secondary" className="text-xs font-medium gap-1">
+                  <span className="tabular-nums">{bookWordCount! >= 1_000_000 ? `${(bookWordCount! / 1_000_000).toFixed(1)}M` : bookWordCount! >= 1_000 ? `${Math.round(bookWordCount! / 1_000)}K` : bookWordCount!}</span>
+                  words
+                </Badge>
+              )}
+              {totalChapterCount > 0 && (
+                <Badge variant="secondary" className="text-xs font-medium gap-1">
+                  <span className="tabular-nums">{totalChapterCount.toLocaleString()}</span>
+                  chapters
+                </Badge>
+              )}
+              {extensionAvailable === true && (
+                <Badge variant="outline" className="text-xs font-medium gap-1 border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400">
+                  <span className="size-1.5 rounded-full bg-green-500" />
+                  Connected
+                </Badge>
+              )}
+              {extensionAvailable === false && (
+                <Badge variant="outline" className="text-xs font-medium gap-1 border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400">
+                  <AlertTriangle className="size-2.5" />
+                  Extension needed
+                </Badge>
+              )}
+              {extensionAvailable === null && (
+                <span className="inline-block w-20 h-5 bg-muted/50 rounded-full animate-pulse" />
               )}
             </div>
-          )}
 
-          {/* Stats row */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            {totalReaders > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5 text-[11px] text-foreground">
-                <Eye className="size-3" />
-                {totalReaders} {totalReaders === 1 ? "reader" : "readers"}
-              </span>
-            )}
-            {extensionAvailable === true && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-2 py-0.5 text-[11px] text-green-600 dark:text-green-400">
-                <span className="size-1.5 rounded-full bg-green-500" />
-                Connected
-              </span>
-            )}
-            {extensionAvailable === false && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-3" />
-                Extension needed
-              </span>
-            )}
-            {extensionAvailable === null && (
-              <span className="inline-block w-20 h-5 bg-muted/50 rounded-full animate-pulse" />
-            )}
+            {/* Details grid — desktop */}
+            <div className="hidden sm:grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 mt-3 text-sm">
+              {bookUpdateTime && (
+                <>
+                  <span className="text-muted-foreground font-medium self-center">Activity:</span>
+                  <Badge variant="secondary" className="text-xs font-medium gap-1 w-fit">
+                    <span className="size-1.5 rounded-full bg-green-500 shrink-0" />
+                    Updated {(() => {
+                      const diff = Date.now() - new Date(bookUpdateTime).getTime();
+                      const mins = Math.floor(diff / 60000);
+                      if (mins < 60) return `${mins}m ago`;
+                      const hours = Math.floor(mins / 60);
+                      if (hours < 24) return `${hours}h ago`;
+                      const days = Math.floor(hours / 24);
+                      if (days < 30) return `${days}d ago`;
+                      return `${Math.floor(days / 30)}mo ago`;
+                    })()}
+                  </Badge>
+                </>
+              )}
+              {savedSeq != null && savedDomain && (
+                <>
+                  <span className="text-muted-foreground font-medium self-center">Reading:</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs font-medium gap-1.5 w-fit">
+                      <DomainFavicon domain={savedDomain} className="size-3" />
+                      Ch. {savedSeq} · {savedDomain}
+                    </Badge>
+                    <button
+                      className="text-muted-foreground/40 hover:text-foreground transition-colors"
+                      onClick={() => setEditingProgress(true)}
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                  </div>
+                </>
+              )}
+              {totalReaders > 0 && (
+                <>
+                  <span className="text-muted-foreground font-medium self-center">Readers:</span>
+                  <Badge variant="secondary" className="text-xs font-medium gap-1 w-fit">
+                    <Eye className="size-3" />
+                    {totalReaders}
+                  </Badge>
+                </>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Mobile-only: all badges in one row below cover */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
+          {bookStatus && (
+            <Badge variant="outline" className={`text-xs font-medium capitalize ${bookStatus === "ongoing" ? "border-green-500/30 bg-green-500/10" : bookStatus === "completed" ? "border-blue-500/30 bg-blue-500/10" : ""}`}>
+              {bookStatus}
+            </Badge>
+          )}
+          {(bookWordCount ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-xs font-medium gap-1">
+              <span className="tabular-nums">{bookWordCount! >= 1_000_000 ? `${(bookWordCount! / 1_000_000).toFixed(1)}M` : bookWordCount! >= 1_000 ? `${Math.round(bookWordCount! / 1_000)}K` : bookWordCount!}</span>
+              words
+            </Badge>
+          )}
+          {totalChapterCount > 0 && (
+            <Badge variant="secondary" className="text-xs font-medium gap-1">
+              <span className="tabular-nums">{totalChapterCount.toLocaleString()}</span>
+              ch.
+            </Badge>
+          )}
+          {totalReaders > 0 && (
+            <Badge variant="secondary" className="text-xs font-medium gap-1">
+              <Eye className="size-3" />
+              {totalReaders}
+            </Badge>
+          )}
+          {bookUpdateTime && (
+            <Badge variant="secondary" className="text-xs font-medium gap-1">
+              <span className="size-1.5 rounded-full bg-green-500 shrink-0" />
+              {(() => {
+                const diff = Date.now() - new Date(bookUpdateTime).getTime();
+                const mins = Math.floor(diff / 60000);
+                if (mins < 60) return `${mins}m ago`;
+                const hours = Math.floor(mins / 60);
+                if (hours < 24) return `${hours}h ago`;
+                const days = Math.floor(hours / 24);
+                if (days < 30) return `${days}d ago`;
+                return `${Math.floor(days / 30)}mo ago`;
+              })()}
+            </Badge>
+          )}
+        </div>
+
+        {/* Mobile reading progress — full-width card */}
+        {savedSeq != null && savedDomain && (
+          <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5 sm:hidden">
+            <DomainFavicon domain={savedDomain} className="size-5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Ch. {savedSeq}</p>
+              <p className="text-xs text-muted-foreground truncate">{savedDomain}</p>
+            </div>
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 shrink-0"
+              onClick={() => setEditingProgress(true)}
+            >
+              <Pencil className="size-3" />
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── Other source progresses ── */}
-      {otherSources.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground/60">Other sources</span>
-          <div className="flex flex-wrap gap-2">
-            {otherSources.map((src) => (
-              <button
-                key={src.sourceDomain}
-                className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent/40 transition-colors"
-                disabled={!src.sourceUrl || !!fetchingUrl}
-                onClick={() => { if (src.sourceUrl) fetchAndRead(src.sourceUrl); }}
-              >
-                {src.sourceDomain && <DomainFavicon domain={src.sourceDomain} className="size-3.5" />}
-                <span className="text-muted-foreground">{src.sourceDomain || "Unknown"}</span>
-                {src.seq != null && <span className="text-xs text-muted-foreground/60">Ch. {src.seq}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* ── Synopsis ── */}
+      {bookSynopsis && (
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+          {bookSynopsis}
+        </p>
       )}
 
-      {/* ── Action Buttons (book-page style) ── */}
+      {/* ── Action Buttons ── */}
       <div className="flex flex-col gap-2">
-        {/* Primary CTA */}
         {savedSeq != null && savedSourceUrl ? (
           <Button
             className="w-full gap-2"
@@ -806,14 +916,12 @@ export function DaoReaderLanding({
             onClick={() => setViewState("waiting")}
             className="w-full"
           >
-            <Button className="w-full gap-2" variant="default">
+            <Button className="w-full gap-2">
               <Search className="size-4" />
               Find a Source
             </Button>
           </a>
         )}
-
-        {/* Secondary buttons row */}
         <div className="flex gap-2">
           <Link href={`/reader/${bookId}/glossary/${slugify(bookTitle)}`} className="flex-1">
             <Button variant="outline" className="w-full gap-2">
@@ -832,63 +940,50 @@ export function DaoReaderLanding({
 
       {/* ── Waiting state ── */}
       {viewState === "waiting" && (
-        <div className="rounded-xl border border-dashed p-6">
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
           {extensionAvailable === false ? (
-            <div className="flex flex-col items-center gap-4 text-center max-w-md mx-auto">
-              <div className="size-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <AlertTriangle className="size-4 text-amber-500" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-sm font-medium">Extension not installed</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  The DaoSearch extension is needed to send chapter content back to this page.
-                  Install it from the Chrome Web Store, then try again.
-                </p>
-              </div>
+            <>
+              <AlertTriangle className="size-5 text-amber-500" />
+              <p className="text-sm text-muted-foreground">Extension not installed. Install from the Chrome Web Store to get started.</p>
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setViewState("browse")}>
                 Go back
               </Button>
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-center gap-4 text-center max-w-md mx-auto">
-              <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Loader2 className="size-4 animate-spin text-primary" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-sm font-medium">Listening for content...</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Navigate to a chapter from the Google search results, then click the
-                  <span className="font-medium text-foreground"> DaoSearch extension button</span> to send it here for translation.
-                </p>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5 sm:flex sm:items-center sm:justify-center sm:gap-4 text-muted-foreground/60 w-full">
-                <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5">
-                  <span className="size-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium shrink-0">1</span>
-                  <span className="text-[10px] sm:text-xs">Search</span>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5">
-                  <span className="size-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium shrink-0">2</span>
-                  <span className="text-[10px] sm:text-xs">Open</span>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5">
-                  <span className="size-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium shrink-0">3</span>
-                  <span className="text-[10px] sm:text-xs">Extension</span>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5">
-                  <span className="size-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-medium shrink-0">4</span>
-                  <span className="text-[10px] sm:text-xs text-primary">Read</span>
-                </div>
-              </div>
+            <>
+              <Loader2 className="size-5 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Waiting for chapter content from the extension...</p>
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setViewState("browse")}>
                 Cancel
               </Button>
-            </div>
+            </>
           )}
         </div>
       )}
 
-      {/* ── Extension warning ── */}
-      {extensionAvailable === false && (
+      {/* ── Fetch error ── */}
+      {fetchError && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="size-4 text-destructive shrink-0" />
+          <p className="text-sm text-muted-foreground flex-1">{fetchError}</p>
+          <button className="text-xs text-muted-foreground hover:text-foreground shrink-0" onClick={() => setFetchError(null)}>
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Extension / mobile notice ── */}
+      {isMobile ? (
+        <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/30 p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Desktop recommended</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              The Dao Reader currently requires a desktop browser with the DaoSearch extension.
+              A mobile app is under development.
+            </p>
+          </div>
+        </div>
+      ) : extensionAvailable === false && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
           <div className="size-9 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
             <AlertTriangle className="size-4 text-amber-500" />
@@ -903,7 +998,18 @@ export function DaoReaderLanding({
         </div>
       )}
 
+      {/* ── Reading stats ── */}
+      {isAuthenticated && cachedChapters.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="tabular-nums">{cachedChapters.length} translated</span>
+          {otherSources.length > 0 && (
+            <span className="tabular-nums">{otherSources.length + 1} sources</span>
+          )}
+        </div>
+      )}
+
       {/* ── Tabs ── */}
+      <div className="border-t" />
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
           {isQidian && (
@@ -929,10 +1035,37 @@ export function DaoReaderLanding({
           <TabsContent value="chapters">
             {allQidianChapters.length > 0 ? (
               <div>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {totalChapterCount > 0 ? totalChapterCount.toLocaleString() : `${allQidianChapters.length}+`} chapters
-                </p>
-                <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                    <Input
+                      value={chapterSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setChapterSearch(val);
+                        if (chapterSearchTimer.current) clearTimeout(chapterSearchTimer.current);
+                        chapterSearchTimer.current = setTimeout(() => {
+                          if (val.trim()) {
+                            loadChaptersPage(1, val.trim());
+                          } else {
+                            loadChaptersPage(1);
+                          }
+                        }, 300);
+                      }}
+                      placeholder="Search chapters..."
+                      className="h-8 pl-8 text-sm"
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {totalChapterCount > 0 ? totalChapterCount.toLocaleString() : `${allQidianChapters.length}+`} ch.
+                  </span>
+                </div>
+                <div className={`flex flex-col rounded-lg border divide-y overflow-hidden relative ${chaptersLoading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {chaptersLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                   {allQidianChapters.map((ch) => {
                     const isCurrent = savedSeq === ch.sequenceNumber;
                     const isLoading = fetchingUrl === ch.url;
@@ -967,7 +1100,7 @@ export function DaoReaderLanding({
                       variant="outline"
                       size="sm"
                       disabled={chaptersPage <= 1}
-                      onClick={() => loadChaptersPage(chaptersPage - 1)}
+                      onClick={() => loadChaptersPage(chaptersPage - 1, chapterSearch.trim() || undefined)}
                     >
                       <ChevronLeft className="size-4" />
                     </Button>
@@ -980,7 +1113,7 @@ export function DaoReaderLanding({
                       variant="outline"
                       size="sm"
                       disabled={chaptersPage >= qidianTotalPages}
-                      onClick={() => loadChaptersPage(chaptersPage + 1)}
+                      onClick={() => loadChaptersPage(chaptersPage + 1, chapterSearch.trim() || undefined)}
                     >
                       <ChevronRight className="size-4" />
                     </Button>
@@ -996,6 +1129,25 @@ export function DaoReaderLanding({
         {/* ── Sources Tab ── */}
         <TabsContent value="sources">
           <div className="flex flex-col gap-4">
+            {/* Popular sources */}
+            {popularDomains.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Popular with readers</p>
+                <div className="flex flex-wrap gap-2">
+                  {popularDomains.map((d) => (
+                    <div key={d.domain} className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
+                      <DomainFavicon domain={d.domain} className="size-4" />
+                      <span className="text-sm">{d.domain}</span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Eye className="size-3" />
+                        {d.readers}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Google Search */}
             <a
               href={googleSearchUrl}
@@ -1067,6 +1219,13 @@ export function DaoReaderLanding({
                       )}
                     </button>
                     <button
+                      className="shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-foreground transition-colors"
+                      title="Set reading progress"
+                      onClick={(e) => { e.stopPropagation(); setEditingProgress(true); }}
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                    <button
                       className="shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
                       title="Remove source and its translations"
                       onClick={(e) => { e.stopPropagation(); setDeletingSource(savedDomain); }}
@@ -1097,31 +1256,19 @@ export function DaoReaderLanding({
                         )}
                       </button>
                       <button
+                        className="shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-foreground transition-colors"
+                        title="Set reading progress"
+                        onClick={(e) => { e.stopPropagation(); setEditingProgress(true); }}
+                      >
+                        <Pencil className="size-3" />
+                      </button>
+                      <button
                         className="shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
                         title="Remove source and its translations"
                         onClick={(e) => { e.stopPropagation(); setDeletingSource(src.sourceDomain!); }}
                       >
                         <X className="size-3.5" />
                       </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Popular sources */}
-            {popularDomains.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Popular with readers</p>
-                <div className="flex flex-wrap gap-2">
-                  {popularDomains.map((d) => (
-                    <div key={d.domain} className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-                      <DomainFavicon domain={d.domain} className="size-4" />
-                      <span className="text-sm">{d.domain}</span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Eye className="size-3" />
-                        {d.readers}
-                      </span>
                     </div>
                   ))}
                 </div>
@@ -1137,6 +1284,7 @@ export function DaoReaderLanding({
               cachedChapters={cachedChapters}
               page={historyPage}
               onPageChange={setHistoryPage}
+              onChapterClick={(ch) => { if (ch.sourceUrl) fetchAndRead(ch.sourceUrl); }}
             />
           </TabsContent>
         )}
@@ -1165,6 +1313,30 @@ export function DaoReaderLanding({
             {deleteLoading && <Loader2 className="size-3 animate-spin mr-1.5" />}
             Remove
           </Button>
+        </div>
+      </ResponsiveDialog>
+
+      {/* ── Edit progress dialog (shared, single instance) ── */}
+      <ResponsiveDialog open={editingProgress} onOpenChange={setEditingProgress}>
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Set reading progress</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
+            Enter the chapter number you are currently reading.
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+        <div className="flex gap-2 mt-4">
+          <Input
+            type="number"
+            value={manualSeq}
+            onChange={(e) => setManualSeq(e.target.value)}
+            placeholder="Chapter number"
+            className="h-10 flex-1"
+            min={1}
+            max={totalChapterCount > 0 ? totalChapterCount : undefined}
+            onKeyDown={(e) => e.key === "Enter" && handleManualProgress()}
+            autoFocus
+          />
+          <Button className="h-10" onClick={handleManualProgress}>Save</Button>
         </div>
       </ResponsiveDialog>
 

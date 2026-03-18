@@ -46,7 +46,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
   let savedSeq: number | null = null;
   let savedDomain: string | null = null;
   let otherSources: { sourceDomain: string | null; sourceUrl: string | null; seq: number | null }[] = [];
-  let cachedChapters: { seq: number | null; title: string | null; sourceDomain: string | null; translatedAgo: string }[] = [];
+  let cachedChapters: { seq: number | null; title: string | null; sourceDomain: string | null; sourceUrl: string | null; translatedAgo: string }[] = [];
 
   if (session?.user?.dbId) {
     const allProgress = await db
@@ -80,6 +80,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
         seq: translatedChapters.chapterSeq,
         title: translatedChapters.translatedTitle,
         sourceDomain: translatedChapters.sourceDomain,
+        sourceUrl: translatedChapters.sourceUrl,
         translatedAt: translatedChapters.translatedAt,
       })
       .from(translatedChapters)
@@ -100,7 +101,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
           } else ago = `${h}h ago`;
         } else ago = `${m}m ago`;
       }
-      return { seq: ch.seq, title: ch.title, sourceDomain: ch.sourceDomain, translatedAgo: ago };
+      return { seq: ch.seq, title: ch.title, sourceDomain: ch.sourceDomain, sourceUrl: ch.sourceUrl, translatedAgo: ago };
     });
   }
 
@@ -117,6 +118,11 @@ export default async function ReaderPage({ params, searchParams }: Props) {
       bookTitle={displayTitle}
       bookTitleRaw={book.title || ""}
       bookImageUrl={book.imageUrl}
+      bookAuthor={book.authorTranslated || book.author || null}
+      bookStatus={book.status || null}
+      bookWordCount={book.wordCount || null}
+      bookUpdateTime={book.updateTime ? String(book.updateTime) : null}
+      bookSynopsis={book.synopsisTranslated || book.synopsis || null}
       savedSourceUrl={savedSourceUrl}
       savedSeq={savedSeq}
       savedDomain={savedDomain}
@@ -125,6 +131,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
       qidianChapters={qidianChapters?.items ?? null}
       qidianTotalPages={qidianChapters?.totalPages ?? 0}
       totalChapterCount={stats?.chapterCount ?? 0}
+      latestChapter={stats?.latestChapterNumber ?? null}
       isAuthenticated={!!session?.user?.dbId}
       initialSourceUrl={sp.src || null}
       otherSources={otherSources}

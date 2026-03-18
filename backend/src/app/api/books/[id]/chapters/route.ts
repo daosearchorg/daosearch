@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { chapters } from "@/db/schema";
-import { eq, sql, asc } from "drizzle-orm";
+import { eq, sql, asc, and, or, ilike } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { PAGINATION_SIZE } from "@/lib/constants";
 
@@ -37,8 +37,22 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json({ items, total: items.length });
   }
 
+  const search = url.searchParams.get("search")?.trim();
   const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
   const offset = (page - 1) * PAGE_SIZE;
+
+  // Build where clause
+  const baseWhere = eq(chapters.bookId, bookId);
+  const where = search
+    ? and(
+        baseWhere,
+        or(
+          ilike(chapters.title, `%${search}%`),
+          ilike(chapters.titleTranslated, `%${search}%`),
+          sql`cast(${chapters.sequenceNumber} as text) = ${search}`,
+        ),
+      )
+    : baseWhere;
 
   const [items, countResult] = await Promise.all([
     db
@@ -51,14 +65,14 @@ export async function GET(request: Request, { params }: RouteParams) {
         locked: chapters.locked,
       })
       .from(chapters)
-      .where(eq(chapters.bookId, bookId))
+      .where(where)
       .orderBy(asc(chapters.sequenceNumber))
       .limit(PAGE_SIZE)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)` })
       .from(chapters)
-      .where(eq(chapters.bookId, bookId)),
+      .where(where),
   ]);
 
   const total = Number(countResult[0]?.count ?? 0);
