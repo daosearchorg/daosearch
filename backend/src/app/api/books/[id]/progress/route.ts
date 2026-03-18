@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { readingProgresses, readingProgressHistories, chapters, bookStats, bookmarks } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { readingProgresses, readingProgressHistories, chapters, bookStats, bookmarks, translatedChapters } from "@/db/schema";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 interface RouteParams {
@@ -20,24 +20,32 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ chapterId: null, sequenceNumber: null, sourceUrl: null });
   }
 
-  const [row] = await db
+  const rows = await db
     .select({
       chapterId: readingProgresses.chapterId,
       sequenceNumber: chapters.sequenceNumber,
       chapterSeqOverride: readingProgresses.chapterSeqOverride,
       sourceUrl: readingProgresses.sourceUrl,
       sourceDomain: readingProgresses.sourceDomain,
+      lastReadAt: readingProgresses.lastReadAt,
     })
     .from(readingProgresses)
     .leftJoin(chapters, eq(readingProgresses.chapterId, chapters.id))
     .where(and(eq(readingProgresses.userId, session.user.dbId), eq(readingProgresses.bookId, bookId)))
-    .limit(1);
+    .orderBy(desc(readingProgresses.lastReadAt));
 
+  // Return primary (most recent) + all sources
+  const primary = rows[0] ?? null;
   return NextResponse.json({
-    chapterId: row?.chapterId ?? null,
-    sequenceNumber: row?.chapterSeqOverride ?? row?.sequenceNumber ?? null,
-    sourceUrl: row?.sourceUrl ?? null,
-    sourceDomain: row?.sourceDomain ?? null,
+    chapterId: primary?.chapterId ?? null,
+    sequenceNumber: primary?.chapterSeqOverride ?? primary?.sequenceNumber ?? null,
+    sourceUrl: primary?.sourceUrl ?? null,
+    sourceDomain: primary?.sourceDomain ?? null,
+    allSources: rows.map((r) => ({
+      sourceDomain: r.sourceDomain,
+      sourceUrl: r.sourceUrl,
+      sequenceNumber: r.chapterSeqOverride ?? r.sequenceNumber ?? null,
+    })),
   });
 }
 
@@ -94,7 +102,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .insert(readingProgresses)
     .values(values as typeof readingProgresses.$inferInsert)
     .onConflictDoUpdate({
-      target: [readingProgresses.userId, readingProgresses.bookId],
+      target: [readingProgresses.userId, readingProgresses.bookId, readingProgresses.sourceDomain],
       set: updateSet,
     });
 
@@ -152,4 +160,56 @@ export async function PUT(request: Request, { params }: RouteParams) {
     sequenceNumber,
     sourceUrl,
   });
+}
+
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const { id } = await params;
+  const bookId = Number(id);
+  if (isNaN(bookId)) {
+    return NextResponse.json({ error: "Invalid book ID" }, { status: 400 });
+  }
+
+  const session = await auth();
+  if (!session?.user?.dbId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const sourceDomain = searchParams.get("domain");
+  if (!sourceDomain) {
+    return NextResponse.json({ error: "domain query param required" }, { status: 400 });
+  }
+
+  // Delete translated chapters for this domain (cascade deletes chapter_entity_occurrences)
+  await db
+    .delete(translatedChapters)
+    .where(
+      and(
+        eq(translatedChapters.userId, session.user.dbId),
+        eq(translatedChapters.bookId, bookId),
+        eq(translatedChapters.sourceDomain, sourceDomain),
+      ),
+    );
+
+  // Delete the reading progress for this domain
+  await db
+    .delete(readingProgresses)
+    .where(
+      and(
+        eq(readingProgresses.userId, session.user.dbId),
+        eq(readingProgresses.bookId, bookId),
+        eq(readingProgresses.sourceDomain, sourceDomain),
+      ),
+    );
+
+  // Refresh reader count
+  await db
+    .update(bookStats)
+    .set({
+      readerCount: sql`(SELECT count(distinct user_id) FROM reading_progresses WHERE book_id = ${bookId})`,
+      updatedAt: new Date(),
+    })
+    .where(eq(bookStats.bookId, bookId));
+
+  return NextResponse.json({ ok: true });
 }

@@ -45,31 +45,41 @@ export default async function ReaderPage({ params, searchParams }: Props) {
   let savedSourceUrl: string | null = null;
   let savedSeq: number | null = null;
   let savedDomain: string | null = null;
-  let cachedChapters: { seq: number; title: string | null; translatedAgo: string }[] = [];
+  let otherSources: { sourceDomain: string | null; sourceUrl: string | null; seq: number | null }[] = [];
+  let cachedChapters: { seq: number | null; title: string | null; sourceDomain: string | null; translatedAgo: string }[] = [];
 
   if (session?.user?.dbId) {
-    const [progress] = await db
+    const allProgress = await db
       .select({
         chapterSeqOverride: readingProgresses.chapterSeqOverride,
         sequenceNumber: chaptersTable.sequenceNumber,
         sourceUrl: readingProgresses.sourceUrl,
         sourceDomain: readingProgresses.sourceDomain,
+        lastReadAt: readingProgresses.lastReadAt,
       })
       .from(readingProgresses)
       .leftJoin(chaptersTable, eq(readingProgresses.chapterId, chaptersTable.id))
       .where(and(eq(readingProgresses.userId, session.user.dbId), eq(readingProgresses.bookId, bookId)))
-      .limit(1);
+      .orderBy(desc(readingProgresses.lastReadAt));
 
-    if (progress) {
-      savedSourceUrl = progress.sourceUrl;
-      savedSeq = progress.chapterSeqOverride ?? progress.sequenceNumber ?? null;
-      savedDomain = progress.sourceDomain;
+    const primary = allProgress[0];
+    if (primary) {
+      savedSourceUrl = primary.sourceUrl;
+      savedSeq = primary.chapterSeqOverride ?? primary.sequenceNumber ?? null;
+      savedDomain = primary.sourceDomain;
     }
+
+    otherSources = allProgress.slice(1).map((p) => ({
+      sourceDomain: p.sourceDomain,
+      sourceUrl: p.sourceUrl,
+      seq: p.chapterSeqOverride ?? p.sequenceNumber ?? null,
+    }));
 
     const rawCached = await db
       .select({
         seq: translatedChapters.chapterSeq,
         title: translatedChapters.translatedTitle,
+        sourceDomain: translatedChapters.sourceDomain,
         translatedAt: translatedChapters.translatedAt,
       })
       .from(translatedChapters)
@@ -90,7 +100,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
           } else ago = `${h}h ago`;
         } else ago = `${m}m ago`;
       }
-      return { seq: ch.seq, title: ch.title, translatedAgo: ago };
+      return { seq: ch.seq, title: ch.title, sourceDomain: ch.sourceDomain, translatedAgo: ago };
     });
   }
 
@@ -117,6 +127,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
       totalChapterCount={stats?.chapterCount ?? 0}
       isAuthenticated={!!session?.user?.dbId}
       initialSourceUrl={sp.src || null}
+      otherSources={otherSources}
     />
   );
 }

@@ -314,42 +314,39 @@ def _mark_completed(redis_client, key: str):
     redis_client.set(key, str(time.time()))
 
 
-def _run_once(redis_client, info_handler):
-    """Run one cycle of booklist + book discovery, respecting cooldowns."""
-    from scrapy.crawler import CrawlerProcess
-
-    # Booklist discovery
+def _run_booklist_discovery(redis_client, info_handler):
+    """Run booklist discovery if cooldown has elapsed."""
     if _check_cooldown(redis_client, LAST_BOOKLIST_DISCOVERY_KEY, "booklist discovery"):
-        pass
-    else:
-        try:
-            from spiders.booklist_scraper import QidiantuBooklistScraper
-            bl_logger = logging.getLogger('spiders.booklist_scraper')
-            bl_logger.handlers = [info_handler]
-            bl_logger.setLevel(logging.INFO)
-            logger.info("Crawling booklist index...")
-            scraper = QidiantuBooklistScraper()
-            index_data = scraper.crawl_booklist_index(upsert_progressively=True)
-            logger.info(f"Booklist index complete: {len(index_data)} booklists found")
-            _mark_completed(redis_client, LAST_BOOKLIST_DISCOVERY_KEY)
-        except Exception as e:
-            logger.warning(f"Booklist index crawl failed: {e}")
-
-    # Book discovery
-    if _check_cooldown(redis_client, LAST_DISCOVERY_KEY, "book discovery"):
         return
+    try:
+        from spiders.booklist_scraper import QidiantuBooklistScraper
+        bl_logger = logging.getLogger('spiders.booklist_scraper')
+        bl_logger.handlers = [info_handler]
+        bl_logger.setLevel(logging.INFO)
+        logger.info("Crawling booklist index...")
+        scraper = QidiantuBooklistScraper()
+        index_data = scraper.crawl_booklist_index(upsert_progressively=True)
+        logger.info(f"Booklist index complete: {len(index_data)} booklists found")
+        _mark_completed(redis_client, LAST_BOOKLIST_DISCOVERY_KEY)
+    except Exception as e:
+        logger.warning(f"Booklist index crawl failed: {e}")
+
+
+def _run_book_discovery(runner, redis_client):
+    """Run book discovery crawl via CrawlerRunner if cooldown has elapsed. Returns a Deferred."""
+    from twisted.internet import defer
+
+    if _check_cooldown(redis_client, LAST_DISCOVERY_KEY, "book discovery"):
+        return defer.succeed(None)
 
     logger.info(
         f"Starting discovery crawl: max_pages={config.discovery['max_pages']}, "
         f"concurrent={config.discovery['concurrent_requests']}"
     )
 
-    process = CrawlerProcess(settings={
-        'LOG_ENABLED': False,
-    })
-    process.crawl(BookDiscoverySpider)
-    process.start()
-    _mark_completed(redis_client, LAST_DISCOVERY_KEY)
+    d = runner.crawl(BookDiscoverySpider)
+    d.addCallback(lambda _: _mark_completed(redis_client, LAST_DISCOVERY_KEY))
+    return d
 
 
 # How often to wake up and check cooldowns (seconds)
@@ -357,8 +354,11 @@ CHECK_INTERVAL = 24 * 3600  # 24 hours
 
 
 def run_discovery():
-    """Long-running discovery process. Checks cooldowns daily and runs when due."""
-    import time
+    """Long-running discovery process. Uses Twisted reactor + CrawlerRunner so the
+    reactor stays alive across multiple crawl cycles (CrawlerProcess.start() can
+    only be called once — Twisted's reactor is not restartable)."""
+    from twisted.internet import reactor, task
+    from scrapy.crawler import CrawlerRunner
 
     root = logging.getLogger()
     root.handlers.clear()
@@ -382,14 +382,22 @@ def run_discovery():
     stats_logger.setLevel(logging.INFO)
 
     redis_client = redis.from_url(config.redis['url'])
+    runner = CrawlerRunner(settings={'LOG_ENABLED': False})
 
     logger.info(f"Discovery process started (cooldown={DISCOVERY_COOLDOWN_DAYS}d, check every {CHECK_INTERVAL // 3600}h)")
 
-    while True:
+    def run_cycle():
         try:
-            _run_once(redis_client, info_handler)
+            _run_booklist_discovery(redis_client, info_handler)
         except Exception as e:
-            logger.error(f"Discovery cycle error: {e}")
+            logger.error(f"Booklist discovery error: {e}")
 
-        logger.info(f"Sleeping {CHECK_INTERVAL // 3600}h until next check...")
-        time.sleep(CHECK_INTERVAL)
+        d = _run_book_discovery(runner, redis_client)
+        d.addErrback(lambda f: logger.error(f"Book discovery error: {f.getErrorMessage()}"))
+        d.addCallback(lambda _: logger.info(f"Sleeping {CHECK_INTERVAL // 3600}h until next check..."))
+        return d
+
+    # Run immediately, then repeat every CHECK_INTERVAL seconds
+    loop = task.LoopingCall(run_cycle)
+    loop.start(CHECK_INTERVAL, now=True)
+    reactor.run(installSignalHandlers=True)

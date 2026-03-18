@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { userBookEntities } from "@/db/schema";
+import { userBookEntities, translatedChapters, chapterEntityOccurrences } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { seedUserEntities } from "@/lib/queries";
@@ -29,16 +29,62 @@ export async function GET(request: NextRequest) {
         ),
       );
 
-    return NextResponse.json({ entities });
+    // Count entity occurrences across translated chapters
+    let chapterCount = 0;
+    const occurrenceCounts: Record<string, number> = {};
+
+    const sp = request.nextUrl.searchParams;
+    if (sp.get("withCounts") === "1") {
+      // Count chapters per entity via FK join
+      const counts = await db
+        .select({
+          entityId: chapterEntityOccurrences.entityId,
+          count: sql<number>`count(distinct ${chapterEntityOccurrences.translatedChapterId})`,
+        })
+        .from(chapterEntityOccurrences)
+        .innerJoin(userBookEntities, eq(chapterEntityOccurrences.entityId, userBookEntities.id))
+        .where(
+          and(
+            eq(userBookEntities.userId, userId),
+            eq(userBookEntities.bookId, bookId),
+          ),
+        )
+        .groupBy(chapterEntityOccurrences.entityId);
+
+      // Map entity ID -> sourceTerm for the response
+      const entityIdToTerm = new Map(entities.map((e) => [e.id, e.sourceTerm]));
+      for (const row of counts) {
+        if (row.entityId == null) continue;
+        const term = entityIdToTerm.get(row.entityId);
+        if (term) occurrenceCounts[term] = Number(row.count);
+      }
+
+      // Get total translated chapter count
+      const [countRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(translatedChapters)
+        .where(
+          and(
+            eq(translatedChapters.userId, userId),
+            eq(translatedChapters.bookId, bookId),
+          ),
+        );
+      chapterCount = Number(countRow?.count ?? 0);
+    }
+
+    return NextResponse.json({
+      entities,
+      ...(sp.get("withCounts") === "1" ? { chapterCount, occurrenceCounts } : {}),
+    });
   }
 
   // Unauthenticated: return community consensus entities
   const communityResult = await db.execute(sql`
     SELECT DISTINCT ON (source_term)
-      source_term, translated_term, gender, category
+      source_term, translated_term, gender
     FROM user_book_entities
     WHERE book_id = ${bookId}
-    GROUP BY source_term, translated_term, gender, category
+    GROUP BY source_term, translated_term, gender
     ORDER BY source_term, COUNT(*) DESC
   `);
 
@@ -50,7 +96,6 @@ export async function GET(request: NextRequest) {
       sourceTerm: e.source_term,
       translatedTerm: e.translated_term,
       gender: e.gender || "N",
-      category: e.category || "character",
     })),
   });
 }
@@ -83,7 +128,6 @@ export async function POST(request: Request) {
         sourceTerm: entity.sourceTerm,
         translatedTerm: entity.translatedTerm,
         gender: entity.gender || "N",
-        category: entity.category || "character",
       })
       .onConflictDoUpdate({
         target: [
@@ -94,7 +138,6 @@ export async function POST(request: Request) {
         set: {
           translatedTerm: entity.translatedTerm,
           gender: entity.gender || "N",
-          category: entity.category || "character",
           updatedAt: new Date(),
         },
       });
@@ -111,7 +154,7 @@ export async function PUT(request: Request) {
   }
 
   const body = await request.json();
-  const { id, translatedTerm, gender, category } = body;
+  const { id, translatedTerm, gender } = body;
 
   if (!id || !translatedTerm) {
     return NextResponse.json(
@@ -125,7 +168,6 @@ export async function PUT(request: Request) {
     .set({
       translatedTerm,
       gender: gender || "N",
-      category: category || "character",
       updatedAt: new Date(),
     })
     .where(

@@ -235,8 +235,6 @@ async def translate_chapter_stream(
     if has_title:
         async def _translate_title():
             title_text = title.strip()
-            if entity_map.entities:
-                title_text = pre_inject(title_text, entity_map)
             title_prompt = f"Translate this Chinese chapter title to English. Return ONLY the translated title, nothing else.\n\n{title_text}"
             translated_title = ""
             async for token in llm.stream(

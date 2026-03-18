@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { translatedChapters } from "@/db/schema";
+import { translatedChapters, chapterEntityOccurrences, userBookEntities, userGeneralEntities } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
@@ -16,12 +16,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "bookId required" }, { status: 400 });
   }
 
-  const seq = sp.get("seq") ? Number(sp.get("seq")) : null;
+  const url = sp.get("url");
 
-  if (seq != null) {
-    // Return full translated text for a single chapter
+  if (url) {
+    // Return full translated text for a single chapter + its entity occurrences
     const [chapter] = await db
       .select({
+        id: translatedChapters.id,
         chapterSeq: translatedChapters.chapterSeq,
         translatedTitle: translatedChapters.translatedTitle,
         translatedText: translatedChapters.translatedText,
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
         and(
           eq(translatedChapters.userId, session.user.dbId),
           eq(translatedChapters.bookId, bookId),
-          eq(translatedChapters.chapterSeq, seq),
+          eq(translatedChapters.sourceUrl, url),
         ),
       )
       .limit(1);
@@ -41,7 +42,41 @@ export async function GET(req: NextRequest) {
     if (!chapter) {
       return NextResponse.json({ error: "Chapter not found" }, { status: 404 });
     }
-    return NextResponse.json(chapter);
+
+    // Fetch entities that appeared in this chapter
+    const bookEntities = await db
+      .select({
+        original: userBookEntities.sourceTerm,
+        translated: userBookEntities.translatedTerm,
+        gender: userBookEntities.gender,
+      })
+      .from(chapterEntityOccurrences)
+      .innerJoin(userBookEntities, eq(chapterEntityOccurrences.entityId, userBookEntities.id))
+      .where(eq(chapterEntityOccurrences.translatedChapterId, chapter.id));
+
+    const generalEntities = await db
+      .select({
+        original: userGeneralEntities.originalName,
+        translated: userGeneralEntities.translatedName,
+        gender: userGeneralEntities.gender,
+      })
+      .from(chapterEntityOccurrences)
+      .innerJoin(userGeneralEntities, eq(chapterEntityOccurrences.generalEntityId, userGeneralEntities.id))
+      .where(eq(chapterEntityOccurrences.translatedChapterId, chapter.id));
+
+    const entities = [
+      ...bookEntities.map((e) => ({ ...e, source: "book" })),
+      ...generalEntities.map((e) => ({ ...e, source: "general" })),
+    ];
+
+    return NextResponse.json({
+      chapterSeq: chapter.chapterSeq,
+      translatedTitle: chapter.translatedTitle,
+      translatedText: chapter.translatedText,
+      sourceDomain: chapter.sourceDomain,
+      translatedAt: chapter.translatedAt,
+      entities,
+    });
   }
 
   // Return list of cached chapter metadata

@@ -11,14 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface Entity {
   id: number | null;
   sourceTerm: string;
   translatedTerm: string;
   gender: string;
-  category: string;
 }
 
 interface EntityEditorProps {
@@ -70,7 +68,6 @@ export function EntityEditor({ bookId, isAuthenticated }: EntityEditorProps) {
           id: entity.id,
           translatedTerm: field === "translatedTerm" ? value : entity.translatedTerm,
           gender: field === "gender" ? value : entity.gender,
-          category: field === "category" ? value : entity.category,
         }),
       });
     } catch {
@@ -105,7 +102,6 @@ export function EntityEditor({ bookId, isAuthenticated }: EntityEditorProps) {
               sourceTerm: newSource.trim(),
               translatedTerm: newTranslated.trim(),
               gender: "N",
-              category: "character",
             },
           ],
         }),
@@ -203,11 +199,6 @@ export function EntityEditor({ bookId, isAuthenticated }: EntityEditorProps) {
                 {entity.gender || "N"}
               </span>
             )}
-
-            {/* Category badge */}
-            <Badge variant="secondary" className="text-[10px] shrink-0">
-              {entity.category || "character"}
-            </Badge>
 
             {/* Delete */}
             {isAuthenticated && entity.id && (

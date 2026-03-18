@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { translateAllProgressive, translateText, onRateLimitChange } from "@/lib/google-translate";
 import { ChapterParagraph, SystemBlockGroup, groupParagraphs } from "@/components/book/chapter-markdown";
 import { cleanChapterTitle, extractChapterSeq } from "@/components/reader/utils";
+import { EntityDialog, type EntityData } from "@/components/reader/entity-dialog";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -199,9 +200,11 @@ export function ReaderView({
   const [tierLoaded, setTierLoaded] = useState(!isAuthenticated); // if not authenticated, tier is always "free" — loaded immediately
   const [detectedEntities, setDetectedEntities] = useState<DetectedEntity[]>([]);
   const [showEntities, setShowEntities] = useState(false);
+  const [editingEntity, setEditingEntity] = useState<EntityData | null>(null);
   const [translationStatus, setTranslationStatus] = useState("");
   const [translationProgress, setTranslationProgress] = useState(0); // 0-1
   const translationAbortRef = useRef(false);
+  const skipCacheRef = useRef(false);
   const tokenUpdateRef = useRef<number | null>(null);
   const translatedContentRef = useRef<{ content: string; tier: string } | null>(null); // tracks what was already translated
   const articleRef = useRef<HTMLElement>(null);
@@ -315,6 +318,29 @@ export function ReaderView({
     setNavigating(false);
   }, [rawContent]);
 
+  // Save full translation to DB when done
+  useEffect(() => {
+    if (!translationDone || !bookId || !isAuthenticated || !sourceUrl) return;
+    // Don't re-save cached translations
+    if (translatedContentRef.current?.tier === "cached") return;
+    const text = translatedParagraphs.filter(Boolean).join("\n");
+    if (!text) return;
+    fetch("/api/reader/save-translation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bookId,
+        chapterSeq: chapterSeq ?? null,
+        sourceUrl,
+        translatedTitle: translatedTitle || null,
+        translatedText: text,
+        sourceDomain: domain,
+        entities: detectedEntities.map((e) => ({ original: e.original, translated: e.translated })),
+      }),
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [translationDone]);
+
   // Auto-translate — wait for tier to load before starting
   useEffect(() => {
     if (!rawContent || paragraphs.length === 0 || !tierLoaded) return;
@@ -338,6 +364,50 @@ export function ReaderView({
     // Don't re-translate if this content was already translated with the same tier
     if (translatedContentRef.current?.content === rawContent && translatedContentRef.current?.tier === translationTier) return;
 
+    // Try DB cache first, then fall back to fresh translation
+    let cacheChecked = false;
+    const shouldSkipCache = skipCacheRef.current;
+    skipCacheRef.current = false;
+    if (bookId && isAuthenticated && sourceUrl && !shouldSkipCache) {
+      cacheChecked = true;
+      setTranslating(true);
+      setTranslationStatus("Checking for saved translation...");
+
+      // Race cache check against a 2s timeout
+      const cachePromise = fetch(`/api/reader/cached-chapters?bookId=${bookId}&url=${encodeURIComponent(sourceUrl)}`)
+        .then((res) => res.ok ? res.json() : null)
+        .catch(() => null);
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+
+      Promise.race([cachePromise, timeoutPromise]).then((cached) => {
+        if (translationAbortRef.current) return;
+        if (cached?.translatedText) {
+          const cachedParas = cached.translatedText.split("\n").filter(Boolean);
+          if (cachedParas.length > 0) {
+            translatedContentRef.current = { content: rawContent, tier: "cached" };
+            setTranslatedParagraphs(cachedParas);
+            if (cached.translatedTitle) setTranslatedTitle(cached.translatedTitle);
+            if (Array.isArray(cached.entities)) {
+              setDetectedEntities(cached.entities.map((e: { original: string; translated: string; gender: string; source: string }) => ({
+                original: e.original,
+                translated: e.translated,
+                gender: e.gender || "N",
+                source: e.source || "book",
+              })));
+            }
+            setTranslationDone(true);
+            setTranslating(false);
+            setTranslationStatus("");
+            return;
+          }
+        }
+        doTranslate();
+      });
+    }
+
+    if (!cacheChecked) doTranslate();
+
+    function doTranslate() {
     translationAbortRef.current = false;
     setTranslatedParagraphs([]);
     setTranslationDone(false);
@@ -467,6 +537,8 @@ export function ReaderView({
       translateFreeGT(paragraphs, chapterTitle, rawContent);
     }
 
+    } // end doTranslate
+
     return () => {
       translationAbortRef.current = true;
       if (tokenUpdateRef.current !== null) {
@@ -478,19 +550,20 @@ export function ReaderView({
   }, [rawContent, retranslateKey, translationTier, tierLoaded]);
 
   const saveTranslatedTitle = useCallback((translatedTitleText: string) => {
-    if (!bookId || !isAuthenticated || !translatedTitleText) return;
+    if (!bookId || !isAuthenticated || !translatedTitleText || !sourceUrl) return;
     fetch("/api/reader/save-translation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         bookId,
-        chapterSeq: chapterSeq ?? 1,
+        chapterSeq: chapterSeq ?? null,
+        sourceUrl,
         translatedTitle: translatedTitleText,
         translatedText: "",
         sourceDomain: domain,
       }),
     }).catch(() => {});
-  }, [bookId, domain, isAuthenticated, chapterSeq]);
+  }, [bookId, domain, sourceUrl, isAuthenticated, chapterSeq]);
 
   const translateFreeGT = useCallback((paras: string[], title: string, content: string) => {
     if (title) {
@@ -522,7 +595,8 @@ export function ReaderView({
 
   const retranslate = useCallback(() => {
     translationAbortRef.current = true;
-    translatedContentRef.current = null; // allow re-translation of same content
+    translatedContentRef.current = null;
+    skipCacheRef.current = true;
     setTimeout(() => setRetranslateKey((k) => k + 1), 50);
   }, []);
 
@@ -537,6 +611,32 @@ export function ReaderView({
   );
 
   const entityPhase = translating && !translatedParagraphs.some(Boolean) && detectedEntities.length > 0;
+
+  const handleEntityClick = useCallback(async (entity: DetectedEntity) => {
+    if (!isAuthenticated || !bookId) return;
+    // Look up the entity ID from the API to enable editing
+    try {
+      const res = await fetch(`/api/reader/entities?bookId=${bookId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const match = (data.entities || []).find(
+        (e: { sourceTerm: string }) => e.sourceTerm === entity.original,
+      );
+      setEditingEntity({
+        id: match?.id ?? null,
+        original: entity.original,
+        translated: entity.translated,
+        gender: entity.gender || "N",
+      });
+    } catch {
+      // Fall back to opening without id
+      setEditingEntity({
+        original: entity.original,
+        translated: entity.translated,
+        gender: entity.gender || "N",
+      });
+    }
+  }, [isAuthenticated, bookId]);
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full">
@@ -561,6 +661,13 @@ export function ReaderView({
       <h1 className="text-lg sm:text-xl font-medium text-center leading-snug">
         {lang === "en" && translatedTitle ? translatedTitle : chapterTitle}
       </h1>
+
+      {/* Chapter info line */}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        {chapterSeq != null && <span>Ch. {chapterSeq}</span>}
+        {chapterSeq != null && domain && <span>·</span>}
+        {domain && <span>{domain}</span>}
+      </div>
 
       {/* Language toggle + reading time */}
       <div className="flex items-center justify-center gap-2.5">
@@ -598,14 +705,14 @@ export function ReaderView({
             disabled={detectedEntities.length === 0}
             onClick={() => setShowEntities(!showEntities)}
           >
-            <BookType className="size-3.5" />
+            <BookType className="size-4" />
             <span className="hidden sm:inline">Glossary</span>
             {detectedEntities.length > 0 && (
               <span className="text-[10px] tabular-nums text-muted-foreground">{detectedEntities.length}</span>
             )}
           </Button>
           <Button variant="ghost" size="sm" onClick={retranslate}>
-            <RefreshCw className={`size-3.5 ${translating ? "animate-spin" : ""}`} />
+            <RefreshCw className={`size-4 ${translating ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Retranslate</span>
           </Button>
         </div>
@@ -664,6 +771,7 @@ export function ReaderView({
                 style={{ animationDelay: `${Math.min(gi * 20, 400)}ms` }}
                 entities={detectedEntities}
                 showEntities={showEntities}
+                onEntityClick={handleEntityClick}
               />
             ));
           })
@@ -678,6 +786,7 @@ export function ReaderView({
                   className="text-foreground/90 mb-3 sm:mb-4 animate-in fade-in duration-200"
                   entities={detectedEntities}
                   showEntities={showEntities}
+                  onEntityClick={handleEntityClick}
                 />
               );
             }
@@ -720,6 +829,22 @@ export function ReaderView({
           )}
         </Button>
       </nav>
+
+      {/* Entity edit dialog */}
+      {editingEntity && bookId && (
+        <EntityDialog
+          open={!!editingEntity}
+          onOpenChange={(open) => {
+            if (!open) setEditingEntity(null);
+          }}
+          entity={editingEntity}
+          bookId={bookId}
+          onSaved={() => {
+            // Trigger retranslation to pick up updated entities
+            retranslate();
+          }}
+        />
+      )}
 
       {/* Selection copy tooltip */}
       {selTooltip && (

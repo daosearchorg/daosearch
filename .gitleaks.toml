@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''\.env''',
+  '''\.venv/''',
+  '''\.claude/''',
+  '''\.next/''',
+  '''node_modules/''',
+  '''draftwork/''',
+]

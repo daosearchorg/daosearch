@@ -752,7 +752,7 @@ class QidiantuBooklistScraper:
                             disabled = notif_session.query(NotificationPreference.user_id).filter(
                                 NotificationPreference.user_id.in_(follower_ids),
                                 NotificationPreference.type == 'qidian_booklist_updated',
-                                NotificationPreference.enabled == False,
+                                NotificationPreference.enabled == False,  # noqa: E712 — SQLAlchemy requires == for SQL expressions
                             ).all()
                             disabled_user_ids = {row.user_id for row in disabled}
 

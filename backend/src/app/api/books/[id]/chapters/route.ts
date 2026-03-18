@@ -2,12 +2,13 @@ import { db } from "@/db";
 import { chapters } from "@/db/schema";
 import { eq, sql, asc } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { PAGINATION_SIZE } from "@/lib/constants";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = PAGINATION_SIZE;
 
 export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;

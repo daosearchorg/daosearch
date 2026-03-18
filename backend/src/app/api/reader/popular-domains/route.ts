@@ -30,7 +30,20 @@ const getPopularDomains = (bookId: number) =>
         .orderBy(sql`count(distinct ${readingProgresses.userId}) desc`)
         .limit(5);
 
-      return rows.filter((r) => r.domain);
+      // Total unique readers across all domains
+      const [totalRow] = await db
+        .select({
+          total: sql<number>`count(distinct ${readingProgresses.userId})`,
+        })
+        .from(readingProgresses)
+        .where(
+          sql`${readingProgresses.bookId} = ${bookId} AND ${readingProgresses.sourceDomain} IS NOT NULL`,
+        );
+
+      return {
+        domains: rows.filter((r) => r.domain),
+        totalReaders: Number(totalRow?.total ?? 0),
+      };
     },
     [`popular-domains-${bookId}`],
     { revalidate: 300 },

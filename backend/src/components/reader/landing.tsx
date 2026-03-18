@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ExternalLink,
+  ChevronLeft,
   ChevronRight,
   Pencil,
   Loader2,
@@ -17,18 +18,27 @@ import {
   Eye,
   ScrollText,
   BookText,
+  Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { bookUrl } from "@/lib/utils";
+import { bookUrl, slugify } from "@/lib/utils";
 import { ReaderView } from "@/components/reader/reader-view";
 import { GoogleIcon } from "@/components/icons/provider-icons";
 import { extractFromHtml, cleanChapterTitle, extractChapterSeq, fetchPageViaExtension, fetchViaTab } from "@/components/reader/utils";
 import { translateAllProgressive, translateText } from "@/lib/google-translate";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from "@/components/shared/responsive-dialog";
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -41,8 +51,9 @@ interface QidianChapter {
 }
 
 interface CachedChapter {
-  seq: number;
+  seq: number | null;
   title: string | null;
+  sourceDomain: string | null;
   translatedAgo: string;
 }
 
@@ -61,6 +72,7 @@ interface DaoReaderLandingProps {
   totalChapterCount: number;
   isAuthenticated: boolean;
   initialSourceUrl?: string | null;
+  otherSources?: { sourceDomain: string | null; sourceUrl: string | null; seq: number | null }[];
 }
 
 interface PopularDomain {
@@ -96,43 +108,85 @@ function DomainFavicon({ domain, className = "size-4" }: { domain: string; class
 
 // ─── Translation History ──────────────────────────────────
 
-function TranslationHistory({ cachedChapters }: { cachedChapters: CachedChapter[] }) {
-  const [showAll, setShowAll] = useState(false);
-  const displayed = showAll ? cachedChapters : cachedChapters.slice(0, 10);
+const HISTORY_PAGE_SIZE = 20;
+
+function TranslationHistory({
+  cachedChapters,
+  page,
+  onPageChange,
+}: {
+  cachedChapters: CachedChapter[];
+  page: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.ceil(cachedChapters.length / HISTORY_PAGE_SIZE);
+  const start = (page - 1) * HISTORY_PAGE_SIZE;
+  const displayed = cachedChapters.slice(start, start + HISTORY_PAGE_SIZE);
 
   return (
-    <section>
-      <h2 className="text-base sm:text-lg font-medium mb-3 flex items-center gap-2">
-        <History className="size-4 text-muted-foreground" />
-        Your Translations
-        <span className="text-sm text-muted-foreground font-normal">{cachedChapters.length}</span>
-      </h2>
+    <div>
+      <p className="text-xs text-muted-foreground mb-3">
+        {cachedChapters.length} translated chapters
+      </p>
       <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
-        {displayed.map((ch) => (
+        {displayed.map((ch, i) => (
           <div
-            key={ch.seq}
+            key={`${ch.seq}-${i}`}
             className="flex items-center gap-3 px-3 py-2.5"
           >
             <span className="text-xs tabular-nums text-muted-foreground shrink-0 w-8 text-right">
-              {ch.seq}
+              {ch.seq ?? "—"}
             </span>
-            <span className="text-sm truncate flex-1">
-              {ch.title || `Chapter ${ch.seq}`}
-            </span>
-            <span className="text-[11px] text-muted-foreground/60 shrink-0 tabular-nums">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm truncate">
+                {ch.title || (ch.seq != null ? `Chapter ${ch.seq}` : "Untitled")}
+              </p>
+              {ch.sourceDomain && (
+                <p className="flex items-center gap-1 mt-0.5 sm:hidden">
+                  <DomainFavicon domain={ch.sourceDomain} className="size-3" />
+                  <span className="text-[11px] text-muted-foreground/60">{ch.sourceDomain}</span>
+                  <span className="text-[11px] text-muted-foreground/60">· {ch.translatedAgo}</span>
+                </p>
+              )}
+            </div>
+            {ch.sourceDomain && (
+              <span className="hidden sm:flex items-center gap-1 shrink-0">
+                <DomainFavicon domain={ch.sourceDomain} className="size-3" />
+                <span className="text-[11px] text-muted-foreground/60">{ch.sourceDomain}</span>
+              </span>
+            )}
+            <span className="hidden sm:block text-[11px] text-muted-foreground/60 shrink-0 tabular-nums">
               {ch.translatedAgo}
             </span>
           </div>
         ))}
       </div>
-      {cachedChapters.length > 10 && !showAll && (
-        <div className="flex justify-center mt-3">
-          <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
-            Show all {cachedChapters.length} translations
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="text-xs tabular-nums text-muted-foreground px-2">
+            <span className="font-medium text-foreground">{page}</span>
+            {" / "}
+            {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <ChevronRight className="size-4" />
           </Button>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -153,20 +207,27 @@ export function DaoReaderLanding({
   totalChapterCount,
   isAuthenticated,
   initialSourceUrl,
+  otherSources = [],
 }: DaoReaderLandingProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [viewState, setViewState] = useState<ViewState>("browse");
+  const [viewState, setViewState] = useState<ViewState>(initialSourceUrl ? "waiting" : "browse");
   const [chapterData, setChapterData] = useState<ChapterData | null>(null);
   const [pasteUrl, setPasteUrl] = useState("");
   const [popularDomains, setPopularDomains] = useState<PopularDomain[]>([]);
   const [editingProgress, setEditingProgress] = useState(false);
   const [manualSeq, setManualSeq] = useState(String(savedSeq ?? ""));
+  const defaultTab = isQidian ? "chapters" : "sources";
   const [chaptersPage, setChaptersPage] = useState(1);
   const [allQidianChapters, setAllQidianChapters] = useState(qidianChapters ?? []);
   const [fetchingUrl, setFetchingUrl] = useState<string | null>(null);
   const [extensionAvailable, setExtensionAvailable] = useState<boolean | null>(null);
   const [translationTier, setTranslationTier] = useState<string>("free");
+  const [deletingSource, setDeletingSource] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [totalReaders, setTotalReaders] = useState(0);
   const isMobile = useIsMobile();
 
   // Prefetch state
@@ -194,6 +255,23 @@ export function DaoReaderLanding({
       setExtensionAvailable(!!document.documentElement.getAttribute("data-daosearch-ext-id"));
     }, 1500);
   }, []);
+
+  // Restore tab + pagination from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab) setActiveTab(tab);
+    const cp = Number(params.get("cp"));
+    if (cp > 1) {
+      setChaptersPage(cp);
+      fetch(`/api/books/${bookId}/chapters?page=${cp}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.items) setAllQidianChapters(data.items); })
+        .catch(() => {});
+    }
+    const hp = Number(params.get("hp"));
+    if (hp > 1) setHistoryPage(hp);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-load chapter from URL query param (?src=...)
   useEffect(() => {
@@ -227,7 +305,15 @@ export function DaoReaderLanding({
   useEffect(() => {
     fetch(`/api/reader/popular-domains?bookId=${bookId}`)
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setPopularDomains(data); })
+      .then((data) => {
+        if (data?.domains) {
+          setPopularDomains(data.domains);
+          setTotalReaders(data.totalReaders ?? 0);
+        } else if (Array.isArray(data)) {
+          // Fallback for old API shape
+          setPopularDomains(data);
+        }
+      })
       .catch(() => {});
   }, [bookId]);
 
@@ -261,16 +347,27 @@ export function DaoReaderLanding({
       if (seq) params.set("ch", String(seq));
       const qs = params.toString();
       window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
-    } else {
-      // Browse mode — clean URL (just the path with slug)
-      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [chapterData, viewState]);
+
+  // Sync tab + pagination to URL
+  useEffect(() => {
+    if (viewState !== "browse") return;
+    const params = new URLSearchParams(window.location.search);
+    const defaultTab = isQidian ? "chapters" : "sources";
+    if (activeTab !== defaultTab) params.set("tab", activeTab);
+    else params.delete("tab");
+    if (chaptersPage > 1) params.set("cp", String(chaptersPage));
+    else params.delete("cp");
+    if (historyPage > 1) params.set("hp", String(historyPage));
+    else params.delete("hp");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+  }, [activeTab, chaptersPage, historyPage, viewState, isQidian]);
 
   // ─── Actions ─────────────────────────────────────────────
 
   const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(bookTitleRaw + " 阅读")}`;
-  const totalReaders = popularDomains.reduce((sum, d) => sum + Number(d.readers), 0);
 
   const handleManualProgress = async () => {
     const seq = Number(manualSeq);
@@ -285,14 +382,24 @@ export function DaoReaderLanding({
     router.refresh();
   };
 
-  const loadMoreChapters = async () => {
-    const nextPage = chaptersPage + 1;
-    const res = await fetch(`/api/books/${bookId}/chapters?page=${nextPage}`);
+  const handleDeleteSource = async () => {
+    if (!deletingSource) return;
+    setDeleteLoading(true);
+    await fetch(`/api/books/${bookId}/progress?domain=${encodeURIComponent(deletingSource)}`, {
+      method: "DELETE",
+    });
+    setDeleteLoading(false);
+    setDeletingSource(null);
+    router.refresh();
+  };
+
+  const loadChaptersPage = async (page: number) => {
+    const res = await fetch(`/api/books/${bookId}/chapters?page=${page}`);
     if (res.ok) {
       const data = await res.json();
       if (data.items) {
-        setAllQidianChapters((prev) => [...prev, ...data.items]);
-        setChaptersPage(nextPage);
+        setAllQidianChapters(data.items);
+        setChaptersPage(page);
       }
     }
   };
@@ -515,108 +622,51 @@ export function DaoReaderLanding({
 
   const cachedTitle = savedSeq != null ? cachedChapters.find((c) => c.seq === savedSeq)?.title : null;
 
+  // Determine first chapter URL for "Start Reading" CTA
+  const firstChapterUrl = allQidianChapters.length > 0 ? allQidianChapters[0].url : null;
+
   return (
-    <div className="flex flex-col gap-8 sm:gap-10 min-w-0">
+    <div className="flex flex-col gap-5 min-w-0">
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row gap-5 sm:gap-6">
-        <Link href={bookUrl(bookId, bookTitle)} className="shrink-0 self-center sm:self-start">
+      <div className="flex gap-5 sm:gap-6">
+        <Link href={bookUrl(bookId, bookTitle)} className="shrink-0 self-start">
           {bookImageUrl ? (
             <Image
               src={bookImageUrl}
               alt={bookTitle}
-              width={220}
-              height={308}
-              className="rounded-xl object-cover shadow-md w-[140px] sm:w-[160px]"
+              width={140}
+              height={196}
+              className="rounded-xl object-cover shadow-md w-[110px] sm:w-[140px]"
               priority
             />
           ) : (
-            <div className="w-[140px] sm:w-[160px] h-[196px] sm:h-[224px] rounded-xl bg-muted border flex items-center justify-center">
-              <BookText className="size-8 text-muted-foreground" />
+            <div className="w-[110px] sm:w-[140px] aspect-[5/7] rounded-xl bg-muted border flex items-center justify-center">
+              <BookText className="size-6 text-muted-foreground" />
             </div>
           )}
         </Link>
 
-        <div className="flex flex-col min-w-0 flex-1 text-center sm:text-left">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary w-fit mx-auto sm:mx-0 mb-1.5">
-            <Globe className="size-3.5" />
-            Dao Reader
-          </span>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">
+        <div className="flex flex-col min-w-0 flex-1 pt-0.5">
+          {/* Title */}
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight line-clamp-2">
             {bookTitle}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">{bookTitleRaw}</p>
+          <p className="text-sm text-muted-foreground/70 truncate mt-0.5">{bookTitleRaw}</p>
 
-          {/* Stats */}
-          <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 min-h-[28px]">
-            {totalReaders > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border border-border bg-muted/50">
-                <Eye className="size-3 text-muted-foreground" />
-                {totalReaders} reader{totalReaders !== 1 ? "s" : ""}
-              </span>
-            )}
-            {extensionAvailable === true && (
-              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border border-green-500/20 bg-green-500/5 text-green-600 dark:text-green-400">
-                <span className="size-1.5 rounded-full bg-green-500" />
-                Extension connected
-              </span>
-            )}
-            {extensionAvailable === false && (
-              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-3" />
-                Extension required
-              </span>
-            )}
-            {extensionAvailable === null && (
-              <span className="inline-flex items-center rounded-full w-36 h-7 bg-muted/50 animate-pulse" />
-            )}
-          </div>
-
-          {/* Action buttons */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
-            {/* Continue Reading */}
-            {savedSeq != null && savedSourceUrl && (
-              <Button
-                className="gap-2.5 w-full sm:w-auto max-w-full sm:max-w-xs overflow-hidden"
-                disabled={!!fetchingUrl}
-                onClick={() => fetchAndRead(savedSourceUrl)}
-              >
-                {fetchingUrl === savedSourceUrl ? (
-                  <Loader2 className="size-4 animate-spin shrink-0" />
-                ) : (
-                  <Play className="size-4 shrink-0" />
-                )}
-                <span className="truncate">{cachedTitle || `Chapter ${savedSeq}`}</span>
-              </Button>
-            )}
-
-            {/* Book Page */}
-            <Link href={bookUrl(bookId, bookTitle)} className="w-full sm:w-auto">
-              <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                <BookText className="size-4" />
-                Book Page
-              </Button>
-            </Link>
-          </div>
-
-          {/* Source info + set progress */}
-          {savedSeq != null && (
-            <div className="mt-2 flex flex-wrap items-center justify-center sm:justify-start gap-3">
-              {savedDomain && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <DomainFavicon domain={savedDomain} className="size-3.5" />
-                  Ch. {savedSeq} · {savedDomain}
-                </span>
-              )}
-
-              {/* Set progress — Drawer on mobile, Popover on desktop */}
+          {/* Reading progress */}
+          {savedSeq != null && savedDomain && (
+            <div className="flex items-center gap-2 mt-3 text-sm">
+              <DomainFavicon domain={savedDomain} className="size-4" />
+              <span className="font-medium">Ch. {savedSeq}</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-muted-foreground truncate">{savedDomain}</span>
               {isMobile ? (
                 <>
                   <button
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                    className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0"
                     onClick={() => setEditingProgress(true)}
                   >
-                    <Pencil className="size-3" />
-                    Set progress
+                    <Pencil className="size-2.5" />
                   </button>
                   <Drawer open={editingProgress} onOpenChange={setEditingProgress}>
                     <DrawerContent>
@@ -643,9 +693,8 @@ export function DaoReaderLanding({
               ) : (
                 <Popover open={editingProgress} onOpenChange={setEditingProgress}>
                   <PopoverTrigger asChild>
-                    <button className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                      <Pencil className="size-3" />
-                      Set progress
+                    <button className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-0.5 shrink-0">
+                      <Pencil className="size-2.5" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-3" align="start">
@@ -669,6 +718,115 @@ export function DaoReaderLanding({
               )}
             </div>
           )}
+
+          {/* Stats row */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {totalReaders > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2 py-0.5 text-[11px] text-foreground">
+                <Eye className="size-3" />
+                {totalReaders} {totalReaders === 1 ? "reader" : "readers"}
+              </span>
+            )}
+            {extensionAvailable === true && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/5 px-2 py-0.5 text-[11px] text-green-600 dark:text-green-400">
+                <span className="size-1.5 rounded-full bg-green-500" />
+                Connected
+              </span>
+            )}
+            {extensionAvailable === false && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-3" />
+                Extension needed
+              </span>
+            )}
+            {extensionAvailable === null && (
+              <span className="inline-block w-20 h-5 bg-muted/50 rounded-full animate-pulse" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Other source progresses ── */}
+      {otherSources.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted-foreground/60">Other sources</span>
+          <div className="flex flex-wrap gap-2">
+            {otherSources.map((src) => (
+              <button
+                key={src.sourceDomain}
+                className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent/40 transition-colors"
+                disabled={!src.sourceUrl || !!fetchingUrl}
+                onClick={() => { if (src.sourceUrl) fetchAndRead(src.sourceUrl); }}
+              >
+                {src.sourceDomain && <DomainFavicon domain={src.sourceDomain} className="size-3.5" />}
+                <span className="text-muted-foreground">{src.sourceDomain || "Unknown"}</span>
+                {src.seq != null && <span className="text-xs text-muted-foreground/60">Ch. {src.seq}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Action Buttons (book-page style) ── */}
+      <div className="flex flex-col gap-2">
+        {/* Primary CTA */}
+        {savedSeq != null && savedSourceUrl ? (
+          <Button
+            className="w-full gap-2"
+            disabled={!!fetchingUrl}
+            onClick={() => fetchAndRead(savedSourceUrl)}
+          >
+            {fetchingUrl === savedSourceUrl ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Play className="size-4" />
+            )}
+            <span className="truncate">
+              {cachedTitle ? `Continue: ${cachedTitle}` : `Continue Ch. ${savedSeq}`}
+            </span>
+          </Button>
+        ) : isQidian && firstChapterUrl ? (
+          <Button
+            className="w-full gap-2"
+            disabled={!!fetchingUrl}
+            onClick={() => fetchAndRead(firstChapterUrl)}
+          >
+            {fetchingUrl === firstChapterUrl ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Play className="size-4 fill-current" />
+            )}
+            Start Reading
+          </Button>
+        ) : (
+          <a
+            href={googleSearchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setViewState("waiting")}
+            className="w-full"
+          >
+            <Button className="w-full gap-2" variant="default">
+              <Search className="size-4" />
+              Find a Source
+            </Button>
+          </a>
+        )}
+
+        {/* Secondary buttons row */}
+        <div className="flex gap-2">
+          <Link href={`/reader/${bookId}/glossary/${slugify(bookTitle)}`} className="flex-1">
+            <Button variant="outline" className="w-full gap-2">
+              <ScrollText className="size-4" />
+              Glossary
+            </Button>
+          </Link>
+          <Link href={bookUrl(bookId, bookTitle)} className="flex-1">
+            <Button variant="outline" className="w-full gap-2">
+              <BookText className="size-4" />
+              Book Page
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -745,130 +903,244 @@ export function DaoReaderLanding({
         </div>
       )}
 
-      {/* ── Find Sources ── */}
-      <section>
-        <h2 className="text-base sm:text-lg font-medium mb-1">Find Sources</h2>
-        <p className="text-sm text-muted-foreground mb-4">Search for raw chapters or paste a direct link to translate</p>
+      {/* ── Tabs ── */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full">
+          {isQidian && (
+            <TabsTrigger value="chapters" className="flex-1">
+              <ScrollText className="size-3.5" />
+              Chapters
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="sources" className="flex-1">
+            <Globe className="size-3.5" />
+            Sources
+          </TabsTrigger>
+          {cachedChapters.length > 0 && (
+            <TabsTrigger value="history" className="flex-1">
+              <History className="size-3.5" />
+              History
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-        {/* Google Search — prominent */}
-        <a
-          href={googleSearchUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => setViewState("waiting")}
-          className="flex items-center gap-3 rounded-xl border p-4 hover:bg-accent/40 transition-colors group"
-        >
-          <div className="size-10 rounded-full bg-muted flex items-center justify-center shrink-0 group-hover:bg-accent transition-colors">
-            <GoogleIcon className="size-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Search for chapters</p>
-            <p className="text-xs text-muted-foreground truncate">
-              <span className="text-foreground/60">Google:</span> {bookTitleRaw} 阅读
-            </p>
-          </div>
-          <ExternalLink className="size-4 text-muted-foreground/40 shrink-0" />
-        </a>
-
-        {/* Paste URL */}
-        <div className="mt-3 flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              value={pasteUrl}
-              onChange={(e) => setPasteUrl(e.target.value)}
-              placeholder="Or paste a chapter URL to translate..."
-              className="h-10 pl-9 text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && pasteUrl.trim()) fetchAndRead(pasteUrl.trim());
-              }}
-            />
-          </div>
-          <Button
-            className="h-10 w-full sm:w-auto shrink-0"
-            disabled={!pasteUrl.trim() || !!fetchingUrl}
-            onClick={() => fetchAndRead(pasteUrl.trim())}
-          >
-            {fetchingUrl === pasteUrl.trim() ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            Translate
-          </Button>
-        </div>
-
-        {/* Popular sources */}
-        {popularDomains.length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs text-muted-foreground mb-2">Popular sources</p>
-            <div className="flex flex-wrap gap-2">
-              {popularDomains.map((d) => (
-                <div key={d.domain} className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-                  <DomainFavicon domain={d.domain} className="size-4" />
-                  <span className="text-sm">{d.domain}</span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Eye className="size-3" />
-                    {d.readers}
-                  </span>
+        {/* ── Chapters Tab ── */}
+        {isQidian && (
+          <TabsContent value="chapters">
+            {allQidianChapters.length > 0 ? (
+              <div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {totalChapterCount > 0 ? totalChapterCount.toLocaleString() : `${allQidianChapters.length}+`} chapters
+                </p>
+                <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
+                  {allQidianChapters.map((ch) => {
+                    const isCurrent = savedSeq === ch.sequenceNumber;
+                    const isLoading = fetchingUrl === ch.url;
+                    return (
+                      <button
+                        key={ch.id}
+                        className={`flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40 transition-colors ${isCurrent ? "bg-accent/30" : ""}`}
+                        disabled={isLoading}
+                        onClick={() => { if (ch.url) fetchAndRead(ch.url); }}
+                      >
+                        <span className={`text-xs tabular-nums shrink-0 w-8 text-right ${isCurrent ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                          {ch.sequenceNumber}
+                        </span>
+                        <span className="text-sm truncate flex-1">
+                          {ch.titleTranslated || ch.title || `Chapter ${ch.sequenceNumber}`}
+                        </span>
+                        {isCurrent && (
+                          <Badge variant="secondary" className="text-[10px] shrink-0 h-5">Reading</Badge>
+                        )}
+                        {isLoading ? (
+                          <Loader2 className="size-3.5 animate-spin text-muted-foreground shrink-0" />
+                        ) : (
+                          <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
+                {qidianTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={chaptersPage <= 1}
+                      onClick={() => loadChaptersPage(chaptersPage - 1)}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <span className="text-xs tabular-nums text-muted-foreground px-2">
+                      <span className="font-medium text-foreground">{chaptersPage}</span>
+                      {" / "}
+                      {qidianTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={chaptersPage >= qidianTotalPages}
+                      onClick={() => loadChaptersPage(chaptersPage + 1)}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">No chapters available.</p>
+            )}
+          </TabsContent>
         )}
 
-        {/* Extension warning moved to top of page */}
-      </section>
+        {/* ── Sources Tab ── */}
+        <TabsContent value="sources">
+          <div className="flex flex-col gap-4">
+            {/* Google Search */}
+            <a
+              href={googleSearchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setViewState("waiting")}
+              className="flex items-center gap-3 rounded-xl border p-4 hover:bg-accent/40 transition-colors group"
+            >
+              <div className="size-10 rounded-full bg-muted flex items-center justify-center shrink-0 group-hover:bg-accent transition-colors">
+                <GoogleIcon className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Search for chapters</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  <span className="text-foreground/60">Google:</span> {bookTitleRaw} 阅读
+                </p>
+              </div>
+              <ExternalLink className="size-4 text-muted-foreground/40 shrink-0" />
+            </a>
 
-      {/* ── Qidian Chapters ── */}
-      {isQidian && allQidianChapters.length > 0 && (
-        <section>
-          <h2 className="text-base sm:text-lg font-medium mb-3 flex items-center gap-2">
-            <ScrollText className="size-4 text-muted-foreground" />
-            Chapters
-            <span className="text-sm text-muted-foreground font-normal">
-              {totalChapterCount > 0 ? totalChapterCount.toLocaleString() : `${allQidianChapters.length}+`}
-            </span>
-          </h2>
-          <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
-            {allQidianChapters.map((ch) => {
-              const isCurrent = savedSeq === ch.sequenceNumber;
-              const isLoading = fetchingUrl === ch.url;
-              return (
-                <button
-                  key={ch.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40 transition-colors ${isCurrent ? "bg-accent/30" : ""}`}
-                  disabled={isLoading}
-                  onClick={() => { if (ch.url) fetchAndRead(ch.url); }}
-                >
-                  <span className={`text-xs tabular-nums shrink-0 w-8 text-right ${isCurrent ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                    {ch.sequenceNumber}
-                  </span>
-                  <span className="text-sm truncate flex-1">
-                    {ch.titleTranslated || ch.title || `Chapter ${ch.sequenceNumber}`}
-                  </span>
-                  {isCurrent && (
-                    <Badge variant="secondary" className="text-[10px] shrink-0 h-5">Reading</Badge>
-                  )}
-                  {isLoading ? (
-                    <Loader2 className="size-3.5 animate-spin text-muted-foreground shrink-0" />
-                  ) : (
-                    <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          {chaptersPage < qidianTotalPages && (
-            <div className="flex justify-center mt-3">
-              <Button size="sm" onClick={loadMoreChapters}>
-                Load More
+            {/* Paste URL */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={pasteUrl}
+                  onChange={(e) => setPasteUrl(e.target.value)}
+                  placeholder="Paste a chapter URL to translate..."
+                  className="h-10 pl-9 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && pasteUrl.trim()) fetchAndRead(pasteUrl.trim());
+                  }}
+                />
+              </div>
+              <Button
+                className="h-10 w-full sm:w-auto shrink-0"
+                disabled={!pasteUrl.trim() || !!fetchingUrl}
+                onClick={() => fetchAndRead(pasteUrl.trim())}
+              >
+                {fetchingUrl === pasteUrl.trim() ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                Translate
               </Button>
             </div>
-          )}
-        </section>
-      )}
 
-      {/* ── Translation History ── */}
-      {cachedChapters.length > 0 && (
-        <TranslationHistory cachedChapters={cachedChapters} />
-      )}
+            {/* Your sources */}
+            {isAuthenticated && savedSourceUrl && savedDomain && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Your sources</p>
+                <div className="flex flex-col rounded-lg border divide-y overflow-hidden">
+                  {/* Primary source */}
+                  <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40 transition-colors">
+                    <button
+                      className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                      disabled={!!fetchingUrl}
+                      onClick={() => fetchAndRead(savedSourceUrl)}
+                    >
+                      <DomainFavicon domain={savedDomain} className="size-4 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm truncate">{savedDomain}</p>
+                        <p className="text-xs text-muted-foreground truncate">{savedSourceUrl}</p>
+                      </div>
+                      {savedSeq != null && (
+                        <span className="text-xs text-muted-foreground shrink-0">Ch. {savedSeq}</span>
+                      )}
+                      {fetchingUrl === savedSourceUrl ? (
+                        <Loader2 className="size-3.5 animate-spin text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+                      )}
+                    </button>
+                    <button
+                      className="shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Remove source and its translations"
+                      onClick={(e) => { e.stopPropagation(); setDeletingSource(savedDomain); }}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                  {/* Other sources */}
+                  {otherSources.filter((s) => s.sourceUrl && s.sourceDomain).map((src) => (
+                    <div key={src.sourceDomain} className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40 transition-colors">
+                      <button
+                        className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                        disabled={!src.sourceUrl || !!fetchingUrl}
+                        onClick={() => { if (src.sourceUrl) fetchAndRead(src.sourceUrl); }}
+                      >
+                        <DomainFavicon domain={src.sourceDomain!} className="size-4 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm truncate">{src.sourceDomain}</p>
+                          <p className="text-xs text-muted-foreground truncate">{src.sourceUrl}</p>
+                        </div>
+                        {src.seq != null && (
+                          <span className="text-xs text-muted-foreground shrink-0">Ch. {src.seq}</span>
+                        )}
+                        {fetchingUrl === src.sourceUrl ? (
+                          <Loader2 className="size-3.5 animate-spin text-muted-foreground shrink-0" />
+                        ) : (
+                          <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+                        )}
+                      </button>
+                      <button
+                        className="shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Remove source and its translations"
+                        onClick={(e) => { e.stopPropagation(); setDeletingSource(src.sourceDomain!); }}
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Popular sources */}
+            {popularDomains.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Popular with readers</p>
+                <div className="flex flex-wrap gap-2">
+                  {popularDomains.map((d) => (
+                    <div key={d.domain} className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
+                      <DomainFavicon domain={d.domain} className="size-4" />
+                      <span className="text-sm">{d.domain}</span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Eye className="size-3" />
+                        {d.readers}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── History Tab ── */}
+        {cachedChapters.length > 0 && (
+          <TabsContent value="history">
+            <TranslationHistory
+              cachedChapters={cachedChapters}
+              page={historyPage}
+              onPageChange={setHistoryPage}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
 
       {/* ── Auth notice ── */}
       {!isAuthenticated && (
@@ -876,6 +1148,26 @@ export function DaoReaderLanding({
           Sign in to track your reading progress and save translations.
         </p>
       )}
+
+      {/* ── Delete source confirmation ── */}
+      <ResponsiveDialog open={!!deletingSource} onOpenChange={(open) => { if (!open) setDeletingSource(null); }}>
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Remove source</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
+            Remove <span className="font-medium text-foreground">{deletingSource}</span> and all its cached translations? Your reading progress from this source will be lost.
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <Button variant="outline" onClick={() => setDeletingSource(null)} disabled={deleteLoading}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteSource} disabled={deleteLoading}>
+            {deleteLoading && <Loader2 className="size-3 animate-spin mr-1.5" />}
+            Remove
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
     </div>
   );
 }

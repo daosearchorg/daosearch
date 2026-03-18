@@ -20,10 +20,10 @@ export async function seedUserEntities(userId: number, bookId: number): Promise<
   // Get community consensus: most popular translations from other users
   const communityResult = await db.execute(sql`
     SELECT DISTINCT ON (source_term)
-      source_term, translated_term, gender, category
+      source_term, translated_term, gender
     FROM user_book_entities
     WHERE book_id = ${bookId} AND user_id != ${userId}
-    GROUP BY source_term, translated_term, gender, category
+    GROUP BY source_term, translated_term, gender
     ORDER BY source_term, COUNT(*) DESC
   `);
 
@@ -37,7 +37,6 @@ export async function seedUserEntities(userId: number, bookId: number): Promise<
         sourceTerm: e.source_term as string,
         translatedTerm: e.translated_term as string,
         gender: (e.gender as string) || "N",
-        category: (e.category as string) || "character",
       })),
     );
   }

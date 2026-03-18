@@ -269,7 +269,7 @@ class ReadingProgress(Base):
     chapter = relationship("Chapter")
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'book_id', name='uq_user_book_progress'),
+        UniqueConstraint('user_id', 'book_id', 'source_domain', name='uq_user_book_progress_domain'),
         Index('idx_reading_progresses_user_id', 'user_id'),
         Index('idx_reading_progresses_book_id', 'book_id'),
         Index('idx_reading_progresses_chapter_id', 'chapter_id'),
@@ -763,7 +763,8 @@ class TranslatedChapter(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
-    chapter_seq = Column(Integer, nullable=False)
+    chapter_seq = Column(Integer, nullable=True)
+    source_url = Column(String(1000), nullable=True)
     translated_title = Column(String(500), nullable=True)
     translated_text = Column(Text, nullable=False)
     source_domain = Column(String(255), nullable=True)
@@ -773,33 +774,12 @@ class TranslatedChapter(Base):
     book = relationship("Book")
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'book_id', 'chapter_seq', name='uq_translated_chapter'),
+        UniqueConstraint('user_id', 'book_id', 'source_url', name='uq_translated_chapter_url'),
         Index('idx_translated_chapters_user_book', 'user_id', 'book_id'),
     )
 
     def __repr__(self):
         return f"<TranslatedChapter(user_id={self.user_id}, book_id={self.book_id}, seq={self.chapter_seq})>"
-
-
-class NovelEntity(Base):
-    """Community/shared entity glossary per book. Seeded by AI detection, visible to all users."""
-    __tablename__ = 'novel_entities'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
-    original_name = Column(String(255), nullable=False)
-    translated_name = Column(String(255), nullable=False)
-    gender = Column(String(1), server_default='N')
-    is_hidden = Column(Boolean, server_default='false', nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
-
-    book = relationship("Book")
-
-    __table_args__ = (
-        UniqueConstraint('book_id', 'original_name', name='uq_novel_entity'),
-        Index('idx_novel_entities_book', 'book_id'),
-    )
 
 
 class UserGeneralEntity(Base):
@@ -822,27 +802,6 @@ class UserGeneralEntity(Base):
     )
 
 
-class UserEntityOverride(Base):
-    """User-specific override for a novel entity — custom translation or hidden."""
-    __tablename__ = 'user_entity_overrides'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    novel_entity_id = Column(Integer, ForeignKey('novel_entities.id', ondelete='CASCADE'), nullable=False)
-    custom_name = Column(String(255), nullable=False)
-    is_hidden = Column(Boolean, server_default='false', nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
-
-    user = relationship("User")
-    novel_entity = relationship("NovelEntity")
-
-    __table_args__ = (
-        UniqueConstraint('user_id', 'novel_entity_id', name='uq_user_entity_override'),
-        Index('idx_user_entity_overrides_user', 'user_id'),
-    )
-
-
 class UserBookEntity(Base):
     """User-scoped entity glossary per novel. Seeded from community consensus, editable per user."""
     __tablename__ = 'user_book_entities'
@@ -853,7 +812,6 @@ class UserBookEntity(Base):
     source_term = Column(String(255), nullable=False)
     translated_term = Column(String(255), nullable=False)
     gender = Column(String(1), server_default='N')
-    category = Column(String(50), server_default='character')
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
@@ -863,6 +821,23 @@ class UserBookEntity(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'book_id', 'source_term', name='uq_user_book_entity'),
         Index('idx_user_book_entities_user_book', 'user_id', 'book_id'),
+    )
+
+
+class ChapterEntityOccurrence(Base):
+    """Tracks which entities appear in which translated chapters for fast occurrence counting."""
+    __tablename__ = 'chapter_entity_occurrences'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    translated_chapter_id = Column(Integer, ForeignKey('translated_chapters.id', ondelete='CASCADE'), nullable=False)
+    entity_id = Column(Integer, ForeignKey('user_book_entities.id', ondelete='CASCADE'), nullable=True)
+    general_entity_id = Column(Integer, ForeignKey('user_general_entities.id', ondelete='CASCADE'), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('translated_chapter_id', 'entity_id', name='uq_chapter_entity_book'),
+        UniqueConstraint('translated_chapter_id', 'general_entity_id', name='uq_chapter_entity_general'),
+        Index('idx_chapter_entity_entity', 'entity_id'),
+        Index('idx_chapter_entity_general', 'general_entity_id'),
     )
 
 

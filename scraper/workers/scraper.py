@@ -8,7 +8,6 @@ import re
 import time
 import random
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 
@@ -18,7 +17,7 @@ from core.config import config
 from core.database import db_manager
 from core.models import Book, Chapter, Genre, QQUser, BookComment, Bookmark, Notification, NotificationPreference
 from services.queue_manager import QueueManager
-from workers.stats import upload_book_image, upload_avatar_image
+from workers.stats import upload_book_image
 
 
 _BR_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
@@ -488,8 +487,10 @@ class BookScraper:
                         depth = 1
                         j = i + 1
                         while j < len(args_raw) and depth > 0:
-                            if args_raw[j] == '{': depth += 1
-                            elif args_raw[j] == '}': depth -= 1
+                            if args_raw[j] == '{':
+                                depth += 1
+                            elif args_raw[j] == '}':
+                                depth -= 1
                             j += 1
                         args.append(args_raw[i:j])
                         i = j + 1
@@ -507,28 +508,40 @@ class BookScraper:
                 for idx, param in enumerate(params):
                     if idx < len(args):
                         val = args[idx]
-                        if val == 'true': val = True
-                        elif val == 'false': val = False
-                        elif val == 'null': val = None
+                        if val == 'true':
+                            val = True
+                        elif val == 'false':
+                            val = False
+                        elif val == 'null':
+                            val = None
                         elif val.startswith('"') and val.endswith('"'):
                             val = val[1:-1].replace('\\n', '\n').replace('\\r', '\r').replace('\\u002F', '/')
                         else:
-                            try: val = int(val)
+                            try:
+                                val = int(val)
                             except ValueError:
-                                try: val = float(val)
-                                except ValueError: pass
+                                try:
+                                    val = float(val)
+                                except ValueError:
+                                    pass
                         var_map[param] = val
 
             def resolve(key):
                 if key in var_map:
                     return var_map[key]
-                if key == 'true': return True
-                if key == 'false': return False
-                if key in ('null', 'void 0'): return None
-                try: return int(key)
+                if key == 'true':
+                    return True
+                if key == 'false':
+                    return False
+                if key in ('null', 'void 0'):
+                    return None
+                try:
+                    return int(key)
                 except ValueError:
-                    try: return float(key)
-                    except ValueError: return key
+                    try:
+                        return float(key)
+                    except ValueError:
+                        return key
 
             # Extract the bookInfo:{...} block (identified by scoreNumText)
             book_info_match = re.search(r'bookInfo:\{([^}]+scoreNumText[^}]+)\}', text)
@@ -1215,7 +1228,6 @@ def refresh_book(url: str, book_id: int) -> dict:
 
                         if bookmarker_ids:
                             # Deduplicate: check if new_chapters notification for same book exists in last hour
-                            from datetime import timedelta
                             one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
                             existing = notif_session.query(Notification.user_id).filter(
                                 Notification.type == 'new_chapters',
@@ -1228,7 +1240,7 @@ def refresh_book(url: str, book_id: int) -> dict:
                             disabled = notif_session.query(NotificationPreference.user_id).filter(
                                 NotificationPreference.user_id.in_(bookmarker_ids),
                                 NotificationPreference.type == 'new_chapters',
-                                NotificationPreference.enabled == False,
+                                NotificationPreference.enabled == False,  # noqa: E712 — SQLAlchemy requires == for SQL expressions
                             ).all()
                             disabled_user_ids = {row.user_id for row in disabled}
 

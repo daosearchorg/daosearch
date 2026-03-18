@@ -239,8 +239,8 @@ async def save_new_entities(
 
         result = await session.execute(
             sql_text("""
-                INSERT INTO user_book_entities (user_id, book_id, source_term, translated_term, gender, category, created_at, updated_at)
-                VALUES (:user_id, :book_id, :original, :translated, :gender, 'character', NOW(), NOW())
+                INSERT INTO user_book_entities (user_id, book_id, source_term, translated_term, gender, created_at, updated_at)
+                VALUES (:user_id, :book_id, :original, :translated, :gender, NOW(), NOW())
                 ON CONFLICT (user_id, book_id, source_term) DO NOTHING
                 RETURNING id
             """),

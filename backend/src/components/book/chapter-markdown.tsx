@@ -31,6 +31,7 @@ function highlightEntities(
   text: string,
   entities: DetectedEntity[],
   keyBase: number,
+  onEntityClick?: (entity: DetectedEntity) => void,
 ): React.ReactNode[] {
   const sorted = entities
     .filter((e) => e.translated.length > 1)
@@ -51,7 +52,8 @@ function highlightEntities(
     return (
       <span
         key={`e${keyBase}-${i}`}
-        className="bg-foreground/8 rounded-sm px-0.5 cursor-help relative group"
+        className={`bg-foreground/8 rounded-sm px-0.5 relative group ${onEntityClick ? "cursor-pointer" : "cursor-help"}`}
+        onClick={onEntityClick ? (e) => { e.stopPropagation(); onEntityClick(ent); } : undefined}
       >
         {part}
         <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2.5 py-1.5 rounded-md bg-popover border border-border shadow-md text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
@@ -72,6 +74,7 @@ function parseInline(
   text: string,
   entities?: DetectedEntity[],
   showEntities?: boolean,
+  onEntityClick?: (entity: DetectedEntity) => void,
 ): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
   let key = 0;
@@ -83,7 +86,7 @@ function parseInline(
     if (showEntities && entities?.length) {
       nodes.push(
         <React.Fragment key={key++}>
-          {highlightEntities(t, entities, key * 100)}
+          {highlightEntities(t, entities, key * 100, onEntityClick)}
         </React.Fragment>,
       );
     } else {
@@ -101,7 +104,7 @@ function parseInline(
 
     const inner = (t: string) =>
       showEntities && entities?.length
-        ? highlightEntities(t, entities, key * 100 + lastIndex)
+        ? highlightEntities(t, entities, key * 100 + lastIndex, onEntityClick)
         : t;
 
     if (match[1] !== undefined) {
@@ -201,12 +204,14 @@ export function ChapterParagraph({
   style,
   entities,
   showEntities,
+  onEntityClick,
 }: {
   text: string;
   className?: string;
   style?: React.CSSProperties;
   entities?: DetectedEntity[];
   showEntities?: boolean;
+  onEntityClick?: (entity: DetectedEntity) => void;
 }) {
   if (isSceneBreak(text)) {
     return <SceneBreak />;
@@ -216,7 +221,7 @@ export function ChapterParagraph({
     return <SystemBlock text={text} />;
   }
 
-  return <p className={className} style={style}>{parseInline(text, entities, showEntities)}</p>;
+  return <p className={className} style={style}>{parseInline(text, entities, showEntities, onEntityClick)}</p>;
 }
 
 /** Render a merged system block (multiple lines in one panel) */

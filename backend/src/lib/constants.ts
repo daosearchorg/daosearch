@@ -132,7 +132,7 @@ export const RANK_TYPE_CYCLE_LABELS: Record<string, Record<string, string>> = {
 
 export const PAGE_SIZE = 20;
 export const REVIEWS_PAGE_SIZE = 10;
-export const PAGINATION_SIZE = 49;
+export const PAGINATION_SIZE = 50;
 export const LIBRARY_PAGE_SIZE = 50;
 
 // Library sort options
