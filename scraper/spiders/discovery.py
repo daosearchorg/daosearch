@@ -357,6 +357,8 @@ def run_discovery():
     """Long-running discovery process. Uses Twisted reactor + CrawlerRunner so the
     reactor stays alive across multiple crawl cycles (CrawlerProcess.start() can
     only be called once — Twisted's reactor is not restartable)."""
+    import scrapy.utils.reactor
+    scrapy.utils.reactor.install_reactor('twisted.internet.asyncioreactor.AsyncioSelectorReactor')
     from twisted.internet import reactor, task
     from scrapy.crawler import CrawlerRunner
 
