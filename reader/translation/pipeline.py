@@ -178,8 +178,13 @@ async def translate_chapter_stream(
             new_entities_to_save: list[dict] = []
             filtered_map = EntityMap()
 
+            # For BYOK (OpenAIClient), use the user's model for entity detection too
+            # since they may not have access to the Gemini entity model
+            from translation.llm_client import OpenAIClient
+            detect_model = model if isinstance(llm, OpenAIClient) else entity_model
+
             async for token in llm.stream(
-                model=entity_model,
+                model=detect_model,
                 user_prompt=prompt,
                 temperature=0.3,
                 max_tokens=4000,
@@ -224,12 +229,11 @@ async def translate_chapter_stream(
         except Exception as e:
             logger.debug(f"Entity detection failed: {e}")
 
-    yield TranslationEvent("status", f"Entities ready ({len(entity_map.entities)} total). Translating...")
-
-    # 3. Translate title separately (don't mix with chapter content)
+    # 3. Translate title in background (runs concurrently with chunk prep)
     has_title = bool(title and title.strip())
+    title_task = None
     if has_title:
-        try:
+        async def _translate_title():
             title_text = title.strip()
             if entity_map.entities:
                 title_text = pre_inject(title_text, entity_map)
@@ -243,16 +247,15 @@ async def translate_chapter_stream(
                 max_tokens=200,
             ):
                 translated_title += token
-            translated_title = cleanup(translated_title).strip().strip('"').strip("'")
-            if translated_title:
-                yield TranslationEvent("title", translated_title)
-        except Exception as e:
-            logger.debug(f"Title translation failed: {e}")
+            return cleanup(translated_title).strip().strip('"').strip("'")
+        title_task = asyncio.create_task(_translate_title())
 
     # 4. Pre-inject entities into content and split into chunks
     chunk_size = _settings.translation_chunk_size
     chunk_paras = split_into_chunks(paragraphs, chunk_size)
     num_chunks = len(chunk_paras)
+
+    yield TranslationEvent("status", f"Translating... 0/{num_chunks} chunks")
 
     injected_chunks: list[str] = []
     for cp in chunk_paras:
@@ -333,6 +336,7 @@ async def translate_chapter_stream(
 
     # Yield events as they arrive from the queue
     chunks_done = 0
+    title_emitted = False
     while True:
         event = await queue.get()
         if event is None:
@@ -340,7 +344,26 @@ async def translate_chapter_stream(
         yield event
         if event.event == "chunk_done":
             chunks_done += 1
-            yield TranslationEvent("status", f"Translated {chunks_done}/{num_chunks} chunks...")
+            yield TranslationEvent("status", f"Translating... {chunks_done}/{num_chunks} chunks")
+
+        # Emit title as soon as it's ready (runs concurrently with chunks)
+        if not title_emitted and title_task and title_task.done():
+            try:
+                translated_title = title_task.result()
+                if translated_title:
+                    yield TranslationEvent("title", translated_title)
+            except Exception:
+                pass
+            title_emitted = True
+
+    # If title wasn't emitted during chunk processing, emit now
+    if not title_emitted and title_task:
+        try:
+            translated_title = await title_task
+            if translated_title:
+                yield TranslationEvent("title", translated_title)
+        except Exception:
+            pass
 
     yield TranslationEvent("done", json.dumps({"total": total, "chunks": num_chunks}))
 

@@ -24,8 +24,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ReaderPage({ params }: Props) {
+export default async function ReaderPage({ params, searchParams }: Props) {
   const { id, slug } = await params;
+  const sp = await searchParams;
   const bookId = Number(id);
   if (isNaN(bookId)) notFound();
 
@@ -115,6 +116,7 @@ export default async function ReaderPage({ params }: Props) {
       qidianTotalPages={qidianChapters?.totalPages ?? 0}
       totalChapterCount={stats?.chapterCount ?? 0}
       isAuthenticated={!!session?.user?.dbId}
+      initialSourceUrl={sp.src || null}
     />
   );
 }

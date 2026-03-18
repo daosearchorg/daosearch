@@ -396,9 +396,7 @@ export function ReaderView({
             for (const block of events) {
               const { event, data } = parseSSE(block);
               if (event === "status") {
-                if (!data.toLowerCase().includes("entit")) {
-                  setTranslationStatus(data);
-                }
+                setTranslationStatus(data);
               } else if (event === "entity") {
                 const ent = JSON.parse(data);
                 entityCount++;
@@ -634,7 +632,7 @@ export function ReaderView({
             </span>
           )}
         </div>
-        {translating && translationProgress > 0 && (
+        {translating && (
           <div className="h-1 w-full max-w-xs mx-auto rounded-full bg-muted overflow-hidden">
             <div
               className="h-full bg-primary/40 rounded-full transition-[width] duration-300 ease-out"

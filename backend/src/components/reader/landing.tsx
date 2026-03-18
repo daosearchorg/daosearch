@@ -60,6 +60,7 @@ interface DaoReaderLandingProps {
   qidianTotalPages: number;
   totalChapterCount: number;
   isAuthenticated: boolean;
+  initialSourceUrl?: string | null;
 }
 
 interface PopularDomain {
@@ -151,6 +152,7 @@ export function DaoReaderLanding({
   qidianTotalPages,
   totalChapterCount,
   isAuthenticated,
+  initialSourceUrl,
 }: DaoReaderLandingProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -192,6 +194,13 @@ export function DaoReaderLanding({
       setExtensionAvailable(!!document.documentElement.getAttribute("data-daosearch-ext-id"));
     }, 1500);
   }, []);
+
+  // Auto-load chapter from URL query param (?src=...)
+  useEffect(() => {
+    if (initialSourceUrl) {
+      fetchAndRead(initialSourceUrl);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load translation tier
   useEffect(() => {
