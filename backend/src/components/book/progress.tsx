@@ -46,12 +46,12 @@ export function BookProgress({ bookId, initialSeq, bookTitleRaw, bookTitle }: Bo
         {seq != null ? (
           <>
             <Eye className="size-4" />
-            Continue Ch. {seq}
+            Reader · Ch. {seq}
           </>
         ) : (
           <>
             <Play className="size-4 fill-current" />
-            Start Reading
+            Open Reader
           </>
         )}
       </Button>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookOpen, ExternalLink, Loader2, Lock } from "lucide-react";
 import { LoginDialog } from "@/components/layout/login-dialog";
+import { readerUrl } from "@/lib/utils";
 
 interface Chapter {
   id: number;
@@ -20,11 +21,10 @@ interface BookChaptersProps {
   initialItems?: Chapter[];
   initialCurrentSeq?: number | null;
   singleColumn?: boolean;
-  bookTitleRaw?: string;
-  bookUrl?: string;
+  bookTitle?: string;
 }
 
-export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn }: BookChaptersProps) {
+export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn, bookTitle }: BookChaptersProps) {
   const router = useRouter();
   const { status } = useSession();
   const [items, setItems] = useState<Chapter[]>(initialItems ?? []);
@@ -56,7 +56,7 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
       setLoginOpen(true);
       return;
     }
-    router.push(`/reader?book=${bookId}&seq=${ch.sequenceNumber}`);
+    router.push(readerUrl(bookId, bookTitle ?? null));
   };
 
   if (loading) {

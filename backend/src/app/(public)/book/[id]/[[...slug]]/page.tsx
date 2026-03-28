@@ -480,6 +480,7 @@ export default async function BookDetailPage({ params }: Props) {
               bookId={bookId}
               initialItems={[]}
               initialCurrentSeq={progressSeq}
+              bookTitle={displayTitle}
             />
           }
         />
@@ -518,6 +519,7 @@ export default async function BookDetailPage({ params }: Props) {
         bookId={bookId}
         chapterCount={stats?.chapterCount ?? chapters.total}
         progressSeq={progressSeq}
+        bookTitle={displayTitle}
       />
     </div>
   );

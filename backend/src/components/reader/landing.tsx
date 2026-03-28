@@ -689,7 +689,7 @@ export function DaoReaderLanding({
     <div className="flex flex-col gap-6 min-w-0">
       {/* ── Breadcrumb ── */}
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/reader" className="hover:text-foreground transition-colors">Reader</Link>
+        <span>Reader</span>
         <span className="text-muted-foreground/40">/</span>
         <span className="truncate text-foreground/70">{bookTitle}</span>
       </nav>
