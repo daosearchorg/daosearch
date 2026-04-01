@@ -355,7 +355,7 @@ export default async function Home() {
         <HeroSearch />
         <div className="flex items-center justify-center gap-2.5 sm:gap-3">
           <a
-            href="https://discord.gg/Gmd3JXDuEU"
+            href="https://discord.com/invite/XXUR9nkjwa"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-lg bg-[#5865F2] px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-medium text-white hover:bg-[#4752C4] transition-colors"

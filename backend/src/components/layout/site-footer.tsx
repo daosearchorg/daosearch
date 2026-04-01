@@ -64,7 +64,7 @@ export function SiteFooter() {
             <Github className="size-4" />
           </a>
           <a
-            href="https://discord.gg/Gmd3JXDuEU"
+            href="https://discord.com/invite/XXUR9nkjwa"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground transition-colors"

@@ -139,7 +139,7 @@ export default function DiscordBotPage() {
         </p>
         <div className="flex justify-center">
           <a
-            href="https://discord.gg/Gmd3JXDuEU"
+            href="https://discord.com/invite/XXUR9nkjwa"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"

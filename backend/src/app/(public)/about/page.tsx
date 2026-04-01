@@ -74,7 +74,7 @@ export default function AboutPage() {
         </p>
         <div className="flex flex-col gap-2">
           <a
-            href="https://discord.gg/Gmd3JXDuEU"
+            href="https://discord.com/invite/XXUR9nkjwa"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm sm:text-base text-muted-foreground hover:text-foreground transition-colors"

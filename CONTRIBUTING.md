@@ -34,4 +34,4 @@ Hey, thanks for wanting to help out. DaoSearch is a side project and we keep thi
 
 ## Questions?
 
-Open an issue or hop into the [Discord](https://discord.gg/Gmd3JXDuEU). We're pretty responsive there.
+Open an issue or hop into the [Discord](https://discord.com/invite/XXUR9nkjwa). We're pretty responsive there.
