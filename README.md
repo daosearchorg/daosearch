@@ -10,7 +10,7 @@ DaoSearch isn't a reading site — it's a discovery and curation platform. The d
 
 ## What you get
 
-- **870k+ novels** from Qidian with auto-translated titles, synopses, and comments
+- **1M+ novels** from Qidian with auto-translated titles, synopses, and comments
 - **Rankings** — Qidian official charts (trending, rising, free, finished, all-time) + community rankings based on what readers are actually reading
 - **Booklists** — browse Qidian-curated lists and create your own, with tags and follower counts
 - **Ratings & reviews** on every novel, plus community activity feeds

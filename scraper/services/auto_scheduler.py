@@ -55,10 +55,10 @@ class AutoScheduler:
             except Exception as e:
                 logger.error(f"Failed to schedule missing fields task: {e}")
 
-        # Missing translations every 60 minutes
-        if current_time - self.last_runs['missing_translations'] >= 3600:
+        # Missing translations every 15 minutes
+        if current_time - self.last_runs['missing_translations'] >= 900:
             try:
-                job_id = self.queue_manager.add_maintenance_job('check_missing_translations', limit=5000)
+                job_id = self.queue_manager.add_maintenance_job('check_missing_translations', limit=10000)
                 logger.info(f"Scheduled missing translations task: {job_id}")
                 self.last_runs['missing_translations'] = current_time
             except Exception as e:
@@ -73,19 +73,19 @@ class AutoScheduler:
             except Exception as e:
                 logger.error(f"Failed to schedule missing comments task: {e}")
 
-        # Untranslated comments every 2 hours
-        if current_time - self.last_runs['untranslated_comments'] >= 7200:
+        # Untranslated comments every 15 minutes
+        if current_time - self.last_runs['untranslated_comments'] >= 900:
             try:
-                job_id = self.queue_manager.add_maintenance_job('check_untranslated_comments', limit=2000)
+                job_id = self.queue_manager.add_maintenance_job('check_untranslated_comments', limit=5000)
                 logger.info(f"Scheduled untranslated comments task: {job_id}")
                 self.last_runs['untranslated_comments'] = current_time
             except Exception as e:
                 logger.error(f"Failed to schedule untranslated comments task: {e}")
 
-        # Untranslated nicknames every 2 hours
-        if current_time - self.last_runs['untranslated_nicknames'] >= 7200:
+        # Untranslated nicknames every 15 minutes
+        if current_time - self.last_runs['untranslated_nicknames'] >= 900:
             try:
-                job_id = self.queue_manager.add_maintenance_job('check_untranslated_nicknames', limit=2000)
+                job_id = self.queue_manager.add_maintenance_job('check_untranslated_nicknames', limit=5000)
                 logger.info(f"Scheduled untranslated nicknames task: {job_id}")
                 self.last_runs['untranslated_nicknames'] = current_time
             except Exception as e:
@@ -111,10 +111,10 @@ class AutoScheduler:
             except Exception as e:
                 logger.error(f"Failed to schedule booklist refresh: {e}")
 
-        # Booklist missing translations every 2 hours
-        if current_time - self.last_runs['booklist_missing_translations'] >= 7200:
+        # Booklist missing translations every 15 minutes
+        if current_time - self.last_runs['booklist_missing_translations'] >= 900:
             try:
-                job_id = self.queue_manager.add_maintenance_job('check_booklist_missing_translations', limit=1000)
+                job_id = self.queue_manager.add_maintenance_job('check_booklist_missing_translations', limit=3000)
                 logger.info(f"Scheduled booklist missing translations task: {job_id}")
                 self.last_runs['booklist_missing_translations'] = current_time
             except Exception as e:

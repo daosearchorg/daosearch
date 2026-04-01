@@ -48,7 +48,7 @@ export const revalidate = 900;
 export const metadata: Metadata = {
   title: "DaoSearch — Opensource Jade Slip for Raws",
   description:
-    "Discover, rank, and track 870k+ web novels. Browse rankings, booklists, translated comments, and community reviews — all in one place.",
+    "Discover, rank, and track 1M+ web novels. Browse rankings, booklists, translated comments, and community reviews — all in one place.",
 };
 
 function formatNumber(n: number): string {
@@ -310,7 +310,7 @@ const HOW_IT_WORKS = [
   {
     icon: Search,
     title: "Discover",
-    description: "Search 870k+ raws, browse trending charts, or check what others are reading — like MAL for raw web novels",
+    description: "Search 1M+ raws, browse trending charts, or check what others are reading — like MAL for raw web novels",
   },
   {
     icon: BookOpen,

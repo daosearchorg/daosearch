@@ -228,7 +228,7 @@ export async function getLibraryBooks(params: LibraryParams) {
     .leftJoin(genres, eq(books.genreId, genres.id))
     .leftJoin(bookStats, eq(books.id, bookStats.bookId));
 
-  // Use cached count for default landing (no user filters) — avoids expensive count(*) on 870k+ rows
+  // Use cached count for default landing (no user filters) — avoids expensive count(*) on 1M+ rows
   const hasFilters = !!(name || author || genreId || subgenreId || (bookIds && bookIds.length > 0) || minWords != null || maxWords != null || status || gender || updatedWithin || olderThan || (tagIds && tagIds.length > 0));
 
   const countQuery = hasFilters
