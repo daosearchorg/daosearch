@@ -9,7 +9,7 @@ from core.config import config
 
 
 PROXY_SET_KEY = "scraper:proxies:pool"
-DISCOVERY_POOL_KEY = "scraper:proxies:discovery"
+DISCOVERY_POOL_KEY = PROXY_SET_KEY  # shared pool
 
 logger = logging.getLogger(__name__)
 
