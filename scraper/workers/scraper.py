@@ -17,7 +17,26 @@ from core.config import config
 from core.database import db_manager
 from core.models import Book, Chapter, Genre, QQUser, BookComment, Bookmark, Notification, NotificationPreference
 from services.queue_manager import QueueManager
+from services.dead_books import is_dead, mark_dead
 from workers.stats import upload_book_image
+
+
+def _is_404(exc) -> bool:
+    resp = getattr(exc, "response", None)
+    return resp is not None and resp.status_code == 404
+
+
+def _delete_book(book_id: int) -> None:
+    """Hard-delete a book (FKs cascade to chapters/comments/charts/etc.)."""
+    try:
+        with db_manager.get_session() as s:
+            b = s.query(Book).filter(Book.id == book_id).first()
+            if b:
+                s.delete(b)
+                s.commit()
+                logger.info(f"Deleted dead book {book_id}")
+    except Exception as e:
+        logger.warning(f"Failed to delete dead book {book_id}: {e}")
 
 
 _BR_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
@@ -1013,6 +1032,17 @@ def scrape_and_save(url: str) -> dict:
     except Exception as e:
         logger.warning(f"Error checking existing book: {e}, proceeding with scrape")
 
+    # Skip books already known dead on book.qq.com
+    rconn = scraper.proxy_manager.redis
+    bid = extract_bid_from_url(url)
+    if bid and is_dead(rconn, bid):
+        with db_manager.get_session() as s:
+            b = s.query(Book).filter(Book.url == url).first()
+            if b:
+                s.delete(b)
+                s.commit()
+        return {'success': False, 'url': url, 'skipped': 'dead'}
+
     max_retries = 3
 
     for attempt in range(max_retries):
@@ -1048,6 +1078,17 @@ def scrape_and_save(url: str) -> dict:
                 }
 
         except requests.RequestException as e:
+            if _is_404(e):
+                logger.warning(f"404 on qq scrape ({url}); blacklisting bid={bid}")
+                if bid:
+                    mark_dead(rconn, bid)
+                with db_manager.get_session() as s:
+                    b = s.query(Book).filter(Book.url == url).first()
+                    if b:
+                        s.delete(b)
+                        s.commit()
+                return {'success': False, 'url': url,
+                        'deleted': True, 'reason': '404'}
             logger.warning(f"Request error on attempt {attempt + 1}: {e}")
             if attempt < max_retries - 1:
                 # Retry with next proxy
@@ -1091,6 +1132,13 @@ def refresh_book(url: str, book_id: int) -> dict:
             'error': f'Database error: {e}',
             'book_id': book_id
         }
+
+    # Skip (and clean up) books already known dead on book.qq.com
+    rconn = scraper.proxy_manager.redis
+    bid = extract_bid_from_url(url)
+    if bid and is_dead(rconn, bid):
+        _delete_book(book_id)
+        return {'success': False, 'book_id': book_id, 'skipped': 'dead'}
 
     # Scrape fresh data
     max_retries = 2  # Fewer retries for refresh
@@ -1315,6 +1363,14 @@ def refresh_book(url: str, book_id: int) -> dict:
             }
 
         except requests.RequestException as e:
+            if _is_404(e):
+                logger.warning(f"Book {book_id} is 404 on qq ({url}); "
+                               f"deleting + blacklisting bid={bid}")
+                if bid:
+                    mark_dead(rconn, bid)
+                _delete_book(book_id)
+                return {'success': False, 'book_id': book_id,
+                        'deleted': True, 'reason': '404'}
             logger.warning(f"Refresh request error (attempt {attempt + 1}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(2)

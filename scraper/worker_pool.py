@@ -18,7 +18,9 @@ SPAWN_BATCH_SIZE = 2
 SPAWN_DELAY = 2  # seconds between batches
 
 WORKER_QUEUES = {
-    'scraper': ['scraper-charts', 'scraper-books', 'scraper-booklists', 'scraper-comments', 'scraper-mapping', 'scraper-qidian-charts'],
+    # Priority order (RQ drains left->right). Qidian mapping + charts are
+    # major one-time/periodic jobs, prioritised above booklists & comments.
+    'scraper': ['scraper-charts', 'scraper-books', 'scraper-qidian-charts', 'scraper-mapping', 'scraper-booklists', 'scraper-comments'],
     'translation': ['translation-books', 'translation-booklists', 'translation-comments', 'translation-nicknames', 'translation-chapters'],
     'maintenance': ['maintenance'],
     'general': ['general'],

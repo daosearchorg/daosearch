@@ -27,6 +27,7 @@ from core.config import config
 from core.database import db_manager
 from core.models import Book
 from services.proxy_manager import RedisProxyManager, PROXY_SET_KEY
+from services.dead_books import filter_alive_bids
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +223,7 @@ class BookUrlPipeline:
     def open_spider(self, spider):
         self.buffer = []
         self.new_count = 0
+        self.rconn = redis.from_url(config.redis['url'])
 
     def process_item(self, item, spider):
         self.buffer.append(item['url'])
@@ -232,9 +234,20 @@ class BookUrlPipeline:
     def _flush_buffer(self):
         if not self.buffer:
             return
+        # Drop URLs whose bid is blacklisted (404'd on qq) so dead books
+        # don't get re-inserted and re-scraped in a loop.
+        bid_by_url = {}
+        for u in self.buffer:
+            m = BOOK_DETAIL_RE.search(u)
+            if m:
+                bid_by_url[u] = m.group(1)
+        alive = set(filter_alive_bids(self.rconn, list(bid_by_url.values())))
+        urls = [u for u in self.buffer
+                if u not in bid_by_url or bid_by_url[u] in alive]
+
         inserted = 0
         with db_manager.get_session() as session:
-            for url in self.buffer:
+            for url in urls:
                 result = session.execute(
                     insert(Book).values(url=url).on_conflict_do_nothing(
                         index_elements=['url']
