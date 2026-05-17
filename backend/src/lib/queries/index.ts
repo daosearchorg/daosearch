@@ -8,4 +8,3 @@ export * from "./genres";
 export * from "./homepage";
 export * from "./stats";
 export * from "./tags";
-export * from "./entities";
