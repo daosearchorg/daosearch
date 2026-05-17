@@ -249,7 +249,7 @@ export function BookCard({
                 {genreName}
               </Badge>
             )}
-            {stats && <StatRow stats={stats} className="justify-center mt-2 text-xs" />}
+            {stats && <StatRow stats={stats} className="justify-center mt-2 text-sm" />}
           </div>
           {cleanSynopsis && (
             <div className="mt-4 px-2 w-full">
