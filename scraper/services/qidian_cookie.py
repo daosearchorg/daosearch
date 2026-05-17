@@ -42,8 +42,14 @@ def is_stale(cookie: dict | None) -> bool:
 
 
 def cookie_header(cookie: dict) -> str:
-    """Cookie header string in a stable order."""
-    return f"_csrfToken={cookie['_csrfToken']}; w_tsfp={cookie['w_tsfp']}"
+    """Cookie header string in a stable order. _csrfToken is optional
+    (only guards POST/API calls) — omitted when absent/empty."""
+    parts = []
+    csrf = cookie.get("_csrfToken")
+    if csrf:
+        parts.append(f"_csrfToken={csrf}")
+    parts.append(f"w_tsfp={cookie['w_tsfp']}")
+    return "; ".join(parts)
 
 
 def request_remint(redis_client) -> None:

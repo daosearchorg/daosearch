@@ -31,6 +31,9 @@ def test_roundtrip_and_age():
     assert c["w_tsfp"] == "WTSFP_VALUE"
     assert c["_csrfToken"] == "CSRF_VALUE"
     assert qc.cookie_header(c) == "_csrfToken=CSRF_VALUE; w_tsfp=WTSFP_VALUE"
+    # _csrfToken is optional — omitted entirely when empty/absent.
+    assert qc.cookie_header({"w_tsfp": "W", "_csrfToken": ""}) == "w_tsfp=W"
+    assert qc.cookie_header({"w_tsfp": "W"}) == "w_tsfp=W"
 
     # stale detection
     c["minted_at"] = time.time() - (qc.COOKIE_MAX_AGE_SECONDS + 10)
