@@ -31,6 +31,7 @@ class AutoScheduler:
             'refresh_booklists': 0,
             'refresh_book_stats': 0,
             'booklist_missing_translations': 0,
+            'map_qidian_ids': 0,
         }
 
     def _schedule_if_due(self):
@@ -63,6 +64,15 @@ class AutoScheduler:
                 self.last_runs['missing_translations'] = current_time
             except Exception as e:
                 logger.error(f"Failed to schedule missing translations task: {e}")
+
+        # Qidian id mapping every 15 minutes
+        if current_time - self.last_runs['map_qidian_ids'] >= 900:
+            try:
+                job_id = self.queue_manager.add_maintenance_job('check_unmapped_qidian_ids', limit=10000)
+                logger.info(f"Scheduled qidian id mapping task: {job_id}")
+                self.last_runs['map_qidian_ids'] = current_time
+            except Exception as e:
+                logger.error(f"Failed to schedule qidian id mapping task: {e}")
 
         # Missing comments every 2 hours
         if current_time - self.last_runs['missing_comments'] >= 7200:
