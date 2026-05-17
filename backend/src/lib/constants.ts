@@ -200,7 +200,7 @@ export const QIDIAN_GENRE_CHANNELS = [
 export type QidianGenreChannel = (typeof QIDIAN_GENRE_CHANNELS)[number];
 
 export const QIDIAN_GENRE_CHANNEL_LABELS: Record<QidianGenreChannel, string> = {
-  overall: "All",
+  overall: "All genres",
   chn1: "Fantasy",
   chn2: "Wuxia",
   chn4: "Urban",

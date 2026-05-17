@@ -77,7 +77,7 @@ export function RankingFilters({ rankType, genreChannel }: RankingFiltersProps) 
         }}
       >
         <SelectTrigger className="h-9 w-auto min-w-[10rem]">
-          <SelectValue placeholder="All" />
+          <SelectValue placeholder="All genres" />
         </SelectTrigger>
         <SelectContent position="popper" className="max-h-60">
           {QIDIAN_GENRE_CHANNELS.map((ch) => (
