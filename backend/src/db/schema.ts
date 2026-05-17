@@ -42,6 +42,9 @@ export const books = pgTable("books", {
   subgenreId: integer("subgenre_id").references(() => genres.id, { onDelete: "set null" }),
   lastScrapedAt: timestamp("last_scraped_at", { withTimezone: true }),
   lastCommentsScrapedAt: timestamp("last_comments_scraped_at", { withTimezone: true }),
+  // 404 on book.qq.com — durable flag; row kept so discovery skips it and
+  // it's excluded from all scheduling. Filter `dead = false` on read paths.
+  dead: boolean().notNull().default(false),
   qidianId: integer("qidian_id"),
   qidiantuUrl: varchar("qidiantu_url", { length: 512 }),
   wordCount: integer("word_count"),
@@ -322,6 +325,22 @@ export const qqChartEntries = pgTable("qq_chart_entries", {
 }, (table) => [
   index("idx_qq_chart_entries_lookup").on(table.gender, table.rankType, table.cycle, table.position),
   index("idx_qq_chart_entries_book_id").on(table.bookId),
+]);
+
+// www.qidian.com leaderboards (separate id space from qq; linked via
+// books.qidian_id). Pure ordinal — no numeric score. genreChannel is
+// 'overall' or 'chn<typeid>' (e.g. 'chn21').
+export const qidianChartEntries = pgTable("qidian_chart_entries", {
+  id: serial().primaryKey(),
+  rankType: varchar("rank_type", { length: 20 }).notNull(),
+  genreChannel: varchar("genre_channel", { length: 16 }).notNull(),
+  position: integer().notNull(),
+  page: integer().notNull().default(1),
+  bookId: integer("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_qidian_chart_entries_lookup").on(table.rankType, table.genreChannel, table.position),
+  index("idx_qidian_chart_entries_book_id").on(table.bookId),
 ]);
 
 // ============================================================================
