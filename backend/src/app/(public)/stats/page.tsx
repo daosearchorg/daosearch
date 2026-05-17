@@ -47,8 +47,23 @@ export default async function StatsPage() {
       details: `${formatNumber(dbStats.qqUsers.translated)} names translated`,
     },
     {
-      label: "Ranking Entries",
+      label: "QQ Rankings",
       total: dbStats.rankings,
+      details: "book.qq.com chart entries",
+    },
+    {
+      label: "Qidian Rankings",
+      total: dbStats.qidianRankings,
+      details: "qidian.com chart entries",
+    },
+    {
+      label: "Qidian Mapping",
+      total: dbStats.qidianMapping.mapped,
+      details: (() => {
+        const { mapped, unmapped } = dbStats.qidianMapping;
+        const pct = mapped + unmapped > 0 ? Math.round((mapped / (mapped + unmapped)) * 100) : 0;
+        return `${formatNumber(mapped)} mapped, ${formatNumber(unmapped)} pending (${pct}%)`;
+      })(),
     },
     {
       label: "Booklists",
@@ -98,6 +113,7 @@ export default async function StatsPage() {
   const excludedCards = [
     { label: "Genres", total: dbStats.blacklisted.genres },
     { label: "Books", total: dbStats.blacklisted.books },
+    { label: "Dead (404)", total: dbStats.dead },
   ];
 
   const totalPending = queueStats.reduce((s, q) => s + q.pending, 0);
@@ -169,7 +185,7 @@ export default async function StatsPage() {
             Non-webnovel genres excluded from counts above. Spot something wrong? <a href="#" className="underline underline-offset-2 hover:text-foreground">Let us know</a>
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {excludedCards.map((card) => (
             <div
               key={card.label}

@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { books, genres, chapters, bookComments, bookStats, bookReviews, bookRatings, bookmarks, bookLists, bookListItems, bookListFollows, reviewReplies, users, qidianBooklists, qidianBooklistItems, qqUsers, tags, bookTags } from "@/db/schema";
+import { books, genres, chapters, bookComments, bookStats, bookReviews, bookRatings, bookmarks, bookLists, bookListItems, bookListFollows, reviewReplies, users, qidianBooklists, qidianBooklistItems, qidianChartEntries, qqUsers, tags, bookTags } from "@/db/schema";
 import { sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import Redis from "ioredis";
@@ -41,10 +41,14 @@ export const getDbStats = unstable_cache(
         translated: sql<number>`count(*) filter (where ${qqUsers.nicknameTranslated} is not null)`,
       }).from(qqUsers),
 
-      // Qidian data: 1 query for rankings + booklists + booklist items
-      db.execute<{ rankings: number; bl_total: number; bl_translated: number; bl_items: number; qq_ratings: number }>(sql`
+      // Qidian data: 1 query for rankings + booklists + booklist items + mapping
+      db.execute<{ rankings: number; qidian_rankings: number; qidian_mapped: number; qidian_unmapped: number; dead_books: number; bl_total: number; bl_translated: number; bl_items: number; qq_ratings: number }>(sql`
         SELECT
           (SELECT count(*) FROM ${books} b INNER JOIN ${genres} g ON b.genre_id = g.id INNER JOIN qq_chart_entries qce ON qce.book_id = b.id) AS rankings,
+          (SELECT count(*) FROM ${qidianChartEntries}) AS qidian_rankings,
+          (SELECT count(*) FROM ${books} WHERE ${books.qidianId} IS NOT NULL) AS qidian_mapped,
+          (SELECT count(*) FROM ${books} WHERE ${books.title} IS NOT NULL AND ${books.qidianId} IS NULL AND ${books.dead} = false) AS qidian_unmapped,
+          (SELECT count(*) FROM ${books} WHERE ${books.dead} = true) AS dead_books,
           (SELECT count(*) FROM ${qidianBooklists}) AS bl_total,
           (SELECT count(*) FROM ${qidianBooklists} WHERE ${qidianBooklists.titleTranslated} IS NOT NULL) AS bl_translated,
           (SELECT count(*) FROM ${qidianBooklistItems}) AS bl_items,
@@ -103,9 +107,15 @@ export const getDbStats = unstable_cache(
       comments: { total: Number(co.total), translated: Number(co.translated) },
       qqUsers: { total: Number(qu.total), translated: Number(qu.translated) },
       rankings: Number(qi.rankings),
+      qidianRankings: Number(qi.qidian_rankings),
+      qidianMapping: {
+        mapped: Number(qi.qidian_mapped),
+        unmapped: Number(qi.qidian_unmapped),
+      },
       booklists: { total: Number(qi.bl_total), translated: Number(qi.bl_translated), items: Number(qi.bl_items) },
       qqRatings: Number(qi.qq_ratings),
       blacklisted: { genres: Number(bl.bl_genres), books: Number(bl.bl_books) },
+      dead: Number(qi.dead_books),
       community: {
         users: Number(cm.users_total),
         usersGoogle: Number(cm.users_google),
@@ -135,6 +145,8 @@ export const getDbStats = unstable_cache(
 const QUEUE_NAMES = [
   "scraper-charts",
   "scraper-books",
+  "scraper-qidian-charts",
+  "scraper-mapping",
   "scraper-booklists",
   "scraper-comments",
   "translation-books",
