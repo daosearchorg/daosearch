@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { books, genres, bookStats, qqChartEntries, readingProgressHistories } from "@/db/schema";
+import { books, genres, bookStats, qqChartEntries, qidianChartEntries, readingProgressHistories } from "@/db/schema";
 import { eq, and, sql, asc, desc, type SQL } from "drizzle-orm";
 import { PAGINATION_SIZE } from "../constants";
 
@@ -67,6 +67,72 @@ export async function getRankings({ gender, rankType, cycle, page, genreId }: Ra
       .select({ count: sql<number>`count(*)` })
       .from(qqChartEntries)
       .innerJoin(books, eq(qqChartEntries.bookId, books.id))
+      .where(conditions),
+  ]);
+
+  const total = Number(countResult[0]?.count ?? 0);
+
+  return {
+    items,
+    total,
+    totalPages: Math.ceil(total / RANKINGS_PAGE_SIZE),
+  };
+}
+
+interface QidianRankingsParams {
+  rankType: string;
+  genreChannel: string;
+  page: number;
+}
+
+// www.qidian.com leaderboards (qidian_chart_entries). Pure ordinal — no
+// gender/cycle/score. Linked to books via books.qidian_id (set by the mapper).
+export async function getQidianRankings({ rankType, genreChannel, page }: QidianRankingsParams) {
+  const offset = (page - 1) * RANKINGS_PAGE_SIZE;
+
+  const conditions = and(
+    eq(qidianChartEntries.rankType, rankType),
+    eq(qidianChartEntries.genreChannel, genreChannel),
+    eq(books.dead, false),
+  );
+
+  const [items, countResult] = await Promise.all([
+    db
+      .select({
+        position: qidianChartEntries.position,
+        bookId: books.id,
+        title: books.title,
+        titleTranslated: books.titleTranslated,
+        author: books.author,
+        authorTranslated: books.authorTranslated,
+        imageUrl: books.imageUrl,
+        synopsis: books.synopsis,
+        synopsisTranslated: books.synopsisTranslated,
+        genreName: genres.name,
+        genreNameTranslated: genres.nameTranslated,
+        chapterCount: bookStats.chapterCount,
+        commentCount: bookStats.commentCount,
+        ratingCount: bookStats.ratingCount,
+        ratingPositive: bookStats.ratingPositive,
+        ratingNeutral: bookStats.ratingNeutral,
+        ratingNegative: bookStats.ratingNegative,
+        reviewCount: bookStats.reviewCount,
+        readerCount: bookStats.readerCount,
+        wordCount: books.wordCount,
+        qqScore: books.qqScore,
+      })
+      .from(qidianChartEntries)
+      .innerJoin(books, eq(qidianChartEntries.bookId, books.id))
+      .leftJoin(genres, eq(books.genreId, genres.id))
+      .leftJoin(bookStats, eq(books.id, bookStats.bookId))
+      .where(conditions)
+      .orderBy(asc(qidianChartEntries.page), asc(qidianChartEntries.position))
+      .limit(RANKINGS_PAGE_SIZE)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(qidianChartEntries)
+      .innerJoin(books, eq(qidianChartEntries.bookId, books.id))
       .where(conditions),
   ]);
 

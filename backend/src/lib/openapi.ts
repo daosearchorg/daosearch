@@ -138,8 +138,8 @@ export const openApiSpec = {
     "/rankings": {
       get: {
         operationId: "getRankings",
-        summary: "Get Qidian rankings",
-        description: "Official Qidian chart rankings by gender, type, and cycle.",
+        summary: "Get QQ rankings",
+        description: "book.qq.com chart rankings by gender, type, and cycle.",
         tags: ["Rankings"],
         parameters: [
           { name: "gender", in: "query", schema: { type: "string", enum: ["male", "female", "publish"], default: "male" }, description: "Target audience" },
@@ -168,6 +168,23 @@ export const openApiSpec = {
         ],
         responses: {
           "200": { description: "Paginated community rankings", content: { "application/json": { schema: { $ref: "#/components/schemas/PaginatedResponse" } } } },
+        },
+      },
+    },
+    "/qidian-rankings": {
+      get: {
+        operationId: "getQidianRankings",
+        summary: "Get Qidian rankings",
+        description: "www.qidian.com leaderboards by rank type and genre channel (pure ordinal — no gender/cycle/score).",
+        tags: ["Rankings"],
+        parameters: [
+          { name: "type", in: "query", schema: { type: "string", enum: ["yuepiao", "hotsales", "recom", "collect", "readindex", "vipup"], default: "yuepiao" }, description: "Rank type (Monthly Tickets, Best-Selling, Recommended, Collections, Reading Index, Updates)" },
+          { name: "genre", in: "query", schema: { type: "string", enum: ["overall", "chn1", "chn2", "chn4", "chn5", "chn6", "chn7", "chn8", "chn9", "chn10", "chn12", "chn15", "chn21", "chn22", "chn20109"], default: "overall" }, description: "Genre channel ('overall' or 'chn<id>')" },
+          { name: "page", in: "query", schema: { type: "integer", default: 1 }, description: "Page number" },
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50 }, description: "Items per page (1-50, default: 49)" },
+        ],
+        responses: {
+          "200": { description: "Paginated Qidian rankings", content: { "application/json": { schema: { $ref: "#/components/schemas/PaginatedResponse" } } } },
         },
       },
     },
