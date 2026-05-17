@@ -14,6 +14,11 @@ export const env = {
   redis: {
     url: optional("REDIS_URL", "redis://localhost:6379"),
   },
+  slowLog: {
+    thresholdMs: parseInt(optional("SLOW_QUERY_MS", "200"), 10),
+    enabled: optional("SLOW_QUERY_LOG", "true") !== "false",
+    token: optional("SLOWLOG_TOKEN", ""),
+  },
   db: {
     host: optional("DB_HOST", "localhost"),
     port: parseInt(optional("DB_PORT", "5432"), 10),
