@@ -99,9 +99,7 @@ export async function getQidianRankings({ rankType, genreChannel, page }: Qidian
   const [items, countResult] = await Promise.all([
     db
       .select({
-        // Scraped position resets 1-20 per chart page; re-number into one
-        // continuous rank across the (page, position) ordering.
-        position: sql<number>`(row_number() over (order by ${qidianChartEntries.page} asc, ${qidianChartEntries.position} asc))::int`,
+        position: qidianChartEntries.position,
         bookId: books.id,
         title: books.title,
         titleTranslated: books.titleTranslated,
