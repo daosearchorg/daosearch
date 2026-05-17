@@ -214,7 +214,7 @@ export default async function BookDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex flex-col min-w-0 flex-1 text-center sm:text-left">
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight leading-tight">
             {displayTitle}
           </h1>
           {book.titleTranslated && book.title && (
