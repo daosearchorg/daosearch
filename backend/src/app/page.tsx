@@ -422,7 +422,7 @@ export default async function Home() {
 
         {/* Official Trending Male */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Official Trending" href="/qidian/rankings?gender=male&cycle=cycle-2" icon={Trophy} badge="Male" badgeClassName="text-[10px] font-medium border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300" />
+          <SectionHeader title="QQ Trending" href="/qq/rankings?gender=male&cycle=cycle-2" icon={Trophy} badge="Male" badgeClassName="text-[10px] font-medium border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300" />
           <div className="-mx-5 sm:-mx-6">
             <DragScroll className="flex gap-3 sm:gap-5 overflow-x-auto px-5 sm:px-6 pb-2 cursor-grab select-none no-scrollbar">
               {data.rankingsMale.map((item) => (
@@ -449,7 +449,7 @@ export default async function Home() {
 
         {/* Official Trending Female */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Official Trending" href="/qidian/rankings?gender=female&cycle=cycle-2" icon={Trophy} badge="Female" badgeClassName="text-[10px] font-medium border-pink-500/30 bg-pink-500/10 text-pink-700 dark:text-pink-300" />
+          <SectionHeader title="QQ Trending" href="/qq/rankings?gender=female&cycle=cycle-2" icon={Trophy} badge="Female" badgeClassName="text-[10px] font-medium border-pink-500/30 bg-pink-500/10 text-pink-700 dark:text-pink-300" />
           <div className="-mx-5 sm:-mx-6">
             <DragScroll className="flex gap-3 sm:gap-5 overflow-x-auto px-5 sm:px-6 pb-2 cursor-grab select-none no-scrollbar">
               {data.rankingsFemale.map((item) => (
@@ -504,7 +504,7 @@ export default async function Home() {
 
         {/* Top Rated — cover grid */}
         <section className="mx-auto w-full max-w-6xl px-5 sm:px-6 flex flex-col gap-3 sm:gap-5">
-          <SectionHeader title="Top Rated" href="/qidian/rankings?cycle=cycle-4&page=1" icon={Flame} />
+          <SectionHeader title="Top Rated" href="/qq/rankings?cycle=cycle-4&page=1" icon={Flame} />
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
             {data.topRated.slice(0, 12).map((item, idx) => {
               const displayTitle = item.titleTranslated || item.title || "Untitled";

@@ -9,39 +9,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  GENDERS,
-  GENDER_LABELS,
-  GENDER_RANK_TYPES,
-  RANK_TYPE_LABELS,
-  RANK_TYPE_CYCLES,
-  PUBLISH_RANK_TYPE_CYCLES,
-  RANK_TYPE_CYCLE_LABELS,
-  type Gender,
+  QIDIAN_RANK_TYPES,
+  QIDIAN_RANK_TYPE_LABELS,
+  QIDIAN_GENRE_CHANNELS,
+  QIDIAN_GENRE_CHANNEL_LABELS,
+  type QidianRankType,
+  type QidianGenreChannel,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useCallback, useTransition } from "react";
 
-interface Genre {
-  id: number;
-  name: string;
-  nameTranslated: string | null;
-}
-
 interface RankingFiltersProps {
-  gender: Gender;
-  rankType: string;
-  cycle: string;
-  primaryGenres: Genre[];
-  genreId?: number;
+  rankType: QidianRankType;
+  genreChannel: QidianGenreChannel;
 }
 
-export function RankingFilters({
-  gender,
-  rankType,
-  cycle,
-  primaryGenres,
-  genreId,
-}: RankingFiltersProps) {
+export function RankingFilters({ rankType, genreChannel }: RankingFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -62,69 +45,14 @@ export function RankingFilters({
     [router, pathname, searchParams],
   );
 
-  const rankTypes = GENDER_RANK_TYPES[gender] ?? GENDER_RANK_TYPES.male;
-  const cycleMap = gender === "publish" ? PUBLISH_RANK_TYPE_CYCLES : RANK_TYPE_CYCLES;
-  const cycles = cycleMap[rankType] ?? ["cycle-1"];
-  const cycleLabels = RANK_TYPE_CYCLE_LABELS[rankType] ?? {};
-
-  const getCycleLabel = (c: string) => cycleLabels[c] ?? c;
-
   return (
     <div className="flex flex-col items-center gap-3 sm:gap-4 w-full">
-      {/* Gender + cycle row */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="inline-flex items-center rounded-lg bg-muted p-1">
-          {GENDERS.map((g) => (
-            <button
-              key={g}
-              onClick={() => {
-                const newRankType = GENDER_RANK_TYPES[g][0];
-                const newCycles = (g === "publish" ? PUBLISH_RANK_TYPE_CYCLES : RANK_TYPE_CYCLES)[newRankType] ?? ["cycle-1"];
-                const newCycle = newCycles[0];
-                setParams({
-                  gender: g,
-                  type: newRankType,
-                  cycle: newCycle,
-                });
-              }}
-              className={cn(
-                "rounded-md px-3 sm:px-5 py-1.5 text-sm font-medium transition-colors",
-                gender === g
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {GENDER_LABELS[g]}
-            </button>
-          ))}
-        </div>
-
-        {cycles.length > 1 && (
-          <Select value={cycle} onValueChange={(c) => setParams({ cycle: c })}>
-            <SelectTrigger className="min-w-28 sm:min-w-32 h-9">
-              <SelectValue>{getCycleLabel(cycle)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {cycles.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {getCycleLabel(c)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-
       {/* Rank type pills */}
       <div className="flex flex-wrap items-center justify-center gap-1">
-        {rankTypes.map((rt) => (
+        {QIDIAN_RANK_TYPES.map((rt) => (
           <button
             key={rt}
-            onClick={() => {
-              const newCycles = (gender === "publish" ? PUBLISH_RANK_TYPE_CYCLES : RANK_TYPE_CYCLES)[rt] ?? ["cycle-1"];
-              const newCycle = newCycles[0];
-              setParams({ type: rt, cycle: newCycle });
-            }}
+            onClick={() => setParams({ type: rt })}
             className={cn(
               "rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-sm font-medium transition-colors",
               rankType === rt
@@ -132,16 +60,16 @@ export function RankingFilters({
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            {RANK_TYPE_LABELS[rt] ?? rt}
+            {QIDIAN_RANK_TYPE_LABELS[rt]}
           </button>
         ))}
       </div>
 
-      {/* Genre filter */}
+      {/* Genre channel filter */}
       <Select
-        value={genreId ? String(genreId) : "all"}
+        value={genreChannel}
         onValueChange={(v) => {
-          if (v === "all") {
+          if (v === "overall") {
             setParams({}, ["genre"]);
           } else {
             setParams({ genre: v });
@@ -149,13 +77,12 @@ export function RankingFilters({
         }}
       >
         <SelectTrigger className="h-9 w-auto min-w-[10rem]">
-          <SelectValue placeholder="All genres" />
+          <SelectValue placeholder="All" />
         </SelectTrigger>
         <SelectContent position="popper" className="max-h-60">
-          <SelectItem value="all">All genres</SelectItem>
-          {primaryGenres.map((g) => (
-            <SelectItem key={g.id} value={String(g.id)}>
-              {g.nameTranslated ?? g.name}
+          {QIDIAN_GENRE_CHANNELS.map((ch) => (
+            <SelectItem key={ch} value={ch}>
+              {QIDIAN_GENRE_CHANNEL_LABELS[ch]}
             </SelectItem>
           ))}
         </SelectContent>

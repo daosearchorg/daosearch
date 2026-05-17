@@ -344,7 +344,7 @@ export default async function BookDetailPage({ params }: Props) {
                   const rankType = RANK_TYPE_LABELS[r.rankType] ?? r.rankType;
                   const cycle = RANK_TYPE_CYCLE_LABELS[r.rankType]?.[r.cycle] ?? r.cycle;
                   return (
-                    <Link key={`${r.gender}-${r.rankType}-${r.cycle}`} href={`/qidian/rankings?gender=${r.gender}&type=${r.rankType}&cycle=${r.cycle}`}>
+                    <Link key={`${r.gender}-${r.rankType}-${r.cycle}`} href={`/qq/rankings?gender=${r.gender}&type=${r.rankType}&cycle=${r.cycle}`}>
                       <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors">
                         <Trophy className="size-2.5 sm:size-3 text-amber-500" />
                         #{r.position} {gender} {rankType} · {cycle}

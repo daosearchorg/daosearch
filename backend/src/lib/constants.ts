@@ -166,3 +166,56 @@ export const TIME_FILTER_OPTIONS = [
   { value: "180", label: "6 months" },
   { value: "365", label: "1 year" },
 ] as const;
+
+// ============================================================================
+// www.qidian.com chart taxonomy (mirrors workers/qidian_charts_scraper.py).
+// Pure-ordinal leaderboards: rankType + genreChannel. No gender / cycle / score.
+// ============================================================================
+
+export const QIDIAN_RANK_TYPES = [
+  "yuepiao",
+  "hotsales",
+  "recom",
+  "collect",
+  "readindex",
+  "vipup",
+] as const;
+export type QidianRankType = (typeof QIDIAN_RANK_TYPES)[number];
+
+export const QIDIAN_RANK_TYPE_LABELS: Record<QidianRankType, string> = {
+  yuepiao: "Monthly Tickets",
+  hotsales: "Best-Selling",
+  recom: "Recommended",
+  collect: "Collections",
+  readindex: "Reading Index",
+  vipup: "Updates",
+};
+
+// Stored in qidian_chart_entries.genre_channel as 'overall' or 'chn<id>'.
+export const QIDIAN_GENRE_CHANNELS = [
+  "overall",
+  "chn1", "chn2", "chn4", "chn5", "chn6", "chn7", "chn8", "chn9",
+  "chn10", "chn12", "chn15", "chn21", "chn22", "chn20109",
+] as const;
+export type QidianGenreChannel = (typeof QIDIAN_GENRE_CHANNELS)[number];
+
+export const QIDIAN_GENRE_CHANNEL_LABELS: Record<QidianGenreChannel, string> = {
+  overall: "All",
+  chn1: "Fantasy",
+  chn2: "Wuxia",
+  chn4: "Urban",
+  chn5: "History",
+  chn6: "Military",
+  chn7: "Games",
+  chn8: "Sports",
+  chn9: "Sci-Fi",
+  chn10: "Suspense",
+  chn12: "Light Novel",
+  chn15: "Realistic",
+  chn21: "Xuanhuan",
+  chn22: "Xianxia",
+  chn20109: "Infinite",
+};
+
+export const QIDIAN_DEFAULT_RANK_TYPE: QidianRankType = "yuepiao";
+export const QIDIAN_DEFAULT_GENRE_CHANNEL: QidianGenreChannel = "overall";

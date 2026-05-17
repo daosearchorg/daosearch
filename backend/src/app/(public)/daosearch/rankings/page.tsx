@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 export const revalidate = 300;
 import { getCommunityRankings, getPrimaryGenres, type CommunityPeriod } from "@/lib/queries";
 import { CommunityRankingFilters } from "./filters";
-import { RankingsList } from "../../qidian/rankings/rankings-list";
+import { RankingsList } from "@/components/rankings/rankings-list";
 import { Pagination } from "@/components/shared/pagination";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { RankingsSwitch } from "@/components/booklist/rankings-switch";
