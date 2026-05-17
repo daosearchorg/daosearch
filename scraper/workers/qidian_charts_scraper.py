@@ -73,6 +73,9 @@ QIDIAN_GENRE_CHANNELS = {
 }
 
 QIDIAN_CHART_PAGES = [1, 2, 3, 4, 5]
+# qidian.com shows 20 books per rank page; used to make `position`
+# continuous across pages (the scraped data-rid resets 1-20 per page).
+QIDIAN_PER_PAGE = 20
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
@@ -197,7 +200,7 @@ def scrape_qidian_chart_page(rank_type: str, genre_channel: str,
                     QidianChartEntry.page == page,
                 ).delete()
                 now = datetime.now(timezone.utc)
-                for row in rows:
+                for idx, row in enumerate(rows):
                     try:
                         # Full booklist-parity: qidian_id -> title(+author) ->
                         # qq /so/ search -> queue qq scrape -> else auto-insert.
@@ -211,10 +214,11 @@ def scrape_qidian_chart_page(rank_type: str, genre_channel: str,
                         continue
                     if book_id is None:
                         continue
+                    # data-rid resets 1-20 per page; store a continuous rank.
                     db.add(QidianChartEntry(
                         rank_type=rank_type,
                         genre_channel=genre_channel,
-                        position=row['position'],
+                        position=(page - 1) * QIDIAN_PER_PAGE + idx + 1,
                         page=page,
                         book_id=book_id,
                         scraped_at=now,
