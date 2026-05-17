@@ -12,6 +12,7 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
+from core.models import Book
 from services import qidian_cookie
 
 logger = logging.getLogger(__name__)
@@ -159,3 +160,100 @@ def search_qq_book(qq_session, title: str) -> str | None:
     except Exception as e:
         logger.warning("qq.com search failed for '%s': %s", title, e)
         return None
+
+
+# --------------------------------------------------------------------------
+# Unified tiered resolver — connects qq <-> qidian. Used by both the
+# booklist scraper and the qidian charts scraper (DRY).
+# --------------------------------------------------------------------------
+
+def _link_qidian(book, qidian_book_id):
+    """Stamp qidian_id/qidiantu_url onto an existing book (connect qq<->qidian)
+    unless that id already belongs to a different book (UNIQUE-safe)."""
+    if book.qidian_id == qidian_book_id:
+        return
+    if book.qidian_id is not None:
+        return  # already linked to some qidian id; don't hijack
+    book.qidian_id = qidian_book_id
+    book.qidiantu_url = f"https://www.qidiantu.com/info/{qidian_book_id}"
+
+
+def resolve_book(session, qidian_book_id, title, author=None, *,
+                 qq_session=None, queue_manager=None, allow_create=False):
+    """Resolve a qidian book to our books.id, connecting qq<->qidian.
+
+    Tiers (same as booklist_scraper.match_book):
+      1. Book.qidian_id == id
+      2. exact title (+author if given) -> stamp qidian_id on that qq book
+      3. book.qq.com /so/ search -> match qq url + stamp qidian_id;
+         if found on qq but not in DB -> queue a qq scrape job
+      4. allow_create -> auto-insert a qidian-native book (charts only)
+    Returns book.id, or None when nothing matched and allow_create is False.
+    """
+    # 1. qidian_id (instant)
+    book = session.query(Book).filter(Book.qidian_id == qidian_book_id).first()
+    if book:
+        return book.id
+
+    # 2. exact Chinese title (prefer title+author when author is known)
+    if title:
+        book = None
+        if author:
+            book = session.query(Book).filter(
+                Book.title == title, Book.author == author).first()
+        if not book:
+            book = session.query(Book).filter(Book.title == title).first()
+        if book:
+            owner = session.query(Book.id).filter(
+                Book.qidian_id == qidian_book_id).first()
+            if owner is None or owner.id == book.id:
+                _link_qidian(book, qidian_book_id)
+                logger.info("Linked by title '%s' -> book %s", title, book.id)
+            return book.id
+
+    # 3. book.qq.com search
+    if title and qq_session is not None:
+        bid = search_qq_book(qq_session, title)
+        if bid:
+            qq_url = f"https://book.qq.com/book-detail/{bid}"
+            book = session.query(Book).filter(Book.url == qq_url).first()
+            if book:
+                owner = session.query(Book.id).filter(
+                    Book.qidian_id == qidian_book_id).first()
+                if owner is None or owner.id == book.id:
+                    _link_qidian(book, qidian_book_id)
+                logger.info("Linked via qq.com search: '%s' -> book %s",
+                            title, book.id)
+                return book.id
+            if queue_manager is not None:
+                try:
+                    job_id = queue_manager.add_scrape_job(qq_url)
+                    logger.info("Queued new qq book for scraping: %s (%s)",
+                                qq_url, job_id)
+                except Exception as e:
+                    logger.warning("Failed to queue qq scrape %s: %s",
+                                    qq_url, e)
+
+    # 4. auto-insert a qidian-native book (charts scraper only)
+    if allow_create:
+        nb = Book(
+            url=f"https://www.qidian.com/book/{qidian_book_id}/",
+            qidian_id=qidian_book_id,
+            qidiantu_url=f"https://www.qidiantu.com/info/{qidian_book_id}",
+            title=title, author=author,
+        )
+        session.add(nb)
+        try:
+            session.flush()
+            logger.info("Auto-inserted qidian-native book bid=%s (id=%s)",
+                        qidian_book_id, nb.id)
+            return nb.id
+        except Exception:
+            session.rollback()
+            book = session.query(Book).filter(
+                Book.qidian_id == qidian_book_id).first()
+            if book:
+                return book.id
+            raise
+
+    return None

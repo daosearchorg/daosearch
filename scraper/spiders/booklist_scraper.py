@@ -559,46 +559,19 @@ class QidiantuBooklistScraper:
     # ========================================================================
 
     def match_book(self, qidian_book_id: int, title: str) -> Optional[int]:
-        """Try to match a qidiantu book to our database. Returns book.id or None."""
+        """Match a qidiantu book to our DB. Returns book.id or None.
 
+        Delegates to the shared tiered resolver (qidian_id -> title ->
+        qq.com search -> queue qq scrape). allow_create=False keeps the
+        booklist behaviour unchanged (no qidian-native auto-insert)."""
+        from services.book_matcher import resolve_book
         with db_manager.get_session() as session:
-            # 1. Check by qidian_id (instant match if seen before)
-            book = session.query(Book).filter(Book.qidian_id == qidian_book_id).first()
-            if book:
-                logger.debug(f"Matched by qidian_id: {qidian_book_id} -> book {book.id}")
-                return book.id
-
-            # 2. Check by exact Chinese title
-            if title:
-                book = session.query(Book).filter(Book.title == title).first()
-                if book:
-                    # Update qidian_id on the matched book
-                    book.qidian_id = qidian_book_id
-                    book.qidiantu_url = f"https://www.qidiantu.com/info/{qidian_book_id}"
-                    logger.info(f"Matched by title '{title}' -> book {book.id}")
-                    return book.id
-
-        # 3. Search book.qq.com by title
-        if title:
-            bid = self._search_qq_book(title)
-            if bid:
-                qq_url = f"https://book.qq.com/book-detail/{bid}"
-                with db_manager.get_session() as session:
-                    book = session.query(Book).filter(Book.url == qq_url).first()
-                    if book:
-                        book.qidian_id = qidian_book_id
-                        book.qidiantu_url = f"https://www.qidiantu.com/info/{qidian_book_id}"
-                        logger.info(f"Matched via qq.com search: '{title}' -> book {book.id}")
-                        return book.id
-
-                    # 4. Book found on qq.com but not in our DB — queue for scraping
-                    try:
-                        job_id = self.queue_manager.add_scrape_job(qq_url)
-                        logger.info(f"Queued new book for scraping: {qq_url} (job: {job_id})")
-                    except Exception as e:
-                        logger.warning(f"Failed to queue scrape for {qq_url}: {e}")
-
-        return None
+            return resolve_book(
+                session, qidian_book_id, title,
+                qq_session=self._get_qq_session(),
+                queue_manager=self.queue_manager,
+                allow_create=False,
+            )
 
     def _search_qq_book(self, title: str) -> Optional[str]:
         """Search book.qq.com for an exact title match. Delegates to the shared

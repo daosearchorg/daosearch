@@ -97,7 +97,29 @@ def test_title_only_fallback_single_result():
     assert bm.pick_match(rows, "不存在", None) is None
 
 
+class _FakeBook:
+    def __init__(self, qidian_id=None):
+        self.qidian_id = qidian_id
+        self.qidiantu_url = None
+
+
+def test_link_qidian_unique_safe():
+    # unlinked -> stamped
+    b = _FakeBook(qidian_id=None)
+    bm._link_qidian(b, 555)
+    assert b.qidian_id == 555 and b.qidiantu_url.endswith("/info/555")
+    # already same id -> no-op (idempotent)
+    b2 = _FakeBook(qidian_id=555)
+    bm._link_qidian(b2, 555)
+    assert b2.qidian_id == 555
+    # already linked to a DIFFERENT id -> never hijack
+    b3 = _FakeBook(qidian_id=999)
+    bm._link_qidian(b3, 555)
+    assert b3.qidian_id == 999
+
+
 if __name__ == "__main__":
+    test_link_qidian_unique_safe()
     test_parse_results()
     test_exact_title_and_author_beats_trap_row()
     test_single_title_hit_falls_back_regardless_of_author()

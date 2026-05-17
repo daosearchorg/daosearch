@@ -16,9 +16,11 @@ from bs4 import BeautifulSoup
 
 from core.config import config
 from core.database import db_manager
-from core.models import Book, QidianChartEntry
+from core.models import QidianChartEntry
 from services import qidian_cookie
+from services.book_matcher import resolve_book
 from services.proxy_manager import RedisProxyManager
+from services.queue_manager import QueueManager
 
 logger = logging.getLogger(__name__)
 
@@ -102,33 +104,17 @@ def parse_qidian_chart(html: str) -> list[dict]:
     return out
 
 
-def resolve_qidian_book(session, bid: int, title: str, author: str) -> int:
-    """Map a qidian book id to our books.id via Book.qidian_id.
-    Auto-insert a qidian-native book if unknown (same policy as the mapper)."""
-    book = session.query(Book).filter(Book.qidian_id == bid).first()
-    if book:
-        return book.id
-
-    new_book = Book(
-        url=f"https://www.qidian.com/book/{bid}/",
-        qidian_id=bid,
-        qidiantu_url=f"https://www.qidiantu.com/info/{bid}",
-        title=title,
-        author=author,
-    )
-    session.add(new_book)
+def _make_qq_session() -> requests.Session:
+    """Proxied requests session for book.qq.com /so/ searches (tier-3 match)."""
+    s = requests.Session()
+    s.headers.update({"User-Agent": UA,
+                      "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8"})
     try:
-        session.flush()
-        logger.info("Auto-inserted qidian-native book bid=%s (id=%s)",
-                    bid, new_book.id)
-        return new_book.id
-    except Exception:
-        session.rollback()
-        # Race: another worker inserted it (qidian_id is UNIQUE).
-        book = session.query(Book).filter(Book.qidian_id == bid).first()
-        if book:
-            return book.id
-        raise
+        pm = RedisProxyManager()
+        s.proxies.update(pm.format_proxy_for_requests(pm.get_next_proxy()))
+    except Exception as e:
+        logger.warning("No proxy for qq session: %s", e)
+    return s
 
 
 def _fetch(url: str, rconn) -> str:
@@ -183,6 +169,8 @@ def scrape_qidian_chart_page(rank_type: str, genre_channel: str,
                         'message': 'No books on page'}
 
             saved = 0
+            qq_session = _make_qq_session()
+            qm = QueueManager()
             with db_manager.get_session() as db:
                 db.query(QidianChartEntry).filter(
                     QidianChartEntry.rank_type == rank_type,
@@ -192,11 +180,17 @@ def scrape_qidian_chart_page(rank_type: str, genre_channel: str,
                 now = datetime.now(timezone.utc)
                 for row in rows:
                     try:
-                        book_id = resolve_qidian_book(
-                            db, row['bid'], row['title'], row['author'])
+                        # Full booklist-parity: qidian_id -> title(+author) ->
+                        # qq /so/ search -> queue qq scrape -> else auto-insert.
+                        book_id = resolve_book(
+                            db, row['bid'], row['title'], row['author'],
+                            qq_session=qq_session, queue_manager=qm,
+                            allow_create=True)
                     except Exception as e:
                         logger.warning("resolve failed bid=%s: %s",
                                        row['bid'], e)
+                        continue
+                    if book_id is None:
                         continue
                     db.add(QidianChartEntry(
                         rank_type=rank_type,
