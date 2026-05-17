@@ -168,7 +168,7 @@ function EntityTags({ apiBase, initialTags, heading = "Community Tags", showHead
       {(sortedTags.length > 0 || status === "authenticated") && (
         <div>
           {showHeading && (
-            <h2 className="text-base sm:text-lg font-medium mb-2">{heading}</h2>
+            <h2 className="text-base sm:text-lg font-medium mb-3">{heading}</h2>
           )}
           <div className={`flex flex-wrap items-center gap-1.5 ${sortedTags.length === 0 ? "justify-center" : "justify-center sm:justify-start"}`}>
           {sortedTags.map((tag) => (

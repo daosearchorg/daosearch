@@ -214,7 +214,7 @@ export default async function BookDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex flex-col min-w-0 flex-1 text-center sm:text-left">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight leading-tight">
             {displayTitle}
           </h1>
           {book.titleTranslated && book.title && (
@@ -453,7 +453,7 @@ export default async function BookDetailPage({ params }: Props) {
 
       {/* Opinions — mobile: flat section, desktop: tabs with chapters */}
       <section className="sm:hidden flex flex-col gap-6">
-        <h2 className="text-base font-medium">What Readers Think</h2>
+        <h2 className="text-base sm:text-lg font-medium">What Readers Think</h2>
         {stats && (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Rating</p>

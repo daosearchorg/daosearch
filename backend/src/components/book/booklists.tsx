@@ -64,7 +64,7 @@ export function BookBooklists({ bookId, initialItems, total }: BookBooklistsProp
             <span className="text-sm sm:text-base font-medium leading-snug line-clamp-2">
               {bl.titleTranslated || bl.title || "Untitled Booklist"}
             </span>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-4 text-xs sm:text-sm text-muted-foreground">
               {bl.followerCount != null && (
                 <span className="inline-flex items-center gap-1 tabular-nums">
                   <Users className="size-3.5 shrink-0" />

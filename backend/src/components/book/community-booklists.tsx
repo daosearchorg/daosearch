@@ -53,8 +53,8 @@ export function BookCommunityBooklists({ bookId, initialItems, total }: BookComm
             <span className="text-sm sm:text-base font-medium leading-snug line-clamp-2">
               {item.name}
             </span>
-            <span className="text-xs text-muted-foreground">{item.ownerUsername}</span>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">{item.ownerUsername}</span>
+            <div className="flex items-center gap-4 text-xs sm:text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1 tabular-nums">
                 <Users className="size-3.5 shrink-0" />
                 {item.followerCount.toLocaleString()}

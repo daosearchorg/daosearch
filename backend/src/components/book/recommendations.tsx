@@ -81,7 +81,7 @@ export function BookRecommendations({ books }: { books: RecommendedBook[] }) {
 
   return (
     <section>
-      <h2 className="text-base sm:text-lg font-medium mb-4">
+      <h2 className="text-base sm:text-lg font-medium mb-3">
         You Might Also Like
       </h2>
       <div className="-mx-4 sm:-mx-0">
@@ -120,9 +120,9 @@ export function BookRecommendations({ books }: { books: RecommendedBook[] }) {
                   </div>
                 )}
                 <div className="mt-2 min-w-0">
-                  <p className="text-sm font-medium line-clamp-2 leading-tight min-h-[2.5em] text-center">{displayTitle}</p>
+                  <p className="text-sm font-medium line-clamp-2 leading-snug min-h-[2.5em] text-center">{displayTitle}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 text-center">{displayAuthor}</p>
-                  <div className="flex items-center justify-center gap-2 mt-1 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-muted-foreground">
                     {(book.wordCount ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5">
                         <ScrollText className="size-3 shrink-0" />
