@@ -26,17 +26,29 @@ def _is_404(exc) -> bool:
     return resp is not None and resp.status_code == 404
 
 
-def _delete_book(book_id: int) -> None:
-    """Hard-delete a book (FKs cascade to chapters/comments/charts/etc.)."""
+def _mark_book_dead(book_id: int = None, url: str = None) -> None:
+    """Durably flag a book dead (404 on qq). The row is KEPT so it's never
+    scheduled (maintenance filters dead=False) and discovery's
+    on_conflict_do_nothing skips re-inserting it. If the url has no row yet,
+    insert a minimal dead stub so discovery can't resurrect it."""
     try:
         with db_manager.get_session() as s:
-            b = s.query(Book).filter(Book.id == book_id).first()
-            if b:
-                s.delete(b)
+            b = None
+            if book_id is not None:
+                b = s.query(Book).filter(Book.id == book_id).first()
+            if b is None and url:
+                b = s.query(Book).filter(Book.url == url).first()
+            if b is not None:
+                if not b.dead:
+                    b.dead = True
+                    s.commit()
+                    logger.info(f"Flagged book {b.id} dead (404)")
+            elif url:
+                s.add(Book(url=url, dead=True))
                 s.commit()
-                logger.info(f"Deleted dead book {book_id}")
+                logger.info(f"Inserted dead stub for {url}")
     except Exception as e:
-        logger.warning(f"Failed to delete dead book {book_id}: {e}")
+        logger.warning(f"Failed to flag book dead ({book_id}/{url}): {e}")
 
 
 _BR_RE = re.compile(r'<br\s*/?>', re.IGNORECASE)
@@ -1032,15 +1044,14 @@ def scrape_and_save(url: str) -> dict:
     except Exception as e:
         logger.warning(f"Error checking existing book: {e}, proceeding with scrape")
 
-    # Skip books already known dead on book.qq.com
+    # Skip books already flagged dead on book.qq.com (durable DB flag).
     rconn = scraper.proxy_manager.redis
     bid = extract_bid_from_url(url)
+    with db_manager.get_session() as _s:
+        if _s.query(Book.dead).filter(Book.url == url).scalar():
+            return {'success': False, 'url': url, 'skipped': 'dead'}
     if bid and is_dead(rconn, bid):
-        with db_manager.get_session() as s:
-            b = s.query(Book).filter(Book.url == url).first()
-            if b:
-                s.delete(b)
-                s.commit()
+        _mark_book_dead(url=url)
         return {'success': False, 'url': url, 'skipped': 'dead'}
 
     max_retries = 3
@@ -1079,16 +1090,13 @@ def scrape_and_save(url: str) -> dict:
 
         except requests.RequestException as e:
             if _is_404(e):
-                logger.warning(f"404 on qq scrape ({url}); blacklisting bid={bid}")
+                logger.warning(f"404 on qq scrape ({url}); flagging dead "
+                               f"(bid={bid})")
                 if bid:
                     mark_dead(rconn, bid)
-                with db_manager.get_session() as s:
-                    b = s.query(Book).filter(Book.url == url).first()
-                    if b:
-                        s.delete(b)
-                        s.commit()
+                _mark_book_dead(url=url)
                 return {'success': False, 'url': url,
-                        'deleted': True, 'reason': '404'}
+                        'dead': True, 'reason': '404'}
             logger.warning(f"Request error on attempt {attempt + 1}: {e}")
             if attempt < max_retries - 1:
                 # Retry with next proxy
@@ -1133,11 +1141,15 @@ def refresh_book(url: str, book_id: int) -> dict:
             'book_id': book_id
         }
 
-    # Skip (and clean up) books already known dead on book.qq.com
+    # Skip books already flagged dead on book.qq.com (durable DB flag is
+    # the source of truth; Redis set is a fast cache backfilled into the DB).
     rconn = scraper.proxy_manager.redis
     bid = extract_bid_from_url(url)
+    with db_manager.get_session() as _s:
+        if _s.query(Book.dead).filter(Book.id == book_id).scalar():
+            return {'success': False, 'book_id': book_id, 'skipped': 'dead'}
     if bid and is_dead(rconn, bid):
-        _delete_book(book_id)
+        _mark_book_dead(book_id)
         return {'success': False, 'book_id': book_id, 'skipped': 'dead'}
 
     # Scrape fresh data
@@ -1365,12 +1377,12 @@ def refresh_book(url: str, book_id: int) -> dict:
         except requests.RequestException as e:
             if _is_404(e):
                 logger.warning(f"Book {book_id} is 404 on qq ({url}); "
-                               f"deleting + blacklisting bid={bid}")
+                               f"flagging dead (bid={bid})")
                 if bid:
                     mark_dead(rconn, bid)
-                _delete_book(book_id)
+                _mark_book_dead(book_id)
                 return {'success': False, 'book_id': book_id,
-                        'deleted': True, 'reason': '404'}
+                        'dead': True, 'reason': '404'}
             logger.warning(f"Refresh request error (attempt {attempt + 1}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(2)

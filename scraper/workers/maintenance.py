@@ -53,6 +53,7 @@ class MaintenanceOrchestrator:
                 ).filter(
                     Book.url.is_not(None),
                     Book.url != '',
+                    Book.dead.is_(False),
                     (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
                 ).limit(limit).all()
 
@@ -100,6 +101,7 @@ class MaintenanceOrchestrator:
                     (Book.author_translated.is_(None)) |
                     (Book.synopsis_translated.is_(None))
                 ).filter(
+                    Book.dead.is_(False),
                     (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
                 ).limit(limit).all()
 
@@ -123,6 +125,7 @@ class MaintenanceOrchestrator:
                     Chapter.title_translated.is_(None),
                     Chapter.title.is_not(None),
                     Chapter.title != '',
+                    Book.dead.is_(False),
                     (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
                 ).distinct().limit(limit).all()
 
@@ -212,6 +215,7 @@ class MaintenanceOrchestrator:
                     )
                 ).filter(
                     Book.title_translated.is_not(None),
+                    Book.dead.is_(False),
                     (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
                 ).order_by(Book.last_scraped_at.asc()).limit(limit).all()
 
@@ -259,6 +263,7 @@ class MaintenanceOrchestrator:
                 ).filter(
                     Book.url.is_not(None),
                     Book.url != '',
+                    Book.dead.is_(False),
                     (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
                 ).order_by(Book.last_comments_scraped_at.asc().nullsfirst()).limit(limit).all()
 
@@ -307,6 +312,7 @@ class MaintenanceOrchestrator:
 
             with db_manager.get_session() as session:
                 rows = session.query(Book.id).join(BookComment).filter(
+                    Book.dead.is_(False),
                     BookComment.content_translated.is_(None),
                     BookComment.content.is_not(None),
                     BookComment.content != ''
@@ -359,6 +365,7 @@ class MaintenanceOrchestrator:
 
             with db_manager.get_session() as session:
                 rows = session.query(Book.id).join(BookComment).join(QQUser).filter(
+                    Book.dead.is_(False),
                     QQUser.nickname.is_not(None),
                     QQUser.nickname != '',
                     QQUser.nickname_translated.is_(None)
@@ -565,6 +572,7 @@ class MaintenanceOrchestrator:
             ).filter(
                 Book.title.isnot(None),
                 Book.qidian_id.is_(None),
+                Book.dead.is_(False),
             ).filter(
                 (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
             ).limit(limit).all()

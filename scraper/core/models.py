@@ -52,6 +52,9 @@ class Book(Base):
     genre_id = Column(Integer, ForeignKey('genres.id', ondelete='SET NULL'), nullable=True)
     subgenre_id = Column(Integer, ForeignKey('genres.id', ondelete='SET NULL'), nullable=True)
     last_scraped_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    # 404 on book.qq.com — durable so it's never scheduled/discovered again
+    # (the row is kept, not deleted, so discovery on_conflict skips it).
+    dead = Column(Boolean, nullable=False, server_default='false')
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
