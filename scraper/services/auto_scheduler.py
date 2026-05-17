@@ -39,10 +39,12 @@ class AutoScheduler:
         """Check and schedule tasks if they're due"""
         current_time = time.time()
 
-        # Refresh stale books every 30 minutes
-        if current_time - self.last_runs['refresh'] >= 1800:
+        # Refresh stale books every 6 hours (toned down: large backlog meant
+        # ~240k refresh jobs/day flooding scraper-books). Wider staleness
+        # window (7d) + smaller batch so far fewer books re-queue each run.
+        if current_time - self.last_runs['refresh'] >= 21600:
             try:
-                job_id = self.queue_manager.add_maintenance_job('check_stale_books', hours=24, limit=5000)
+                job_id = self.queue_manager.add_maintenance_job('check_stale_books', hours=168, limit=2000)
                 logger.info(f"Scheduled refresh task: {job_id}")
                 self.last_runs['refresh'] = current_time
             except Exception as e:
