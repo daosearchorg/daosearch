@@ -32,16 +32,29 @@ def mint_once(rconn) -> bool:
         try:
             ctx = browser.new_context(user_agent=UA, locale="zh-CN")
             page = ctx.new_page()
-            page.goto(TARGET_URL, wait_until="domcontentloaded", timeout=60000)
-            # probe.js runs and the page is re-served; give it time, then ensure
-            # the real content (data-bid) is present.
-            for _ in range(15):
-                if page.locator("[data-bid]").count() > 0:
+            # "commit" returns as soon as the response arrives — probe.js then
+            # solves the challenge and *reloads* the page. Querying the DOM
+            # during that reload throws "Execution context was destroyed", so
+            # we never touch the page: poll the context cookies, which is
+            # navigation-safe.
+            try:
+                page.goto(TARGET_URL, wait_until="commit", timeout=60000)
+            except Exception as e:
+                logger.warning("goto interrupted (expected during probe.js reload): %s", e)
+
+            w_tsfp = csrf = None
+            cookies = {}
+            for _ in range(30):
+                page.wait_for_timeout(1000)  # driver-side sleep, not page-side
+                cookies = {c["name"]: c["value"] for c in ctx.cookies()}
+                if cookies.get("w_tsfp") and cookies.get("_csrfToken"):
+                    # Let probe.js settle on its final token, then re-read.
+                    page.wait_for_timeout(2000)
+                    cookies = {c["name"]: c["value"] for c in ctx.cookies()}
+                    w_tsfp = cookies.get("w_tsfp")
+                    csrf = cookies.get("_csrfToken")
                     break
-                page.wait_for_timeout(1000)
-            cookies = {c["name"]: c["value"] for c in ctx.cookies()}
-            w_tsfp = cookies.get("w_tsfp")
-            csrf = cookies.get("_csrfToken")
+
             if not w_tsfp or not csrf:
                 logger.warning("Mint failed: w_tsfp/_csrfToken absent (cookies=%s)",
                                list(cookies.keys()))
