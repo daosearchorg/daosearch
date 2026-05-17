@@ -159,13 +159,31 @@ def mint_once(rconn) -> bool:
 
 
 def main():
-    rconn = redis.from_url(REDIS_URL)
+    # Plain stdout print (independent of logging/xvfb-run buffering) so the
+    # container is visibly alive in Dokploy even if logging is swallowed.
+    print(f"[cookie-minter] boot: REDIS_URL set={bool(REDIS_URL)} "
+          f"interval={MINT_INTERVAL}s", flush=True)
     logger.info("cookie-minter started (interval=%ss, target=%s)",
                 MINT_INTERVAL, TARGET_URL)
+    rconn = redis.from_url(
+        REDIS_URL, socket_keepalive=True, socket_connect_timeout=10,
+        socket_timeout=30, health_check_interval=30, retry_on_timeout=True)
+    try:
+        rconn.ping()
+        print("[cookie-minter] redis OK", flush=True)
+    except Exception as e:
+        print(f"[cookie-minter] REDIS CONNECT FAILED: {e!r}", flush=True)
+        logger.exception("Redis connect failed")
+        raise
     last_mint = 0.0
     while True:
         due = (time.time() - last_mint) >= MINT_INTERVAL
-        forced = rconn.exists(QIDIAN_REMINT_FLAG) == 1
+        try:
+            forced = rconn.exists(QIDIAN_REMINT_FLAG) == 1
+        except Exception as e:
+            print(f"[cookie-minter] redis error: {e!r}", flush=True)
+            time.sleep(10)
+            continue
         if due or forced:
             try:
                 if mint_once(rconn):

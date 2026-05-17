@@ -10,19 +10,38 @@ import random
 import logging
 from datetime import datetime, timezone
 
-import redis
 import requests
 from bs4 import BeautifulSoup
 
 from core.config import config
 from core.database import db_manager
 from core.models import QidianChartEntry
+from core.redis_conn import get_redis
 from services import qidian_cookie
 from services.book_matcher import resolve_book
 from services.proxy_manager import RedisProxyManager
 from services.queue_manager import QueueManager
 
 logger = logging.getLogger(__name__)
+
+# Process-level singletons (one per worker), bound to the shared Redis pool.
+# Per-job instantiation opens unbounded pools -> ephemeral port exhaustion.
+_PM = None
+_QM = None
+
+
+def _proxy_manager():
+    global _PM
+    if _PM is None:
+        _PM = RedisProxyManager(redis_client=get_redis())
+    return _PM
+
+
+def _queue_manager():
+    global _QM
+    if _QM is None:
+        _QM = QueueManager(redis_client=get_redis())
+    return _QM
 
 # Core 6 rank types (slug -> 中文 label, for reference/logging)
 QIDIAN_RANK_TYPES = {
@@ -110,7 +129,7 @@ def _make_qq_session() -> requests.Session:
     s.headers.update({"User-Agent": UA,
                       "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8"})
     try:
-        pm = RedisProxyManager()
+        pm = _proxy_manager()
         s.proxies.update(pm.format_proxy_for_requests(pm.get_next_proxy()))
     except Exception as e:
         logger.warning("No proxy for qq session: %s", e)
@@ -125,7 +144,7 @@ def _fetch(url: str, rconn) -> str:
         qidian_cookie.request_remint(rconn)
         raise RuntimeError("No fresh qidian cookie; remint requested")
 
-    pm = RedisProxyManager()
+    pm = _proxy_manager()
     headers = {
         "User-Agent": UA,
         "Accept-Language": "zh-CN,zh;q=0.9",
@@ -156,7 +175,7 @@ def scrape_qidian_chart_page(rank_type: str, genre_channel: str,
         return {'success': False, 'error': f'Unknown channel: {genre_channel}'}
 
     url = build_qidian_chart_url(rank_type, genre_channel, page)
-    rconn = redis.from_url(config.redis['url'])
+    rconn = get_redis()
     logger.info("Scraping qidian chart: %s", url)
 
     max_retries = 3
@@ -170,7 +189,7 @@ def scrape_qidian_chart_page(rank_type: str, genre_channel: str,
 
             saved = 0
             qq_session = _make_qq_session()
-            qm = QueueManager()
+            qm = _queue_manager()
             with db_manager.get_session() as db:
                 db.query(QidianChartEntry).filter(
                     QidianChartEntry.rank_type == rank_type,

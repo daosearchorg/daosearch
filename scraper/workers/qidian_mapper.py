@@ -1,16 +1,25 @@
 """RQ worker: resolve and store books.qidian_id for a single book."""
 import logging
 
-import redis
-
-from core.config import config
 from core.database import db_manager
 from core.models import Book
+from core.redis_conn import get_redis
 from services.book_matcher import (
     resolve_qidian_id, CookieUnavailable, ChallengeBlocked)
 from services.proxy_manager import RedisProxyManager
 
 logger = logging.getLogger(__name__)
+
+# One proxy manager per worker process (bound to the shared Redis pool),
+# NOT one per job — per-job instantiation exhausts ephemeral ports.
+_PM = None
+
+
+def _proxy_manager():
+    global _PM
+    if _PM is None:
+        _PM = RedisProxyManager(redis_client=get_redis())
+    return _PM
 
 
 def decide_assignment(resolved_qid, owner_book_id, this_book_id):
@@ -34,8 +43,8 @@ def map_book_qidian_id(book_id: int) -> dict:
     Raises (so RQ retries later) when the cookie is stale/challenged — by then
     the minter will have refreshed it.
     """
-    rconn = redis.from_url(config.redis["url"])
-    pm = RedisProxyManager()
+    rconn = get_redis()
+    pm = _proxy_manager()
 
     with db_manager.get_session() as session:
         book = session.query(Book).filter(Book.id == book_id).first()
