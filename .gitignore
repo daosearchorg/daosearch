@@ -125,3 +125,4 @@ scraper/test_nuxt.py
 # Draft work (announcements, notes, etc.)
 draftwork/
 .playwright-mcp/
+docs/
