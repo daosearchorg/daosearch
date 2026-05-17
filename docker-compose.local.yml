@@ -151,6 +151,21 @@ services:
     restart: "no"
     mem_limit: 6g
 
+  # Cookie minter — Playwright sidecar that mints the qidian.com w_tsfp
+  # anti-bot cookie into Redis (~12 min loop). Workers read it via Redis.
+  cookie-minter:
+    build:
+      context: ./cookie-minter
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - QIDIAN_MINT_INTERVAL=720
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 1g
+
   # Reader — FastAPI chapter scraping + translation service
   reader:
     build:
