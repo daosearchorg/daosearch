@@ -601,55 +601,10 @@ class QidiantuBooklistScraper:
         return None
 
     def _search_qq_book(self, title: str) -> Optional[str]:
-        """Search book.qq.com/so/{title} and return the bid if an exact title match is found.
-
-        The __NUXT__ data is a JS function expression (not JSON), so we extract
-        bid/title pairs directly via regex from the raw script text.
-        """
-        try:
-            encoded_title = quote(title)
-            url = f"https://book.qq.com/so/{encoded_title}"
-
-            qq_session = self._get_qq_session()
-            resp = qq_session.get(url, timeout=30)
-            resp.raise_for_status()
-
-            # Extract the __NUXT__ script block
-            nuxt_match = re.search(r'window\.__NUXT__\s*=\s*(.+?);\s*</script>', resp.text, re.DOTALL)
-            if not nuxt_match:
-                return None
-
-            nuxt_text = nuxt_match.group(1)
-
-            # Find all bid:NUMBER patterns followed by their title
-            # The NUXT JS has objects like {bid:804248,...,title:"玄界之门",...}
-            # We extract bid+title pairs by finding bid then the nearest title
-            for bid_match in re.finditer(r'\bbid:(\d+)', nuxt_text):
-                bid = bid_match.group(1)
-                # Look for the title field near this bid (within next 500 chars)
-                after = nuxt_text[bid_match.end():bid_match.end() + 500]
-                title_match = re.search(r'\btitle:(["\'])(.+?)\1', after)
-                if not title_match:
-                    # Title might be a variable reference — check if it equals search term
-                    # The NUXT function substitutes variables, so title might be param like 'g'
-                    # In that case the variable holds the search keyword = our title
-                    title_var_match = re.search(r'\btitle:([a-z])\b', after)
-                    if title_var_match:
-                        # Variable reference — the search keyword IS the title
-                        logger.info(f"Found bid {bid} with variable title (assuming match for '{title}')")
-                        return bid
-                    continue
-
-                found_title = title_match.group(2)
-                if found_title == title:
-                    logger.info(f"Found exact match on qq.com: '{title}' -> bid {bid}")
-                    return bid
-
-            return None
-
-        except Exception as e:
-            logger.warning(f"qq.com search failed for '{title}': {e}")
-            return None
+        """Search book.qq.com for an exact title match. Delegates to the shared
+        implementation in services.book_matcher (behavior unchanged)."""
+        from services.book_matcher import search_qq_book
+        return search_qq_book(self._get_qq_session(), title)
 
     # ========================================================================
     # Step 4: Save booklist items and match books

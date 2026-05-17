@@ -524,6 +524,43 @@ class MaintenanceOrchestrator:
         logger.info(f"Charts refresh: {scheduled} jobs scheduled, {skipped} skipped")
         return {'scheduled': scheduled, 'skipped': skipped}
 
+    def find_unmapped_qidian_ids(self, limit: int = 10000) -> dict:
+        """Find books that have a title but no qidian_id and enqueue mapping jobs.
+
+        Skips blacklisted genres (consistent with the other maintenance tasks)
+        and jobs already queued."""
+        queued_ids = self.queue_manager.get_all_job_ids('scraper-mapping')
+
+        with db_manager.get_session() as session:
+            rows = session.query(Book.id).outerjoin(
+                Genre, Book.genre_id == Genre.id
+            ).filter(
+                Book.title.isnot(None),
+                Book.qidian_id.is_(None),
+            ).filter(
+                (Genre.blacklisted.is_(False)) | (Genre.id.is_(None)),
+            ).limit(limit).all()
+            book_ids = [r[0] for r in rows]
+
+        if not book_ids:
+            logger.info("No unmapped qidian books to enqueue")
+            return {'enqueued': 0, 'candidates': 0, 'skipped': 0}
+
+        skipped = 0
+        to_enqueue = []
+        for bid in book_ids:
+            if f"map_qidian_{bid}" in queued_ids:
+                skipped += 1
+                continue
+            to_enqueue.append(bid)
+
+        enqueued = self.queue_manager.add_qidian_map_jobs_bulk(to_enqueue)
+        logger.info(
+            f"Qidian mapping: {enqueued} jobs enqueued, {skipped} skipped "
+            f"({len(book_ids)} candidates)")
+        return {'enqueued': enqueued, 'candidates': len(book_ids),
+                'skipped': skipped}
+
 
 
 # Worker functions for RQ
@@ -581,6 +618,13 @@ def check_booklist_missing_translations(limit: int = 5000) -> dict:
     orchestrator = MaintenanceOrchestrator()
     result = orchestrator.find_booklist_missing_translations(limit)
     logger.info(f"Booklist missing translations check: {result}")
+    return result
+
+def check_unmapped_qidian_ids(limit: int = 10000) -> dict:
+    """Orchestrator task: Find and queue books needing qidian_id mapping"""
+    orchestrator = MaintenanceOrchestrator()
+    result = orchestrator.find_unmapped_qidian_ids(limit)
+    logger.info(f"Qidian id mapping check: {result}")
     return result
 
 def refresh_qidian_booklists() -> dict:

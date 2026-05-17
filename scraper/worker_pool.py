@@ -18,7 +18,7 @@ SPAWN_BATCH_SIZE = 2
 SPAWN_DELAY = 2  # seconds between batches
 
 WORKER_QUEUES = {
-    'scraper': ['scraper-charts', 'scraper-books', 'scraper-booklists', 'scraper-comments'],
+    'scraper': ['scraper-charts', 'scraper-books', 'scraper-booklists', 'scraper-comments', 'scraper-mapping'],
     'translation': ['translation-books', 'translation-booklists', 'translation-comments', 'translation-nicknames', 'translation-chapters'],
     'maintenance': ['maintenance'],
     'general': ['general'],

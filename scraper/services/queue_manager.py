@@ -32,6 +32,7 @@ class QueueManager:
         self.scraper_books_queue = Queue('scraper-books', connection=self.redis)
         self.scraper_booklists_queue = Queue('scraper-booklists', connection=self.redis)
         self.scraper_comments_queue = Queue('scraper-comments', connection=self.redis)
+        self.scraper_mapping_queue = Queue('scraper-mapping', connection=self.redis)
 
         self.maintenance_queue = Queue('maintenance', connection=self.redis)
         self.general_queue = Queue('general', connection=self.redis)
@@ -192,6 +193,27 @@ class QueueManager:
         ]
 
         enqueued = self.scraper_charts_queue.enqueue_many(job_data_list)
+        return len(enqueued)
+
+    def add_qidian_map_jobs_bulk(self, book_ids: list[int]) -> int:
+        """Bulk enqueue qidian-id mapping jobs."""
+        if not book_ids:
+            return 0
+
+        job_data_list = [
+            Queue.prepare_data(
+                'workers.qidian_mapper.map_book_qidian_id',
+                args=(book_id,),
+                job_id=f"map_qidian_{book_id}",
+                timeout='5m',
+                result_ttl=60,
+                failure_ttl=86400,
+                retry=Retry(max=3)
+            )
+            for book_id in book_ids
+        ]
+
+        enqueued = self.scraper_mapping_queue.enqueue_many(job_data_list)
         return len(enqueued)
 
     def add_translation_job(self, book_id: int, job_type: str = 'book') -> str:
@@ -399,7 +421,9 @@ class QueueManager:
 
     @property
     def _all_scraper_queues(self) -> list:
-        return [self.scraper_charts_queue, self.scraper_books_queue, self.scraper_booklists_queue, self.scraper_comments_queue]
+        return [self.scraper_charts_queue, self.scraper_books_queue,
+                self.scraper_booklists_queue, self.scraper_comments_queue,
+                self.scraper_mapping_queue]
 
     def is_job_in_queue(self, job_id: str, queue_name: str = 'scraper') -> bool:
         """Check if job exists in any RQ registry (pending, started, deferred)"""
@@ -408,6 +432,7 @@ class QueueManager:
             'scraper-books': [self.scraper_books_queue],
             'scraper-booklists': [self.scraper_booklists_queue],
             'scraper-comments': [self.scraper_comments_queue],
+            'scraper-mapping': [self.scraper_mapping_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
@@ -445,6 +470,7 @@ class QueueManager:
             'scraper-books': [self.scraper_books_queue],
             'scraper-booklists': [self.scraper_booklists_queue],
             'scraper-comments': [self.scraper_comments_queue],
+            'scraper-mapping': [self.scraper_mapping_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
@@ -491,6 +517,7 @@ class QueueManager:
             'scraper-books': self._queue_stats(self.scraper_books_queue),
             'scraper-booklists': self._queue_stats(self.scraper_booklists_queue),
             'scraper-comments': self._queue_stats(self.scraper_comments_queue),
+            'scraper-mapping': self._queue_stats(self.scraper_mapping_queue),
             **translation_queues,
             'maintenance': self._queue_stats(self.maintenance_queue),
             'general': self._queue_stats(self.general_queue),
@@ -513,6 +540,7 @@ class QueueManager:
             'scraper-books': [self.scraper_books_queue],
             'scraper-booklists': [self.scraper_booklists_queue],
             'scraper-comments': [self.scraper_comments_queue],
+            'scraper-mapping': [self.scraper_mapping_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
