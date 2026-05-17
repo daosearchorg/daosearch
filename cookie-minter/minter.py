@@ -160,6 +160,8 @@ def mint_once(rconn) -> bool:
 
 def main():
     rconn = redis.from_url(REDIS_URL)
+    logger.info("cookie-minter started (interval=%ss, target=%s)",
+                MINT_INTERVAL, TARGET_URL)
     last_mint = 0.0
     while True:
         due = (time.time() - last_mint) >= MINT_INTERVAL
