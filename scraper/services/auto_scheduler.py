@@ -32,6 +32,7 @@ class AutoScheduler:
             'refresh_book_stats': 0,
             'booklist_missing_translations': 0,
             'map_qidian_ids': 0,
+            'refresh_qidian_charts': 0,
         }
 
     def _schedule_if_due(self):
@@ -138,6 +139,15 @@ class AutoScheduler:
                 self.last_runs['refresh_charts'] = current_time
             except Exception as e:
                 logger.error(f"Failed to schedule QQ charts refresh: {e}")
+
+        # Refresh Qidian charts every 24 hours
+        if current_time - self.last_runs['refresh_qidian_charts'] >= 86400:
+            try:
+                job_id = self.queue_manager.add_maintenance_job('refresh_qidian_charts')
+                logger.info(f"Scheduled Qidian charts refresh: {job_id}")
+                self.last_runs['refresh_qidian_charts'] = current_time
+            except Exception as e:
+                logger.error(f"Failed to schedule Qidian charts refresh: {e}")
 
 
     def _run_loop(self):

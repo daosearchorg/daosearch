@@ -524,6 +524,34 @@ class MaintenanceOrchestrator:
         logger.info(f"Charts refresh: {scheduled} jobs scheduled, {skipped} skipped")
         return {'scheduled': scheduled, 'skipped': skipped}
 
+    def refresh_qidian_charts(self) -> dict:
+        """Queue scrape jobs for all qidian leaderboard combinations.
+
+        6 rank types x 15 channels (overall + 14 genres) x 5 pages = 450 jobs.
+        """
+        from workers.qidian_charts_scraper import (
+            QIDIAN_RANK_TYPES, QIDIAN_GENRE_CHANNELS, QIDIAN_CHART_PAGES)
+
+        queued_ids = self.queue_manager.get_all_job_ids('scraper-qidian-charts')
+        skipped = 0
+        to_enqueue = []
+        for rank_type in QIDIAN_RANK_TYPES:
+            for genre_channel in QIDIAN_GENRE_CHANNELS:
+                for page in QIDIAN_CHART_PAGES:
+                    job_id = f"qidian_chart_{rank_type}_{genre_channel}_{page}"
+                    if job_id in queued_ids:
+                        skipped += 1
+                        continue
+                    to_enqueue.append((rank_type, genre_channel, page))
+
+        scheduled = 0
+        if to_enqueue:
+            scheduled = self.queue_manager.add_qidian_chart_jobs_bulk(to_enqueue)
+
+        logger.info(f"Qidian charts refresh: {scheduled} scheduled, "
+                    f"{skipped} skipped")
+        return {'scheduled': scheduled, 'skipped': skipped}
+
     def find_unmapped_qidian_ids(self, limit: int = 10000) -> dict:
         """Find books that have a title but no qidian_id and enqueue mapping jobs.
 
@@ -625,6 +653,13 @@ def check_unmapped_qidian_ids(limit: int = 10000) -> dict:
     orchestrator = MaintenanceOrchestrator()
     result = orchestrator.find_unmapped_qidian_ids(limit)
     logger.info(f"Qidian id mapping check: {result}")
+    return result
+
+def refresh_qidian_charts() -> dict:
+    """Orchestrator task: Queue all qidian leaderboard scraping jobs"""
+    orchestrator = MaintenanceOrchestrator()
+    result = orchestrator.refresh_qidian_charts()
+    logger.info(f"Qidian charts refresh: {result}")
     return result
 
 def refresh_qidian_booklists() -> dict:
