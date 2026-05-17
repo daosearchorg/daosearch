@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BookOpen, ExternalLink, Loader2, Lock } from "lucide-react";
 import { LoginDialog } from "@/components/layout/login-dialog";
-import { readerUrl } from "@/lib/utils";
 
 interface Chapter {
   id: number;
@@ -24,13 +22,13 @@ interface BookChaptersProps {
   bookTitle?: string;
 }
 
-export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn, bookTitle }: BookChaptersProps) {
-  const router = useRouter();
+export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleColumn }: BookChaptersProps) {
   const { status } = useSession();
   const [items, setItems] = useState<Chapter[]>(initialItems ?? []);
   const [loading, setLoading] = useState(!initialItems?.length);
   const [currentSeq, setCurrentSeq] = useState<number | null>(initialCurrentSeq ?? null);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [savingId, setSavingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialItems?.length) return;
@@ -51,12 +49,38 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
     return () => window.removeEventListener("progress-updated", handler);
   }, []);
 
-  const handleChapterClick = (ch: Chapter) => {
+  const handleChapterClick = async (ch: Chapter) => {
     if (status !== "authenticated") {
       setLoginOpen(true);
       return;
     }
-    router.push(readerUrl(bookId, bookTitle ?? null));
+    if (savingId != null) return;
+    setSavingId(ch.id);
+    // Optimistically reflect the new current chapter.
+    const prevSeq = currentSeq;
+    setCurrentSeq(ch.sequenceNumber);
+    try {
+      const res = await fetch(`/api/books/${bookId}/progress`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chapterId: ch.id,
+          chapterSeq: ch.sequenceNumber,
+          // Stable source so the (user, book, source_domain) unique key
+          // points at a single canonical row for community rankings.
+          sourceUrl: "https://daosearch.com",
+        }),
+      });
+      if (!res.ok) {
+        setCurrentSeq(prevSeq);
+      } else {
+        window.dispatchEvent(new CustomEvent("progress-updated", { detail: ch.sequenceNumber }));
+      }
+    } catch {
+      setCurrentSeq(prevSeq);
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) {
@@ -77,11 +101,13 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
         {items.map((ch) => {
           const isCurrent = currentSeq != null && ch.sequenceNumber === currentSeq;
           const isRead = currentSeq != null && ch.sequenceNumber < currentSeq;
+          const isSaving = savingId === ch.id;
 
           return (
             <button
               key={ch.id}
               onClick={() => handleChapterClick(ch)}
+              disabled={isSaving}
               className={`flex items-center gap-3 px-2.5 py-2.5 sm:py-3 w-full text-left rounded-md break-inside-avoid transition-colors ${
                 isCurrent
                   ? "bg-accent ring-1 ring-border"
@@ -106,19 +132,20 @@ export function BookChapters({ bookId, initialItems, initialCurrentSeq, singleCo
               {ch.locked && (
                 <Lock className="shrink-0 size-3 text-muted-foreground/40" />
               )}
-              {isCurrent && (
+              {isSaving ? (
+                <Loader2 className="ml-auto shrink-0 size-3.5 animate-spin text-muted-foreground mr-1" />
+              ) : isCurrent ? (
                 <BookOpen className="ml-auto shrink-0 size-3.5 text-muted-foreground mr-1" />
-              )}
-              {isRead && !isCurrent && (
+              ) : isRead ? (
                 <span className="ml-auto shrink-0 size-1.5 rounded-full bg-muted-foreground/30 mr-1" />
-              )}
+              ) : null}
               {ch.url && (
                 <a
                   href={ch.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className={`shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors ${!isCurrent && !isRead ? "ml-auto" : ""}`}
+                  className={`shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors ${!isCurrent && !isRead && !isSaving ? "ml-auto" : ""}`}
                 >
                   <ExternalLink className="size-3" />
                 </a>

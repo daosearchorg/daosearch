@@ -1,12 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { Eye, Play } from "lucide-react";
-import { LoginDialog } from "@/components/layout/login-dialog";
+import { BookOpen, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { readerUrl } from "@/lib/utils";
 
 interface BookProgressProps {
   bookId: number;
@@ -17,11 +13,8 @@ interface BookProgressProps {
   bookUrl?: string;
 }
 
-export function BookProgress({ bookId, initialSeq, bookTitleRaw, bookTitle }: BookProgressProps) {
-  const router = useRouter();
-  const { status } = useSession();
+export function BookProgress({ initialSeq }: BookProgressProps) {
   const [seq, setSeq] = useState<number | null>(initialSeq ?? null);
-  const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -33,29 +26,32 @@ export function BookProgress({ bookId, initialSeq, bookTitleRaw, bookTitle }: Bo
   }, []);
 
   const handleClick = () => {
-    if (status !== "authenticated") {
-      setLoginOpen(true);
+    // Mobile: open the chapters drawer. Desktop: scroll to the chapters section.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches) {
+      window.dispatchEvent(new Event("open-chapters-drawer"));
       return;
     }
-    router.push(readerUrl(bookId, bookTitle ?? null));
+    const el = document.getElementById("chapters");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.dispatchEvent(new Event("open-chapters-drawer"));
+    }
   };
 
   return (
-    <>
-      <Button variant="default" className="w-full" onClick={handleClick}>
-        {seq != null ? (
-          <>
-            <Eye className="size-4" />
-            Reader · Ch. {seq}
-          </>
-        ) : (
-          <>
-            <Play className="size-4 fill-current" />
-            Open Reader
-          </>
-        )}
-      </Button>
-      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
-    </>
+    <Button variant="default" className="w-full" onClick={handleClick}>
+      {seq != null ? (
+        <>
+          <BookOpen className="size-4" />
+          Continue · Ch. {seq}
+        </>
+      ) : (
+        <>
+          <Play className="size-4 fill-current" />
+          Read Now
+        </>
+      )}
+    </Button>
   );
 }

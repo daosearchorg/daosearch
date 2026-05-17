@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { readingProgresses, readingProgressHistories, chapters, bookStats, bookmarks, translatedChapters } from "@/db/schema";
+import { readingProgresses, readingProgressHistories, chapters, bookStats, bookmarks } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -179,17 +179,6 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   if (!sourceDomain) {
     return NextResponse.json({ error: "domain query param required" }, { status: 400 });
   }
-
-  // Delete translated chapters for this domain (cascade deletes chapter_entity_occurrences)
-  await db
-    .delete(translatedChapters)
-    .where(
-      and(
-        eq(translatedChapters.userId, session.user.dbId),
-        eq(translatedChapters.bookId, bookId),
-        eq(translatedChapters.sourceDomain, sourceDomain),
-      ),
-    );
 
   // Delete the reading progress for this domain
   await db
