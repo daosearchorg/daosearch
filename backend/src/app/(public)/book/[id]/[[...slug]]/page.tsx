@@ -420,20 +420,20 @@ export default async function BookDetailPage({ params }: Props) {
         </section>
       )}
 
-      {/* Sources */}
+      {/* Official Sources */}
       {(book.url || book.qidianId) && (
         <section>
-          <h2 className="text-base sm:text-lg font-medium mb-3">Sources</h2>
-          <div className="flex flex-wrap gap-2">
+          <h2 className="text-base sm:text-lg font-medium mb-3">Official Sources</h2>
+          <div className="flex flex-col gap-2">
             {book.url && (
               <a
                 href={book.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs sm:text-sm font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-sky-600 dark:text-sky-400 hover:underline underline-offset-2 break-all"
               >
-                <ExternalLink className="size-3.5" />
-                book.qq.com
+                <ExternalLink className="size-3.5 shrink-0" />
+                {book.url}
               </a>
             )}
             {book.qidianId && (
@@ -441,10 +441,10 @@ export default async function BookDetailPage({ params }: Props) {
                 href={`https://www.qidian.com/book/${book.qidianId}/`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs sm:text-sm font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-rose-600 dark:text-rose-400 hover:underline underline-offset-2 break-all"
               >
-                <ExternalLink className="size-3.5" />
-                qidian.com
+                <ExternalLink className="size-3.5 shrink-0" />
+                {`https://www.qidian.com/book/${book.qidianId}/`}
               </a>
             )}
           </div>
