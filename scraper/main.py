@@ -15,7 +15,7 @@ from typing import Optional
 
 from core.config import config
 from services.queue_manager import QueueManager
-from workers.maintenance import check_missing_fields, check_missing_translations, check_stale_books, check_missing_comments, check_untranslated_comments, check_untranslated_nicknames, refresh_qq_charts, refresh_qidian_booklists, check_booklist_missing_translations, check_unmapped_qidian_ids
+from workers.maintenance import check_missing_fields, check_missing_translations, check_stale_books, check_missing_comments, check_untranslated_comments, check_untranslated_nicknames, refresh_qq_charts, refresh_qidian_booklists, check_booklist_missing_translations, check_unmapped_qidian_ids, refresh_qidian_charts
 from workers.stats import refresh_book_stats, upload_images
 
 # Configure logging
@@ -108,6 +108,10 @@ class ScraperCLI:
             elif task_type == "map-qidian-ids":
                 result = check_unmapped_qidian_ids(limit)
                 print(f"✅ Qidian id mapping: {result}")
+
+            elif task_type == "refresh-qidian-charts":
+                result = refresh_qidian_charts()
+                print(f"✅ Qidian charts refresh: {result}")
 
             else:
                 print(f"❌ Unknown maintenance task: {task_type}")

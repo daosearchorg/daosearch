@@ -545,6 +545,37 @@ class QQChartEntry(Base):
         return f"<QQChartEntry(id={self.id}, gender='{self.gender}', rank_type='{self.rank_type}', position={self.position})>"
 
 
+class QidianChartEntry(Base):
+    """A book's position on a www.qidian.com leaderboard.
+
+    Distinct from QQChartEntry (book.qq.com): qidian has its own rank types
+    (yuepiao/hotsales/recom/collect/readindex/vipup) and genre channels, and
+    books are linked via Book.qidian_id (populated by the qidian mapper).
+    Qidian rankings are pure ordinal — there is no numeric score.
+    """
+    __tablename__ = 'qidian_chart_entries'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rank_type = Column(String(20), nullable=False)
+    # 'overall' for the site-wide list, else 'chn<typeid>' (e.g. 'chn21')
+    genre_channel = Column(String(16), nullable=False)
+    position = Column(Integer, nullable=False)
+    page = Column(Integer, nullable=False, default=1)
+    book_id = Column(Integer, ForeignKey('books.id', ondelete='CASCADE'), nullable=False)
+    scraped_at = Column(TIMESTAMP(timezone=True), nullable=False, default=utc_now)
+
+    book = relationship("Book")
+
+    __table_args__ = (
+        Index('idx_qidian_chart_entries_lookup', 'rank_type', 'genre_channel', 'position'),
+        Index('idx_qidian_chart_entries_book_id', 'book_id'),
+    )
+
+    def __repr__(self):
+        return (f"<QidianChartEntry(id={self.id}, rank_type='{self.rank_type}', "
+                f"genre_channel='{self.genre_channel}', position={self.position})>")
+
+
 # ============================================================================
 # Stats Tables
 # ============================================================================

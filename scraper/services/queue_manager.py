@@ -33,6 +33,7 @@ class QueueManager:
         self.scraper_booklists_queue = Queue('scraper-booklists', connection=self.redis)
         self.scraper_comments_queue = Queue('scraper-comments', connection=self.redis)
         self.scraper_mapping_queue = Queue('scraper-mapping', connection=self.redis)
+        self.scraper_qidian_charts_queue = Queue('scraper-qidian-charts', connection=self.redis)
 
         self.maintenance_queue = Queue('maintenance', connection=self.redis)
         self.general_queue = Queue('general', connection=self.redis)
@@ -193,6 +194,28 @@ class QueueManager:
         ]
 
         enqueued = self.scraper_charts_queue.enqueue_many(job_data_list)
+        return len(enqueued)
+
+    def add_qidian_chart_jobs_bulk(self, jobs: list[tuple]) -> int:
+        """Bulk enqueue qidian chart jobs. jobs = list of
+        (rank_type, genre_channel, page) tuples."""
+        if not jobs:
+            return 0
+
+        job_data_list = [
+            Queue.prepare_data(
+                'workers.qidian_charts_scraper.scrape_qidian_chart_page',
+                args=(rank_type, genre_channel, page),
+                job_id=f"qidian_chart_{rank_type}_{genre_channel}_{page}",
+                timeout='10m',
+                result_ttl=60,
+                failure_ttl=86400,
+                retry=Retry(max=2)
+            )
+            for rank_type, genre_channel, page in jobs
+        ]
+
+        enqueued = self.scraper_qidian_charts_queue.enqueue_many(job_data_list)
         return len(enqueued)
 
     def add_qidian_map_jobs_bulk(self, book_ids: list[int]) -> int:
@@ -423,7 +446,7 @@ class QueueManager:
     def _all_scraper_queues(self) -> list:
         return [self.scraper_charts_queue, self.scraper_books_queue,
                 self.scraper_booklists_queue, self.scraper_comments_queue,
-                self.scraper_mapping_queue]
+                self.scraper_mapping_queue, self.scraper_qidian_charts_queue]
 
     def is_job_in_queue(self, job_id: str, queue_name: str = 'scraper') -> bool:
         """Check if job exists in any RQ registry (pending, started, deferred)"""
@@ -433,6 +456,7 @@ class QueueManager:
             'scraper-booklists': [self.scraper_booklists_queue],
             'scraper-comments': [self.scraper_comments_queue],
             'scraper-mapping': [self.scraper_mapping_queue],
+            'scraper-qidian-charts': [self.scraper_qidian_charts_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
@@ -471,6 +495,7 @@ class QueueManager:
             'scraper-booklists': [self.scraper_booklists_queue],
             'scraper-comments': [self.scraper_comments_queue],
             'scraper-mapping': [self.scraper_mapping_queue],
+            'scraper-qidian-charts': [self.scraper_qidian_charts_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
@@ -518,6 +543,7 @@ class QueueManager:
             'scraper-booklists': self._queue_stats(self.scraper_booklists_queue),
             'scraper-comments': self._queue_stats(self.scraper_comments_queue),
             'scraper-mapping': self._queue_stats(self.scraper_mapping_queue),
+            'scraper-qidian-charts': self._queue_stats(self.scraper_qidian_charts_queue),
             **translation_queues,
             'maintenance': self._queue_stats(self.maintenance_queue),
             'general': self._queue_stats(self.general_queue),
@@ -541,6 +567,7 @@ class QueueManager:
             'scraper-booklists': [self.scraper_booklists_queue],
             'scraper-comments': [self.scraper_comments_queue],
             'scraper-mapping': [self.scraper_mapping_queue],
+            'scraper-qidian-charts': [self.scraper_qidian_charts_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
