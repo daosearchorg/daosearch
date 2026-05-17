@@ -18,6 +18,7 @@ export const getBook = (id: number) =>
         .select({
           id: books.id,
           url: books.url,
+          qidianId: books.qidianId,
           imageUrl: books.imageUrl,
           title: books.title,
           titleTranslated: books.titleTranslated,

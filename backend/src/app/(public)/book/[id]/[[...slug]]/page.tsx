@@ -11,7 +11,7 @@ import { chapters as chaptersTable, readingProgresses, bookmarks, bookRatings, b
 import { eq, desc, and } from "drizzle-orm";
 import { slugify, bookUrl } from "@/lib/utils";
 
-import { Trophy, ScrollText, BookOpen, Eye, Bookmark, Star, MessageSquareText, Heart, Users, ThumbsUp, Search } from "lucide-react";
+import { Trophy, ScrollText, BookOpen, Eye, Bookmark, Star, MessageSquareText, Heart, Users, ThumbsUp, Search, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookRating } from "@/components/book/rating";
 import { BookBookmark } from "@/components/book/bookmark";
@@ -333,8 +333,8 @@ export default async function BookDetailPage({ params }: Props) {
               <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
                 {communityBadges.map((cr) => (
                   <Link key={cr.period} href={`/daosearch/rankings?period=${cr.period}`}>
-                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-violet-500/20 bg-violet-500/5 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 transition-colors">
-                      <Trophy className="size-2.5 sm:size-3 text-violet-500" />
+                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors">
+                      <Trophy className="size-2.5 sm:size-3 text-emerald-600 dark:text-emerald-400" />
                       #{cr.position} Community · {PERIOD_LABELS[cr.period] ?? cr.period}
                     </span>
                   </Link>
@@ -345,8 +345,8 @@ export default async function BookDetailPage({ params }: Props) {
                   const cycle = RANK_TYPE_CYCLE_LABELS[r.rankType]?.[r.cycle] ?? r.cycle;
                   return (
                     <Link key={`${r.gender}-${r.rankType}-${r.cycle}`} href={`/qq/rankings?gender=${r.gender}&type=${r.rankType}&cycle=${r.cycle}`}>
-                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors">
-                        <Trophy className="size-2.5 sm:size-3 text-amber-500" />
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium cursor-pointer border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors">
+                        <Trophy className="size-2.5 sm:size-3 text-amber-600 dark:text-amber-400" />
                         #{r.position} {gender} {rankType} · {cycle}
                       </span>
                     </Link>
@@ -417,6 +417,37 @@ export default async function BookDetailPage({ params }: Props) {
         <section>
           <h2 className="text-base sm:text-lg font-medium mb-3">About This Novel</h2>
           <p className="text-sm sm:text-base text-foreground/70 leading-relaxed whitespace-pre-line">{book.synopsisTranslated || book.synopsis!}</p>
+        </section>
+      )}
+
+      {/* Sources */}
+      {(book.url || book.qidianId) && (
+        <section>
+          <h2 className="text-base sm:text-lg font-medium mb-3">Sources</h2>
+          <div className="flex flex-wrap gap-2">
+            {book.url && (
+              <a
+                href={book.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs sm:text-sm font-medium text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 transition-colors"
+              >
+                <ExternalLink className="size-3.5" />
+                book.qq.com
+              </a>
+            )}
+            {book.qidianId && (
+              <a
+                href={`https://www.qidian.com/book/${book.qidianId}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs sm:text-sm font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-colors"
+              >
+                <ExternalLink className="size-3.5" />
+                qidian.com
+              </a>
+            )}
+          </div>
         </section>
       )}
 
