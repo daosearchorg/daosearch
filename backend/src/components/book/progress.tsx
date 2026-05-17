@@ -26,14 +26,19 @@ export function BookProgress({ initialSeq }: BookProgressProps) {
   }, []);
 
   const handleClick = () => {
-    // Mobile: open the chapters drawer. Desktop: scroll to the chapters section.
+    // Mobile: open the chapters drawer.
     if (typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches) {
       window.dispatchEvent(new Event("open-chapters-drawer"));
       return;
     }
+    // Desktop: switch the opinions tabs to "Table of Contents", then scroll
+    // to it (otherwise it lands on the "What Readers Think" tab).
     const el = document.getElementById("chapters");
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.dispatchEvent(new Event("open-chapters-tab"));
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } else {
       window.dispatchEvent(new Event("open-chapters-drawer"));
     }
