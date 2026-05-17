@@ -368,28 +368,28 @@ export function BookCard({
             )}
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">{displayAuthor}</p>
             {hasStats ? (
-              <div className="flex sm:hidden items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+              <div className="flex sm:hidden flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[13px] text-muted-foreground">
                 {(stats.wordCount ?? 0) > 0 && (
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <ScrollText className="size-3 shrink-0" />
+                    <ScrollText className="size-3.5 shrink-0" />
                     <span className="font-medium tabular-nums">{formatWordCount(stats.wordCount!)}</span>
                   </span>
                 )}
                 {stats.qqScore && (
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <Star className="size-3 shrink-0" />
+                    <Star className="size-3.5 shrink-0" />
                     <span className={`font-medium tabular-nums ${qqScoreColor(stats.qqScore)}`}>{stats.qqScore}</span>
                   </span>
                 )}
                 {combinedReviews > 0 && (
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <MessageSquareText className="size-3 shrink-0" />
+                    <MessageSquareText className="size-3.5 shrink-0" />
                     <span className="font-medium tabular-nums">{combinedReviews.toLocaleString()}</span>
                   </span>
                 )}
                 {(stats.readerCount ?? 0) > 0 && (
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <Users className="size-3 shrink-0" />
+                    <Users className="size-3.5 shrink-0" />
                     <span className="font-medium tabular-nums">{formatWordCount(stats.readerCount!)}</span>
                   </span>
                 )}
