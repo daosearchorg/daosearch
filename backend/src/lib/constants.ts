@@ -133,7 +133,9 @@ export const RANK_TYPE_CYCLE_LABELS: Record<string, Record<string, string>> = {
 export const PAGE_SIZE = 20;
 export const REVIEWS_PAGE_SIZE = 10;
 export const PAGINATION_SIZE = 50;
-export const LIBRARY_PAGE_SIZE = 50;
+// Library and booklist pages share the same 3-podium + 2-col-grid convention,
+// so the page size is 49 (= 3 podium + 46 even rows of 2-col).
+export const LIBRARY_PAGE_SIZE = 49;
 
 // Library sort options
 export const LIBRARY_SORT_OPTIONS = [
@@ -219,3 +221,31 @@ export const QIDIAN_GENRE_CHANNEL_LABELS: Record<QidianGenreChannel, string> = {
 
 export const QIDIAN_DEFAULT_RANK_TYPE: QidianRankType = "yuepiao";
 export const QIDIAN_DEFAULT_GENRE_CHANNEL: QidianGenreChannel = "overall";
+
+// ============================================================================
+// Booklist filter taxonomy — shared by /qidian/booklists and /daosearch/booklists.
+// `relevance` is a hidden sort auto-applied when `name` is set without an
+// explicit sort, matching the LibrarySort pattern.
+// ============================================================================
+
+export const BOOKLIST_SORT_OPTIONS = [
+  { value: "popular", label: "Most Followed" },
+  { value: "recent", label: "Recently Updated" },
+  { value: "largest", label: "Most Books" },
+  { value: "relevance", label: "Relevance" },
+] as const;
+export type BooklistSort = (typeof BOOKLIST_SORT_OPTIONS)[number]["value"];
+
+export const BOOKLIST_UPDATED_WITHIN_OPTIONS = [
+  { value: 7, label: "Last 7 days" },
+  { value: 30, label: "Last 30 days" },
+  { value: 90, label: "Last 90 days" },
+  { value: 180, label: "Last 180 days" },
+  { value: 365, label: "Last year" },
+] as const;
+export const BOOKLIST_UPDATED_WITHIN_VALUES = new Set<number>(
+  BOOKLIST_UPDATED_WITHIN_OPTIONS.map((o) => o.value),
+);
+
+export const BOOKLIST_FOLLOWER_PRESETS = [10, 50, 100, 500, 1000, 5000, 10000] as const;
+export const BOOKLIST_BOOK_COUNT_PRESETS = [5, 10, 25, 50, 100, 250] as const;

@@ -4,18 +4,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+// Top-level Books | Booklists toggle rendered on /library, /qidian/booklists,
+// and /daosearch/booklists. The Booklists link always points at the Qidian
+// source (the default); the source dropdown inside BooklistFilters lets users
+// flip between Qidian and Community.
 const TABS = [
-  { href: "/qidian/booklists", label: "Official" },
-  { href: "/daosearch/booklists", label: "Community" },
+  {
+    href: "/library",
+    label: "Books",
+    match: (p: string) => p === "/library" || p.startsWith("/library/"),
+  },
+  {
+    href: "/qidian/booklists",
+    label: "Booklists",
+    match: (p: string) =>
+      p.startsWith("/qidian/booklists") || p.startsWith("/daosearch/booklists"),
+  },
 ] as const;
 
-export function BooklistsSwitch() {
+export function LibraryTabs() {
   const pathname = usePathname();
 
   return (
     <div className="inline-flex items-center rounded-lg bg-muted p-1">
       {TABS.map((tab) => {
-        const active = pathname.startsWith(tab.href);
+        const active = tab.match(pathname);
         return (
           <Link
             key={tab.href}

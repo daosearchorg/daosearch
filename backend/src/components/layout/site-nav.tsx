@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { LoginDialog } from "@/components/layout/login-dialog";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const NAV_LINKS = [
   { href: "/library", label: "Library", icon: Library },
@@ -88,6 +89,7 @@ export function SiteNav() {
           ))}
 
           <Separator orientation="vertical" className="!h-5 mx-2" />
+          <ThemeToggle />
           {isAuthed && <NotificationBell />}
           <UserMenu />
         </div>
@@ -95,6 +97,7 @@ export function SiteNav() {
         {/* Mobile right side */}
         <div className="ml-auto flex sm:hidden items-center gap-1">
           <NavSearch />
+          <ThemeToggle />
           {isAuthed && <NotificationBell />}
 
           <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAccountOpen(false); }}>

@@ -1,77 +1,119 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 export const revalidate = 300;
 import { Pagination } from "@/components/shared/pagination";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
-import { getCommunityBooklists, type CommunityBooklistSort } from "@/lib/queries";
-import { CommunityBooklistFilters } from "./filters";
+import { getCommunityBooklists, getPopularTags } from "@/lib/queries";
+import {
+  BOOKLIST_SORT_OPTIONS,
+  BOOKLIST_UPDATED_WITHIN_VALUES,
+  type BooklistSort,
+} from "@/lib/constants";
+import { BooklistFilters } from "@/components/booklist/booklist-filters";
 import { CommunityBooklistsList } from "./booklists-list";
-import { BooklistsSwitch } from "@/components/booklist/booklists-switch";
+import { LibraryTabs } from "@/components/layout/library-tabs";
 
-const SORTS: CommunityBooklistSort[] = ["popular", "recent", "largest"];
-
-const SORT_META: Record<CommunityBooklistSort, { title: string; description: string }> = {
-  popular: {
-    title: "Community Booklists",
-    description: "Browse user-created community booklists ranked by follower count.",
-  },
-  recent: {
-    title: "Recently Updated Community Booklists",
-    description: "Explore community booklists that were updated most recently.",
-  },
-  largest: {
-    title: "Largest Community Booklists",
-    description: "Find the biggest user-created community booklists by book count.",
-  },
-};
+const VALID_SORTS = new Set<BooklistSort>(BOOKLIST_SORT_OPTIONS.map((o) => o.value));
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+function str(v: string | string[] | undefined): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+function num(v: string | string[] | undefined): number | undefined {
+  const n = Number(str(v));
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+function parseFilters(params: Record<string, string | string[] | undefined>) {
+  const name = str(params.name)?.trim() || undefined;
+  const hasSearch = !!name;
+
+  const sortRaw = str(params.sort) as BooklistSort | undefined;
+  const sortValid = sortRaw && VALID_SORTS.has(sortRaw) ? sortRaw : undefined;
+  const sort: BooklistSort = sortValid ?? (hasSearch ? "relevance" : "recent");
+  const order = str(params.order) === "asc" ? ("asc" as const) : ("desc" as const);
+
+  const tagRaw = str(params.tag);
+  const tagIds = tagRaw
+    ? tagRaw.split(",").map(Number).filter((n) => Number.isFinite(n) && n > 0).slice(0, 20)
+    : undefined;
+
+  const minFollowers = num(params.minF);
+  const maxFollowers = num(params.maxF);
+  const minBookCount = num(params.minB);
+  const maxBookCount = num(params.maxB);
+  const withinRaw = num(params.within);
+  const updatedWithin = withinRaw != null && BOOKLIST_UPDATED_WITHIN_VALUES.has(withinRaw) ? withinRaw : undefined;
+
+  return { name, sort, order, tagIds, minFollowers, maxFollowers, minBookCount, maxBookCount, updatedWithin };
+}
+
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams;
-  const sort = SORTS.includes(params.sort as CommunityBooklistSort)
-    ? (params.sort as CommunityBooklistSort)
-    : "recent";
+  const { sort } = parseFilters(params);
 
-  const meta = SORT_META[sort];
+  const sortLabel = BOOKLIST_SORT_OPTIONS.find((o) => o.value === sort)?.label;
+  const title = sort === "recent"
+    ? "Community Booklists"
+    : `Community Booklists — ${sortLabel}`;
+  const description = "Search and filter user-created community booklists by tag, follower count, book count, and recency.";
 
   return {
-    title: meta.title,
-    description: meta.description,
+    title,
+    description,
     alternates: { canonical: "/daosearch/booklists" },
-    openGraph: {
-      title: meta.title,
-      description: meta.description,
-    },
+    openGraph: { title, description },
   };
 }
 
 export default async function CommunityBooklistsPage({ searchParams }: Props) {
   const params = await searchParams;
-  const sort = SORTS.includes(params.sort as CommunityBooklistSort)
-    ? (params.sort as CommunityBooklistSort)
-    : "recent";
-  const page = Math.max(1, Number(params.page) || 1);
+  const filters = parseFilters(params);
+  const rawPage = Math.max(1, Number(str(params.page)) || 1);
+  if (rawPage > 200) notFound();
+  const page = rawPage;
 
-  const { items, total, totalPages } = await getCommunityBooklists({ page, sort });
+  const [{ items, total, totalPages }, popularTags] = await Promise.all([
+    getCommunityBooklists({ page, ...filters }),
+    getPopularTags(),
+  ]);
 
   const paginationParams: Record<string, string> = {};
-  if (sort !== "recent") paginationParams.sort = sort;
+  if (filters.name) paginationParams.name = filters.name;
+  if (filters.sort !== "recent" && filters.sort !== "relevance") paginationParams.sort = filters.sort;
+  if (filters.order !== "desc") paginationParams.order = filters.order;
+  if (filters.tagIds?.length) paginationParams.tag = filters.tagIds.join(",");
+  if (filters.minFollowers != null) paginationParams.minF = String(filters.minFollowers);
+  if (filters.maxFollowers != null) paginationParams.maxF = String(filters.maxFollowers);
+  if (filters.minBookCount != null) paginationParams.minB = String(filters.minBookCount);
+  if (filters.maxBookCount != null) paginationParams.maxB = String(filters.maxBookCount);
+  if (filters.updatedWithin != null) paginationParams.within = String(filters.updatedWithin);
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
       <ScrollToTop />
 
-      <div className="flex flex-col items-center gap-4 sm:gap-5 pt-2">
-        <h1 className="text-2xl sm:text-4xl font-medium tracking-tight">Booklists</h1>
-        <BooklistsSwitch />
-        <CommunityBooklistFilters sort={sort} />
+      <div className="flex flex-col items-center gap-3 sm:gap-4 pt-2">
+        <h1 className="text-2xl sm:text-4xl font-medium tracking-tight">Library</h1>
+        <LibraryTabs />
+        <p className="text-muted-foreground">
+          Browse books and booklists
+        </p>
       </div>
+
+      <BooklistFilters
+        source="community"
+        initial={filters}
+        popularTags={popularTags}
+      />
 
       {items.length === 0 ? (
         <p className="py-16 text-center text-muted-foreground text-lg">
-          No booklists found yet.
+          No booklists found matching your filters.
         </p>
       ) : (
         <>

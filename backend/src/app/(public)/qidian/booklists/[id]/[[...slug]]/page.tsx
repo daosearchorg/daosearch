@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 export const revalidate = 60;
-import Image from "next/image";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/shared/pagination";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
-import { getQidianBooklistDetail } from "@/lib/queries";
-import { slugify, bookUrl, booklistUrl, timeAgo } from "@/lib/utils";
-import { Users, LibraryBig, Clock3, Heart, ScrollText, Star, MessageSquareText } from "lucide-react";
+import { getQidianBooklistDetail, resolveTagsByDisplayName } from "@/lib/queries";
+import { slugify, booklistUrl, timeAgo } from "@/lib/utils";
+import { Users, LibraryBig, Clock3, Heart, MessageSquareText } from "lucide-react";
 import { BookCard } from "@/components/book/card";
 import { QidianBooklistFollow } from "@/components/booklist/qidian-follow";
 import { auth } from "@/auth";
@@ -69,6 +69,12 @@ export default async function BooklistDetailPage({ params, searchParams }: Props
   }
 
   const tags = booklist.tagsTranslated ?? booklist.tags;
+  // Resolve Qidian tag names to community-tag ids so each tag deep-links to
+  // /library?tag=<id>. Names without a community-tag match fall back to a
+  // booklist-level filter (/qidian/booklists?qtag=<name>).
+  const tagIdMap = tags && tags.length > 0
+    ? await resolveTagsByDisplayName(tags)
+    : new Map<string, number>();
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
@@ -114,14 +120,21 @@ export default async function BooklistDetailPage({ params, searchParams }: Props
           <p className="text-sm sm:text-base leading-relaxed text-muted-foreground whitespace-pre-line">{description}</p>
         )}
 
-        {/* Tags */}
+        {/* Tags — link to /library?tag=<id> when the Qidian tag matches a
+            community tag, else filter the Qidian booklist page by that tag. */}
         {tags && tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag, i) => (
-              <Badge key={tag} variant="secondary" className="font-normal">
-                {tag}
-              </Badge>
-            ))}
+            {tags.map((tag) => {
+              const id = tagIdMap.get(tag.toLowerCase());
+              const href = id != null
+                ? `/library?tag=${id}`
+                : `/qidian/booklists?qtag=${encodeURIComponent(tag)}`;
+              return (
+                <Badge key={tag} asChild variant="secondary" className="font-normal cursor-pointer">
+                  <Link href={href}>{tag}</Link>
+                </Badge>
+              );
+            })}
           </div>
         )}
       </div>

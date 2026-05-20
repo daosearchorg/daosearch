@@ -1,22 +1,84 @@
 import { db } from "@/db";
 import { books, genres, bookStats, bookLists, bookListItems, bookListFollows, booklistTags, tags, users, qidianBooklists, qidianBooklistItems, qidianBooklistFollows } from "@/db/schema";
 import { count } from "drizzle-orm";
-import { eq, and, sql, asc, desc, isNotNull, aliasedTable, inArray, type SQL } from "drizzle-orm";
-import { PAGINATION_SIZE } from "../constants";
+import { eq, and, or, gte, lte, ilike, sql, asc, desc, isNotNull, aliasedTable, inArray, arrayOverlaps, type SQL } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
+import { PAGINATION_SIZE, type BooklistSort } from "../constants";
+import { getRawQueryRows, getNumberValue, getStringValue } from "./feeds";
 
 // ============================================================================
 // Qidian booklist queries
 // ============================================================================
 
-const BOOKLISTS_PAGE_SIZE_FIRST = PAGINATION_SIZE;   // 49: 3 podium + 46 grid (even)
-const BOOKLISTS_PAGE_SIZE_REST = PAGINATION_SIZE - 1; // 48: even for 2-col grid
+const BOOKLISTS_PAGE_SIZE_FIRST = PAGINATION_SIZE - 1; // 49: 3 podium + 46 grid (even)
+const BOOKLISTS_PAGE_SIZE_REST = PAGINATION_SIZE - 2;  // 48: even for 2-col grid
 
-export type QidianBooklistSort = "popular" | "recent" | "largest";
+// Kept as an alias for callers that imported the legacy type name (homepage,
+// v1 API route). Functionally equivalent to BooklistSort.
+export type QidianBooklistSort = BooklistSort;
 
-export async function getQidianBooklists({ page, sort }: { page: number; sort: QidianBooklistSort }) {
+interface QidianBooklistFilters {
+  page: number;
+  sort: BooklistSort;
+  order?: "asc" | "desc";
+  name?: string;
+  tags?: string[];
+  minFollowers?: number;
+  maxFollowers?: number;
+  minBookCount?: number;
+  maxBookCount?: number;
+  updatedWithin?: number;
+}
+
+export async function getQidianBooklists({
+  page,
+  sort,
+  order = "desc",
+  name,
+  tags: tagFilter,
+  minFollowers,
+  maxFollowers,
+  minBookCount,
+  maxBookCount,
+  updatedWithin,
+}: QidianBooklistFilters) {
   const limit = page === 1 ? BOOKLISTS_PAGE_SIZE_FIRST : BOOKLISTS_PAGE_SIZE_REST;
   const offset = page === 1 ? 0 : BOOKLISTS_PAGE_SIZE_FIRST + (page - 2) * BOOKLISTS_PAGE_SIZE_REST;
-  const baseConditions = isNotNull(qidianBooklists.title);
+
+  const conditions: SQL[] = [isNotNull(qidianBooklists.title)];
+  if (name && name.trim()) {
+    const pat = `%${name.trim()}%`;
+    const titleMatch = or(
+      ilike(qidianBooklists.title, pat),
+      ilike(qidianBooklists.titleTranslated, pat),
+    );
+    if (titleMatch) conditions.push(titleMatch);
+  }
+  if (tagFilter && tagFilter.length > 0) {
+    // PG array overlap — match if any selected tag is present in tagsTranslated.
+    // `arrayOverlaps` emits `col && ARRAY[$1,$2,...]::text[]`, which is what
+    // we need; `sql\`...${tagFilter}::text[]\`` would flatten the array into
+    // separate positional params and break the cast.
+    conditions.push(arrayOverlaps(qidianBooklists.tagsTranslated, tagFilter));
+  }
+  if (minFollowers != null) {
+    conditions.push(sql`COALESCE(${qidianBooklists.followerCount}, 0) >= ${minFollowers}`);
+  }
+  if (maxFollowers != null) {
+    conditions.push(sql`COALESCE(${qidianBooklists.followerCount}, 0) <= ${maxFollowers}`);
+  }
+  if (minBookCount != null) {
+    conditions.push(sql`COALESCE(${qidianBooklists.bookCount}, 0) >= ${minBookCount}`);
+  }
+  if (maxBookCount != null) {
+    conditions.push(sql`COALESCE(${qidianBooklists.bookCount}, 0) <= ${maxBookCount}`);
+  }
+  if (updatedWithin) {
+    conditions.push(
+      sql`COALESCE(${qidianBooklists.lastUpdatedAt}, ${qidianBooklists.updatedAt}) >= NOW() - make_interval(days => ${updatedWithin})`,
+    );
+  }
+  const whereClause = and(...conditions)!;
 
   const matchedCounts = db
     .select({
@@ -27,22 +89,43 @@ export async function getQidianBooklists({ page, sort }: { page: number; sort: Q
     .groupBy(qidianBooklistItems.booklistId)
     .as("matched_counts");
 
-  const orderByMap: Record<QidianBooklistSort, SQL[]> = {
+  // Relevance ranks substring hits: exact > prefix > contains, breaking ties on
+  // followerCount. Used only when `name` is set; otherwise sort falls back to
+  // the structural orders below.
+  const lowerName = name?.trim().toLowerCase() ?? "";
+  const relevanceExpr = name
+    ? sql`(
+        CASE
+          WHEN LOWER(COALESCE(${qidianBooklists.titleTranslated}, ${qidianBooklists.title})) = ${lowerName} THEN 3
+          WHEN LOWER(COALESCE(${qidianBooklists.titleTranslated}, ${qidianBooklists.title})) LIKE ${`${lowerName}%`} THEN 2
+          ELSE 1
+        END
+      )`
+    : sql`0`;
+
+  const ord = (e: SQL) => (order === "asc" ? asc(e) : desc(e));
+
+  const orderByMap: Record<BooklistSort, SQL[]> = {
     popular: [
-      desc(sql`COALESCE(${qidianBooklists.followerCount}, 0)`),
+      ord(sql`COALESCE(${qidianBooklists.followerCount}, 0)`),
       desc(sql`COALESCE(${matchedCounts.matchedBookCount}, 0)`),
       desc(sql`COALESCE(${qidianBooklists.bookCount}, 0)`),
       desc(sql`COALESCE(${qidianBooklists.lastUpdatedAt}, ${qidianBooklists.updatedAt})`),
       desc(qidianBooklists.id),
     ],
     recent: [
-      desc(sql`COALESCE(${qidianBooklists.lastUpdatedAt}, ${qidianBooklists.updatedAt})`),
+      ord(sql`COALESCE(${qidianBooklists.lastUpdatedAt}, ${qidianBooklists.updatedAt})`),
       desc(sql`COALESCE(${qidianBooklists.followerCount}, 0)`),
       desc(qidianBooklists.id),
     ],
     largest: [
-      desc(sql`COALESCE(${qidianBooklists.bookCount}, 0)`),
+      ord(sql`COALESCE(${qidianBooklists.bookCount}, 0)`),
       desc(sql`COALESCE(${matchedCounts.matchedBookCount}, 0)`),
+      desc(sql`COALESCE(${qidianBooklists.followerCount}, 0)`),
+      desc(qidianBooklists.id),
+    ],
+    relevance: [
+      desc(relevanceExpr),
       desc(sql`COALESCE(${qidianBooklists.followerCount}, 0)`),
       desc(qidianBooklists.id),
     ],
@@ -67,14 +150,14 @@ export async function getQidianBooklists({ page, sort }: { page: number; sort: Q
       })
       .from(qidianBooklists)
       .leftJoin(matchedCounts, eq(qidianBooklists.id, matchedCounts.booklistId))
-      .where(baseConditions)
+      .where(whereClause)
       .orderBy(...orderByMap[sort])
       .limit(limit)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)` })
       .from(qidianBooklists)
-      .where(baseConditions),
+      .where(whereClause),
   ]);
 
   const booklistIds = items.map((item) => item.id);
@@ -218,30 +301,108 @@ export async function getQidianBooklistDetail(booklistId: number, page: number =
 // Community booklist queries
 // ============================================================================
 
-export type CommunityBooklistSort = "popular" | "recent" | "largest";
+// Alias for legacy callers.
+export type CommunityBooklistSort = BooklistSort;
 
-const COMMUNITY_BOOKLISTS_PAGE_SIZE_FIRST = PAGINATION_SIZE;
-const COMMUNITY_BOOKLISTS_PAGE_SIZE_REST = PAGINATION_SIZE - 1;
+// Matches the Qidian booklist pagination: 49 on page 1 (3 podium + 46 in
+// 2-col grid = 23 even rows), 48 on subsequent pages (24 even rows).
+const COMMUNITY_BOOKLISTS_PAGE_SIZE_FIRST = PAGINATION_SIZE - 1;
+const COMMUNITY_BOOKLISTS_PAGE_SIZE_REST = PAGINATION_SIZE - 2;
 
-export async function getCommunityBooklists({ page, sort }: { page: number; sort: CommunityBooklistSort }) {
+interface CommunityBooklistFilters {
+  page: number;
+  sort: BooklistSort;
+  order?: "asc" | "desc";
+  name?: string;
+  tagIds?: number[];
+  minFollowers?: number;
+  maxFollowers?: number;
+  minBookCount?: number;
+  maxBookCount?: number;
+  updatedWithin?: number;
+}
+
+export async function getCommunityBooklists({
+  page,
+  sort,
+  order = "desc",
+  name,
+  tagIds,
+  minFollowers,
+  maxFollowers,
+  minBookCount,
+  maxBookCount,
+  updatedWithin,
+}: CommunityBooklistFilters) {
   const limit = page === 1 ? COMMUNITY_BOOKLISTS_PAGE_SIZE_FIRST : COMMUNITY_BOOKLISTS_PAGE_SIZE_REST;
   const offset = page === 1 ? 0 : COMMUNITY_BOOKLISTS_PAGE_SIZE_FIRST + (page - 2) * COMMUNITY_BOOKLISTS_PAGE_SIZE_REST;
-  const baseConditions = eq(bookLists.isPublic, 1);
 
-  const orderByMap: Record<CommunityBooklistSort, SQL[]> = {
+  const conditions: SQL[] = [eq(bookLists.isPublic, 1)];
+  if (name && name.trim()) {
+    const pat = `%${name.trim()}%`;
+    const nameMatch = or(ilike(bookLists.name, pat), ilike(bookLists.description, pat));
+    if (nameMatch) conditions.push(nameMatch);
+  }
+  if (tagIds && tagIds.length > 0) {
+    // Same AND-semantics + 2-user threshold as the library books tag filter.
+    for (const tagId of tagIds) {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM booklist_tags blt
+        WHERE blt.list_id = ${bookLists.id} AND blt.tag_id = ${tagId}
+        GROUP BY blt.list_id
+        HAVING count(distinct blt.user_id) >= 2
+      )`);
+    }
+  }
+  if (minFollowers != null) {
+    conditions.push(gte(bookLists.followerCount, minFollowers));
+  }
+  if (maxFollowers != null) {
+    conditions.push(lte(bookLists.followerCount, maxFollowers));
+  }
+  if (minBookCount != null) {
+    conditions.push(gte(bookLists.itemCount, minBookCount));
+  }
+  if (maxBookCount != null) {
+    conditions.push(lte(bookLists.itemCount, maxBookCount));
+  }
+  if (updatedWithin) {
+    conditions.push(sql`${bookLists.updatedAt} >= NOW() - make_interval(days => ${updatedWithin})`);
+  }
+  const whereClause = and(...conditions)!;
+
+  const lowerName = name?.trim().toLowerCase() ?? "";
+  const relevanceExpr = name
+    ? sql`(
+        CASE
+          WHEN LOWER(${bookLists.name}) = ${lowerName} THEN 3
+          WHEN LOWER(${bookLists.name}) LIKE ${`${lowerName}%`} THEN 2
+          ELSE 1
+        END
+      )`
+    : sql`0`;
+
+  const ord = <T extends Parameters<typeof asc>[0]>(e: T) => (order === "asc" ? asc(e) : desc(e));
+
+  const orderByMap: Record<BooklistSort, SQL[]> = {
     popular: [
-      desc(bookLists.followerCount),
+      ord(bookLists.followerCount),
       desc(bookLists.itemCount),
       desc(bookLists.updatedAt),
       desc(bookLists.id),
     ],
     recent: [
-      desc(bookLists.updatedAt),
+      ord(bookLists.updatedAt),
       desc(bookLists.followerCount),
       desc(bookLists.id),
     ],
     largest: [
-      desc(bookLists.itemCount),
+      ord(bookLists.itemCount),
+      desc(bookLists.followerCount),
+      desc(bookLists.id),
+    ],
+    relevance: [
+      desc(relevanceExpr),
       desc(bookLists.followerCount),
       desc(bookLists.id),
     ],
@@ -262,14 +423,14 @@ export async function getCommunityBooklists({ page, sort }: { page: number; sort
       })
       .from(bookLists)
       .innerJoin(users, eq(bookLists.userId, users.id))
-      .where(baseConditions)
+      .where(whereClause)
       .orderBy(...orderByMap[sort])
       .limit(limit)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)` })
       .from(bookLists)
-      .where(baseConditions),
+      .where(whereClause),
   ]);
 
   const listIds = items.map((item) => item.id);
@@ -316,10 +477,10 @@ export async function getCommunityBooklists({ page, sort }: { page: number; sort
       .orderBy(desc(sql`count(distinct ${booklistTags.userId})`))
     : [];
 
-  const tagMap = new Map<number, { displayName: string; count: number }[]>();
+  const tagMap = new Map<number, { id: number; displayName: string; count: number }[]>();
   for (const row of listTagRows) {
     const current = tagMap.get(row.listId) ?? [];
-    if (current.length < 6) current.push({ displayName: row.displayName, count: Number(row.count) });
+    if (current.length < 6) current.push({ id: row.tagId, displayName: row.displayName, count: Number(row.count) });
     tagMap.set(row.listId, current);
   }
 
@@ -484,6 +645,34 @@ export async function getFollowedQidianBooklists(userId: number, page: number = 
     totalPages: Math.ceil(total / ACCOUNT_PAGE_SIZE),
   };
 }
+
+// ============================================================================
+// Tag cloud — feeds the Qidian tag-chip picker in the booklist filter bar.
+// Aggregates over the text[] tagsTranslated arrays across all Qidian booklists.
+// ============================================================================
+
+export const getQidianBooklistTagCloud = unstable_cache(
+  async () => {
+    const result = await db.execute(sql`
+      SELECT tag, COUNT(*)::int AS count
+      FROM (
+        SELECT unnest(tags_translated) AS tag
+        FROM qidian_booklists
+        WHERE tags_translated IS NOT NULL
+      ) t
+      WHERE tag IS NOT NULL AND tag <> ''
+      GROUP BY tag
+      ORDER BY count DESC, tag ASC
+      LIMIT 40
+    `);
+    return getRawQueryRows(result).map((r) => ({
+      tag: getStringValue(r.tag),
+      count: getNumberValue(r.count),
+    }));
+  },
+  ["qidian-booklist-tag-cloud"],
+  { revalidate: 3600 },
+);
 
 export async function getFollowedLists(userId: number, page: number = 1) {
   const offset = (page - 1) * ACCOUNT_PAGE_SIZE;

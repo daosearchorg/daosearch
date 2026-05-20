@@ -211,17 +211,18 @@ export function LibraryFilters({ primaryGenres, subgenres, genrePairs, popularTa
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Always visible: Title search + sort row */}
-      <div className="flex items-center gap-2">
+      {/* Always visible: Title search + sort row. Stacks on mobile so the
+          search input gets the full width; inline on desktop. */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         <Input
           placeholder="Search by title..."
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={onKeyDown}
-          className="h-10 flex-1"
+          className="h-10 sm:flex-1"
         />
         <Select value={sort} onValueChange={setSort}>
-          <SelectTrigger className="h-10 w-auto min-w-[9rem] shrink-0">
+          <SelectTrigger className="h-10 w-full sm:w-auto sm:min-w-[9rem] sm:shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -31,7 +31,7 @@ interface CommunityBooklistItem {
   ownerUsername: string;
   ownerAvatarUrl: string | null;
   previews: CommunityBooklistPreview[];
-  communityTags: { displayName: string; count: number }[];
+  communityTags: { id: number; displayName: string; count: number }[];
 }
 
 interface CommunityBooklistsListProps {
@@ -60,8 +60,8 @@ function CommunityBooklistCard({ item }: { item: CommunityBooklistItem }) {
       {item.communityTags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {item.communityTags.map((tag) => (
-            <Badge key={tag.displayName} variant="secondary" className="font-normal">
-              {tag.displayName}
+            <Badge key={tag.id} asChild variant="secondary" className="font-normal cursor-pointer">
+              <Link href={`/library?tag=${tag.id}`}>{tag.displayName}</Link>
             </Badge>
           ))}
         </div>

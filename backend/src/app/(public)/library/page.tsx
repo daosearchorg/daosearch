@@ -6,6 +6,7 @@ import { LIBRARY_SORT_OPTIONS, POPULARITY_PERIOD_OPTIONS } from "@/lib/constants
 import type { LibrarySort, PopularityPeriod } from "@/lib/constants";
 import { LibraryFilters } from "./filters";
 import { LibraryList } from "./library-list";
+import { LibraryTabs } from "@/components/layout/library-tabs";
 import { Pagination } from "@/components/shared/pagination";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 
@@ -104,10 +105,11 @@ export default async function LibraryPage({ searchParams }: Props) {
     <div className="flex flex-col gap-6 sm:gap-8">
       <ScrollToTop />
 
-      <div className="flex flex-col items-center gap-1.5 sm:gap-2 pt-2">
+      <div className="flex flex-col items-center gap-3 sm:gap-4 pt-2">
         <h1 className="text-2xl sm:text-4xl font-medium tracking-tight">Library</h1>
+        <LibraryTabs />
         <p className="text-muted-foreground">
-          Browse and search novels
+          Browse books and booklists
         </p>
       </div>
 

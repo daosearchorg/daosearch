@@ -40,9 +40,12 @@ interface BooklistItem {
 interface BooklistsListProps {
   items: BooklistItem[];
   showPodium?: boolean;
+  // Optional name→id map: when a Qidian tag matches a community tag, the badge
+  // links to /library?tag=<id>; otherwise it falls back to a booklist filter.
+  tagIdMap?: Map<string, number>;
 }
 
-function BooklistCard({ item }: { item: BooklistItem }) {
+function BooklistCard({ item, tagIdMap }: { item: BooklistItem; tagIdMap?: Map<string, number> }) {
   const title = item.titleTranslated || item.title || "Untitled booklist";
   const description = item.descriptionTranslated || item.description || "No description available yet.";
   const lastUpdated = item.lastUpdatedAt ?? item.updatedAt;
@@ -59,11 +62,18 @@ function BooklistCard({ item }: { item: BooklistItem }) {
 
       {item.tags && item.tags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {item.tags.slice(0, 6).map((tag, i) => (
-            <Badge key={tag} variant="secondary" className="font-normal">
-              {item.tagsTranslated?.[i] || tag}
-            </Badge>
-          ))}
+          {item.tags.slice(0, 6).map((tag, i) => {
+            const display = item.tagsTranslated?.[i] || tag;
+            const id = tagIdMap?.get(display.toLowerCase());
+            const href = id != null
+              ? `/library?tag=${id}`
+              : `/qidian/booklists?qtag=${encodeURIComponent(display)}`;
+            return (
+              <Badge key={tag} asChild variant="secondary" className="font-normal cursor-pointer">
+                <Link href={href}>{display}</Link>
+              </Badge>
+            );
+          })}
         </div>
       )}
 
@@ -84,12 +94,12 @@ function BooklistCard({ item }: { item: BooklistItem }) {
   );
 }
 
-export function BooklistsList({ items, showPodium = true }: BooklistsListProps) {
+export function BooklistsList({ items, showPodium = true, tagIdMap }: BooklistsListProps) {
   return (
     <BooklistsGrid
       items={items}
       showPodium={showPodium}
-      renderCard={(item) => <BooklistCard item={item} />}
+      renderCard={(item) => <BooklistCard item={item} tagIdMap={tagIdMap} />}
     />
   );
 }
