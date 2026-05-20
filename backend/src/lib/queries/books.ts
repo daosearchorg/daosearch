@@ -47,7 +47,7 @@ export const getBook = (id: number) =>
         .from(books)
         .leftJoin(genres, eq(books.genreId, genres.id))
         .leftJoin(subgenres, eq(books.subgenreId, subgenres.id))
-        .where(eq(books.id, id))
+        .where(and(eq(books.id, id), eq(books.dead, false)))
         .limit(1);
 
       return rows[0] ?? null;
@@ -192,6 +192,7 @@ export async function getBookCommunityRankings(bookId: number) {
     .leftJoin(genres, eq(books.genreId, genres.id))
     .where(
       and(
+        eq(books.dead, false),
         eq(genres.blacklisted, false),
         sql`COALESCE(${bookStats.readerCount}, 0) > ${bookRow.readerCount}`,
       ),
@@ -292,6 +293,7 @@ export async function getBookBooklists(bookId: number, page: number = 1) {
         and(
           inArray(qidianBooklistItems.booklistId, booklistIds),
           isNotNull(books.imageUrl),
+          eq(books.dead, false),
         ),
       )
       .orderBy(qidianBooklistItems.position)
@@ -375,7 +377,10 @@ export async function getBookRecommendations(qqIds: number[]) {
       qqScore: books.qqScore,
     })
     .from(books)
-    .where(inArray(books.url, qqIds.map((id) => `https://book.qq.com/book-detail/${id}`)))
+    .where(and(
+      inArray(books.url, qqIds.map((id) => `https://book.qq.com/book-detail/${id}`)),
+      eq(books.dead, false),
+    ))
     .limit(10);
 
   return rows;
@@ -422,7 +427,10 @@ export async function getBookRecommendationsWithStats(qqIds: number[]) {
     })
     .from(books)
     .leftJoin(bookStats, eq(books.id, bookStats.bookId))
-    .where(inArray(books.url, qqIds.map((id) => `https://book.qq.com/book-detail/${id}`)))
+    .where(and(
+      inArray(books.url, qqIds.map((id) => `https://book.qq.com/book-detail/${id}`)),
+      eq(books.dead, false),
+    ))
     .limit(10);
 
   return rows;
@@ -484,7 +492,7 @@ export async function getRecentBooks(limit: number = 50) {
     })
     .from(books)
     .leftJoin(genres, eq(books.genreId, genres.id))
-    .where(isNotNull(books.title))
+    .where(and(isNotNull(books.title), eq(books.dead, false)))
     .orderBy(desc(books.createdAt))
     .limit(limit);
 }
@@ -507,7 +515,7 @@ export const getPopularBooksForCompare = unstable_cache(
       .from(books)
       .leftJoin(genres, eq(books.genreId, genres.id))
       .leftJoin(bookStats, eq(books.id, bookStats.bookId))
-      .where(and(isNotNull(books.titleTranslated), isNotNull(books.imageUrl), eq(genres.blacklisted, false)))
+      .where(and(isNotNull(books.titleTranslated), isNotNull(books.imageUrl), eq(books.dead, false), eq(genres.blacklisted, false)))
       .orderBy(desc(bookStats.readerCount))
       .limit(12);
   },

@@ -44,7 +44,7 @@ export const getLibraryDefaultCount = unstable_cache(
       .select({ count: sql<number>`count(*)` })
       .from(books)
       .leftJoin(genres, eq(books.genreId, genres.id))
-      .where(and(isNotNull(books.title), eq(genres.blacklisted, false)));
+      .where(and(isNotNull(books.title), eq(books.dead, false), eq(genres.blacklisted, false)));
     return Number((result as { count: number }[])[0]?.count ?? 0);
   },
   ["library-default-count"],
@@ -65,6 +65,7 @@ export async function getLibraryBooks(params: LibraryParams) {
   // Build WHERE conditions
   const conditions: SQL[] = [
     isNotNull(books.title),
+    eq(books.dead, false),
     eq(genres.blacklisted, false),
   ];
 
@@ -289,6 +290,7 @@ export async function quickSearchBooks(query: string) {
     .where(
       and(
         isNotNull(books.title),
+        eq(books.dead, false),
         eq(genres.blacklisted, false),
         sql`(
           ${books.titleTranslated} ILIKE ${`%${term}%`}

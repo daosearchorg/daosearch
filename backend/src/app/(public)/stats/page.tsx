@@ -57,15 +57,6 @@ export default async function StatsPage() {
       details: "qidian.com chart entries",
     },
     {
-      label: "Qidian Mapping",
-      total: dbStats.qidianMapping.mapped,
-      details: (() => {
-        const { mapped, unmapped } = dbStats.qidianMapping;
-        const pct = mapped + unmapped > 0 ? Math.round((mapped / (mapped + unmapped)) * 100) : 0;
-        return `${formatNumber(mapped)} mapped, ${formatNumber(unmapped)} pending (${pct}%)`;
-      })(),
-    },
-    {
       label: "Booklists",
       total: dbStats.booklists.total,
       details: `${formatNumber(dbStats.booklists.translated)} translated, ${formatNumber(dbStats.booklists.items)} items`,

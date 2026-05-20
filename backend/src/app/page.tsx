@@ -778,17 +778,12 @@ export default async function Home() {
                             {comment.bookTitle || comment.bookTitleOriginal || "Untitled"}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            {comment.qqUserIconUrl ? (
-                              <Image
-                                src={comment.qqUserIconUrl}
-                                alt=""
-                                width={14}
-                                height={14}
-                                className="rounded-full size-3.5 object-cover shrink-0"
-                              />
-                            ) : (
-                              <div className="size-3.5 rounded-full bg-muted shrink-0" />
-                            )}
+                            <UserAvatar
+                              username={comment.qqUserNicknameTranslated || comment.qqUserNickname || "Anonymous"}
+                              avatarUrl={comment.qqUserIconUrl}
+                              className="size-3.5 shrink-0"
+                              fallbackClassName="text-[7px]"
+                            />
                             <span className="text-xs text-muted-foreground truncate">
                               {comment.qqUserNicknameTranslated || comment.qqUserNickname || "Anonymous"}
                             </span>

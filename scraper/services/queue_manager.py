@@ -34,6 +34,7 @@ class QueueManager:
         self.scraper_comments_queue = Queue('scraper-comments', connection=self.redis)
         self.scraper_mapping_queue = Queue('scraper-mapping', connection=self.redis)
         self.scraper_qidian_charts_queue = Queue('scraper-qidian-charts', connection=self.redis)
+        self.scraper_qidian_details_queue = Queue('scraper-qidian-details', connection=self.redis)
 
         self.maintenance_queue = Queue('maintenance', connection=self.redis)
         self.general_queue = Queue('general', connection=self.redis)
@@ -216,6 +217,29 @@ class QueueManager:
         ]
 
         enqueued = self.scraper_qidian_charts_queue.enqueue_many(job_data_list)
+        return len(enqueued)
+
+    def add_qidian_detail_jobs_bulk(self, qidian_ids: list[int]) -> int:
+        """Bulk enqueue qidian.com book-detail scrape jobs. Takes a list of
+        qidian_ids (NOT internal book ids — the worker looks up the book by
+        qidian_id itself)."""
+        if not qidian_ids:
+            return 0
+
+        job_data_list = [
+            Queue.prepare_data(
+                'workers.qidian_detail_scraper.scrape_qidian_book_detail',
+                args=(qid,),
+                job_id=f"scrape_qidian_detail_{qid}",
+                timeout='10m',
+                result_ttl=60,
+                failure_ttl=86400,
+                retry=Retry(max=2)
+            )
+            for qid in qidian_ids
+        ]
+
+        enqueued = self.scraper_qidian_details_queue.enqueue_many(job_data_list)
         return len(enqueued)
 
     def add_qidian_map_jobs_bulk(self, book_ids: list[int]) -> int:
@@ -446,7 +470,8 @@ class QueueManager:
     def _all_scraper_queues(self) -> list:
         return [self.scraper_charts_queue, self.scraper_books_queue,
                 self.scraper_booklists_queue, self.scraper_comments_queue,
-                self.scraper_mapping_queue, self.scraper_qidian_charts_queue]
+                self.scraper_mapping_queue, self.scraper_qidian_charts_queue,
+                self.scraper_qidian_details_queue]
 
     def is_job_in_queue(self, job_id: str, queue_name: str = 'scraper') -> bool:
         """Check if job exists in any RQ registry (pending, started, deferred)"""
@@ -457,6 +482,7 @@ class QueueManager:
             'scraper-comments': [self.scraper_comments_queue],
             'scraper-mapping': [self.scraper_mapping_queue],
             'scraper-qidian-charts': [self.scraper_qidian_charts_queue],
+            'scraper-qidian-details': [self.scraper_qidian_details_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
@@ -496,6 +522,7 @@ class QueueManager:
             'scraper-comments': [self.scraper_comments_queue],
             'scraper-mapping': [self.scraper_mapping_queue],
             'scraper-qidian-charts': [self.scraper_qidian_charts_queue],
+            'scraper-qidian-details': [self.scraper_qidian_details_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],
@@ -544,6 +571,7 @@ class QueueManager:
             'scraper-comments': self._queue_stats(self.scraper_comments_queue),
             'scraper-mapping': self._queue_stats(self.scraper_mapping_queue),
             'scraper-qidian-charts': self._queue_stats(self.scraper_qidian_charts_queue),
+            'scraper-qidian-details': self._queue_stats(self.scraper_qidian_details_queue),
             **translation_queues,
             'maintenance': self._queue_stats(self.maintenance_queue),
             'general': self._queue_stats(self.general_queue),
@@ -568,6 +596,7 @@ class QueueManager:
             'scraper-comments': [self.scraper_comments_queue],
             'scraper-mapping': [self.scraper_mapping_queue],
             'scraper-qidian-charts': [self.scraper_qidian_charts_queue],
+            'scraper-qidian-details': [self.scraper_qidian_details_queue],
             'scraper-charts': [self.scraper_charts_queue],
             'translation': self._all_translation_queues,
             'translation-books': [self.translation_books_queue],

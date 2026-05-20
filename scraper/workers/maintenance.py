@@ -597,6 +597,46 @@ class MaintenanceOrchestrator:
         return {'enqueued': enqueued, 'candidates': len(book_ids),
                 'skipped': skipped}
 
+    def find_qidian_stubs_needing_detail(self, limit: int = 5000) -> dict:
+        """Find qidian-native book stubs (auto-inserted by the charts/booklist
+        scrapers with only title+author+qidian_id+url) that still need their
+        detail-page enrichment (image_url, synopsis, word_count, status).
+
+        We target rows whose `url` lives on www.qidian.com (not book.qq.com)
+        AND that are missing both image_url and synopsis. Those two together
+        are a strong "never enriched" signal — qq books always come with
+        cover + synopsis from the qq scraper."""
+        queued_ids = self.queue_manager.get_all_job_ids('scraper-qidian-details')
+        skipped = 0
+        to_enqueue: list[int] = []
+
+        with db_manager.get_session() as session:
+            rows = session.query(Book.qidian_id).filter(
+                Book.qidian_id.isnot(None),
+                Book.url.like('https://www.qidian.com/%'),
+                Book.image_url.is_(None),
+                Book.synopsis.is_(None),
+                Book.dead.is_(False),
+            ).limit(limit).all()
+            candidate_qids = [r[0] for r in rows]
+
+        if not candidate_qids:
+            logger.info("No qidian stubs needing detail enrichment")
+            return {'enqueued': 0, 'candidates': 0, 'skipped': 0}
+
+        for qid in candidate_qids:
+            if f"scrape_qidian_detail_{qid}" in queued_ids:
+                skipped += 1
+                continue
+            to_enqueue.append(qid)
+
+        enqueued = self.queue_manager.add_qidian_detail_jobs_bulk(to_enqueue)
+        logger.info(
+            f"Qidian detail enrichment: {enqueued} enqueued, {skipped} skipped "
+            f"({len(candidate_qids)} candidates)")
+        return {'enqueued': enqueued, 'candidates': len(candidate_qids),
+                'skipped': skipped}
+
 
 
 # Worker functions for RQ
@@ -675,4 +715,12 @@ def refresh_qidian_booklists() -> dict:
     orchestrator = MaintenanceOrchestrator()
     result = orchestrator.refresh_qidian_booklists()
     logger.info(f"Qidian booklists refresh: {result}")
+    return result
+
+def check_qidian_stubs_needing_detail(limit: int = 5000) -> dict:
+    """Orchestrator task: Find qidian-native book stubs missing image/synopsis
+    and queue qidian.com detail-page scrapes."""
+    orchestrator = MaintenanceOrchestrator()
+    result = orchestrator.find_qidian_stubs_needing_detail(limit)
+    logger.info(f"Qidian stubs needing detail: {result}")
     return result

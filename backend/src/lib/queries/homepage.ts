@@ -35,6 +35,7 @@ async function getTopRatedBooksForHomepage() {
         sql`${books.qqScore} ~ '^[0-9]+\\.?[0-9]*$'`,
         sql`${books.qqScore}::float >= 8.0`,
         sql`COALESCE(${books.qqScoreCount}, 0) >= 100`,
+        eq(books.dead, false),
         sql`(${books.genreId} IS NULL OR ${genres.blacklisted} = false)`,
       ),
     )
@@ -64,6 +65,7 @@ async function getRecentlyUpdatedBooksForHomepage() {
       and(
         isNotNull(books.title),
         isNotNull(books.updateTime),
+        eq(books.dead, false),
         sql`(${books.genreId} IS NULL OR ${genres.blacklisted} = false)`,
       ),
     )
@@ -95,7 +97,7 @@ async function getLatestQidianCommentsForHomepage() {
     .from(bookComments)
     .innerJoin(qqUsers, eq(bookComments.qqUserId, qqUsers.id))
     .innerJoin(books, eq(bookComments.bookId, books.id))
-    .where(isNotNull(bookComments.contentTranslated))
+    .where(and(isNotNull(bookComments.contentTranslated), eq(books.dead, false)))
     .orderBy(desc(bookComments.commentCreatedAt))
     .limit(6);
   return items;

@@ -146,6 +146,7 @@ const QUEUE_NAMES = [
   "scraper-charts",
   "scraper-books",
   "scraper-qidian-charts",
+  "scraper-qidian-details",
   "scraper-mapping",
   "scraper-booklists",
   "scraper-comments",

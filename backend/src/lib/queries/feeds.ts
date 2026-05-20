@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { books, bookComments, qqUsers } from "@/db/schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and } from "drizzle-orm";
 import { PAGINATION_SIZE } from "../constants";
 
 // ============================================================================
@@ -75,6 +75,7 @@ export async function getLatestQidianComments(page: number = 1) {
       .from(bookComments)
       .innerJoin(qqUsers, eq(bookComments.qqUserId, qqUsers.id))
       .innerJoin(books, eq(bookComments.bookId, books.id))
+      .where(eq(books.dead, false))
       .orderBy(desc(bookComments.commentCreatedAt))
       .limit(FEED_PAGE_SIZE)
       .offset(offset),

@@ -174,7 +174,7 @@ export async function getQidianBooklists({
       })
       .from(qidianBooklistItems)
       .innerJoin(books, eq(qidianBooklistItems.bookId, books.id))
-      .where(inArray(qidianBooklistItems.booklistId, booklistIds))
+      .where(and(inArray(qidianBooklistItems.booklistId, booklistIds), eq(books.dead, false)))
       .orderBy(
         asc(qidianBooklistItems.booklistId),
         asc(sql`COALESCE(${qidianBooklistItems.position}, 2147483647)`),
@@ -272,7 +272,7 @@ export async function getQidianBooklistDetail(booklistId: number, page: number =
       .innerJoin(books, eq(qidianBooklistItems.bookId, books.id))
       .leftJoin(genre, eq(books.genreId, genre.id))
       .leftJoin(bookStats, eq(books.id, bookStats.bookId))
-      .where(eq(qidianBooklistItems.booklistId, booklistId))
+      .where(and(eq(qidianBooklistItems.booklistId, booklistId), eq(books.dead, false)))
       .orderBy(
         asc(sql`COALESCE(${qidianBooklistItems.position}, 2147483647)`),
         asc(qidianBooklistItems.id),
@@ -283,7 +283,7 @@ export async function getQidianBooklistDetail(booklistId: number, page: number =
       .select({ count: sql<number>`count(*)` })
       .from(qidianBooklistItems)
       .innerJoin(books, eq(qidianBooklistItems.bookId, books.id))
-      .where(eq(qidianBooklistItems.booklistId, booklistId)),
+      .where(and(eq(qidianBooklistItems.booklistId, booklistId), eq(books.dead, false))),
   ]);
 
   const total = Number(countResult[0]?.count ?? 0);
@@ -446,7 +446,7 @@ export async function getCommunityBooklists({
       })
       .from(bookListItems)
       .innerJoin(books, eq(bookListItems.bookId, books.id))
-      .where(inArray(bookListItems.listId, listIds))
+      .where(and(inArray(bookListItems.listId, listIds), eq(books.dead, false)))
       .orderBy(
         asc(bookListItems.listId),
         asc(bookListItems.addedAt),
@@ -567,14 +567,15 @@ export async function getCommunityBooklistDetail(listId: number, page: number = 
       .innerJoin(books, eq(bookListItems.bookId, books.id))
       .leftJoin(genre, eq(books.genreId, genre.id))
       .leftJoin(bookStats, eq(books.id, bookStats.bookId))
-      .where(eq(bookListItems.listId, listId))
+      .where(and(eq(bookListItems.listId, listId), eq(books.dead, false)))
       .orderBy(asc(bookListItems.addedAt), asc(bookListItems.id))
       .limit(COMMUNITY_BOOKLIST_DETAIL_PAGE_SIZE)
       .offset(offset),
     db
       .select({ count: sql<number>`count(*)` })
       .from(bookListItems)
-      .where(eq(bookListItems.listId, listId)),
+      .innerJoin(books, eq(bookListItems.bookId, books.id))
+      .where(and(eq(bookListItems.listId, listId), eq(books.dead, false))),
   ]);
 
   const total = Number(countResult[0]?.count ?? 0);

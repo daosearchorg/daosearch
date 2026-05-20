@@ -24,6 +24,7 @@ export async function getRankings({ gender, rankType, cycle, page, genreId }: Ra
     eq(qqChartEntries.gender, gender),
     eq(qqChartEntries.rankType, rankType),
     eq(qqChartEntries.cycle, cycle),
+    eq(books.dead, false),
   ];
   if (genreId) {
     conditionList.push(eq(books.genreId, genreId));
@@ -174,7 +175,7 @@ export async function getCommunityRankings({ period, page, genreId }: { period: 
   const offset = (page - 1) * COMMUNITY_PAGE_SIZE;
   const cutoff = getCutoffDate(period);
 
-  const baseConditions: SQL[] = [eq(genres.blacklisted, false)];
+  const baseConditions: SQL[] = [eq(books.dead, false), eq(genres.blacklisted, false)];
   if (genreId) baseConditions.push(eq(books.genreId, genreId));
   const whereClause = and(...baseConditions)!;
 
@@ -298,6 +299,7 @@ export async function getQidianRankingGenres(gender: string, rankType: string, c
     .innerJoin(books, eq(books.genreId, genres.id))
     .innerJoin(qqChartEntries, eq(qqChartEntries.bookId, books.id))
     .where(and(
+      eq(books.dead, false),
       eq(genres.blacklisted, false),
       eq(qqChartEntries.gender, gender),
       eq(qqChartEntries.rankType, rankType),

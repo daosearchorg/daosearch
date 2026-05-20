@@ -20,7 +20,7 @@ SPAWN_DELAY = 2  # seconds between batches
 WORKER_QUEUES = {
     # Priority order (RQ drains left->right). Qidian mapping + charts are
     # major one-time/periodic jobs, prioritised above booklists & comments.
-    'scraper': ['scraper-charts', 'scraper-books', 'scraper-qidian-charts', 'scraper-mapping', 'scraper-booklists', 'scraper-comments'],
+    'scraper': ['scraper-charts', 'scraper-books', 'scraper-qidian-charts', 'scraper-qidian-details', 'scraper-mapping', 'scraper-booklists', 'scraper-comments'],
     'translation': ['translation-books', 'translation-booklists', 'translation-comments', 'translation-nicknames', 'translation-chapters'],
     'maintenance': ['maintenance'],
     'general': ['general'],

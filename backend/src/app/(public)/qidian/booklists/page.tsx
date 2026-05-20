@@ -11,7 +11,6 @@ import {
 } from "@/lib/constants";
 import { BooklistFilters } from "@/components/booklist/booklist-filters";
 import { BooklistsList } from "./booklists-list";
-import { LibraryTabs } from "@/components/layout/library-tabs";
 
 const VALID_SORTS = new Set<BooklistSort>(BOOKLIST_SORT_OPTIONS.map((o) => o.value));
 
@@ -114,11 +113,10 @@ export default async function QidianBooklistsPage({ searchParams }: Props) {
     <div className="flex flex-col gap-6 sm:gap-8">
       <ScrollToTop />
 
-      <div className="flex flex-col items-center gap-3 sm:gap-4 pt-2">
-        <h1 className="text-2xl sm:text-4xl font-medium tracking-tight">Library</h1>
-        <LibraryTabs />
+      <div className="flex flex-col items-center gap-1.5 sm:gap-2 pt-2">
+        <h1 className="text-2xl sm:text-4xl font-medium tracking-tight">Booklists</h1>
         <p className="text-muted-foreground">
-          Browse books and booklists
+          Browse and search booklists
         </p>
       </div>
 

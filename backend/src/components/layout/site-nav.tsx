@@ -20,7 +20,7 @@ const NAV_LINKS = [
   { href: "/library", label: "Library", icon: Library },
   { href: "/qidian/rankings", label: "Rankings", icon: Trophy },
   { href: "/qidian/booklists", label: "Booklists", icon: ListOrdered },
-  { href: "/daosearch/feed", label: "Feed", icon: Rss },
+  { href: "/qidian/feed", label: "Feed", icon: Rss },
   { href: "/compare", label: "Compare", icon: ArrowRightLeft },
 ];
 
@@ -28,7 +28,7 @@ function isLinkActive(pathname: string, href: string, label: string) {
   if (label === "Booklists") return pathname.startsWith("/qidian/booklists") || pathname.startsWith("/daosearch/booklists");
   return pathname.startsWith(href) ||
     (label === "Rankings" && (pathname.startsWith("/qidian/rankings") || pathname.startsWith("/qq/rankings") || pathname.startsWith("/daosearch/rankings"))) ||
-    (label === "Feed" && pathname.startsWith("/qidian/feed"));
+    (label === "Feed" && pathname.startsWith("/daosearch/feed"));
 }
 
 export function SiteNav() {

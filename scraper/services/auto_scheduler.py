@@ -33,6 +33,7 @@ class AutoScheduler:
             'booklist_missing_translations': 0,
             'map_qidian_ids': 0,
             'refresh_qidian_charts': 0,
+            'qidian_stubs_detail': 0,
         }
 
     def _schedule_if_due(self):
@@ -150,6 +151,20 @@ class AutoScheduler:
                 self.last_runs['refresh_qidian_charts'] = current_time
             except Exception as e:
                 logger.error(f"Failed to schedule Qidian charts refresh: {e}")
+
+        # Enrich qidian-native stubs every 6 hours. These are books that
+        # exist only on qidian.com (no book.qq.com equivalent) — the qq
+        # scraper can't touch them, so a dedicated qidian-detail scraper
+        # fills in image_url / synopsis / word_count / status from the
+        # qidian.com book page itself.
+        if current_time - self.last_runs['qidian_stubs_detail'] >= 21600:
+            try:
+                job_id = self.queue_manager.add_maintenance_job(
+                    'check_qidian_stubs_needing_detail', limit=5000)
+                logger.info(f"Scheduled qidian stubs detail enrichment: {job_id}")
+                self.last_runs['qidian_stubs_detail'] = current_time
+            except Exception as e:
+                logger.error(f"Failed to schedule qidian stubs detail task: {e}")
 
 
     def _run_loop(self):

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { bookUrl, timeAgo } from "@/lib/utils";
+import { UserAvatar } from "@/components/layout/user-avatar";
 
 interface FeedComment {
   id: number;
@@ -53,17 +54,12 @@ function FeedItem({ comment }: { comment: FeedComment }) {
         </div>
 
         <div className="flex items-center gap-1.5 mt-1">
-          {comment.qqUserIconUrl ? (
-            <Image
-              src={comment.qqUserIconUrl}
-              alt=""
-              width={18}
-              height={18}
-              className="rounded-full size-4 sm:size-[18px] object-cover shrink-0"
-            />
-          ) : (
-            <div className="size-4 sm:size-[18px] rounded-full bg-muted shrink-0" />
-          )}
+          <UserAvatar
+            username={comment.qqUserNicknameTranslated || comment.qqUserNickname || "Anonymous"}
+            avatarUrl={comment.qqUserIconUrl}
+            className="size-4 sm:size-[18px] shrink-0"
+            fallbackClassName="text-[8px]"
+          />
           <span className="text-xs sm:text-sm text-muted-foreground truncate">
             {comment.qqUserNicknameTranslated || comment.qqUserNickname || "Anonymous"}
           </span>
